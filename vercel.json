@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "comment": "Cron jobs are run via GitHub Actions (see .github/workflows/) — Hobby tier only allows daily Vercel Cron, which isn't useful for our every-5-min sync. Move to vercel `crons` config and remove the workflows if you upgrade to Pro.",
   "functions": {
     "app/api/cron/sync-all/route.ts": {
       "maxDuration": 300
