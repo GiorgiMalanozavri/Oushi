@@ -20,8 +20,43 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  title: "Oushi",
-  description: "An inbox that learns what you care about and hides the rest.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  title: {
+    default: "Oushi — An inbox that won't let you forget.",
+    template: "%s · Oushi",
+  },
+  description: "Oushi reads your email, remembers what matters across every thread, and writes replies that sound like you.",
+  manifest: "/manifest.json",
+  applicationName: "Oushi",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Oushi",
+  },
+  openGraph: {
+    type: "website",
+    title: "Oushi — An inbox that won't let you forget.",
+    description: "Oushi reads your email, remembers what matters across every thread, and writes replies that sound like you.",
+    siteName: "Oushi",
+    images: [
+      {
+        url: "/logo/app-icon-1024.svg",
+        width: 1024,
+        height: 1024,
+        alt: "Oushi",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Oushi",
+    description: "An inbox that won't let you forget.",
+    images: ["/logo/app-icon-1024.svg"],
+  },
+};
+
+export const viewport = {
+  themeColor: "#FAF6EB",
 };
 
 export default function RootLayout({

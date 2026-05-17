@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion, type Variants, useInView } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { OushiMark } from "@/components/oushi-mark";
 import {
   ArrowRight,
   Sparkles,
@@ -52,9 +53,7 @@ export default function LandingPage() {
       <header className="sticky top-4 z-30 px-4 sm:px-6">
         <nav className="max-w-3xl mx-auto rounded-full border border-[#E6DCC4] bg-[#FFFCF3]/90 backdrop-blur-md shadow-[0_8px_28px_-12px_rgba(94,143,191,0.18)] pl-4 pr-2 py-2 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 px-1">
-            <div className="w-6 h-6 rounded-md bg-[#5E8FBF] flex items-center justify-center">
-              <span className="text-white text-[12px] font-semibold leading-none">O</span>
-            </div>
+            <OushiMark size={24} />
             <span className="text-[15px] font-semibold tracking-tight">Oushi</span>
           </Link>
           <div className="hidden sm:flex items-center gap-7">
@@ -462,9 +461,7 @@ function HeroPreview() {
       <div className="grid grid-cols-[170px_1fr] sm:grid-cols-[200px_1fr]">
         <div className="border-r border-[#E6DCC4]/80 bg-[#FFFCF3] p-3 hidden sm:block">
           <div className="flex items-center gap-1.5 mb-4 px-1">
-            <div className="w-5 h-5 rounded bg-[#5E8FBF] flex items-center justify-center">
-              <span className="text-white text-[10px] font-semibold">O</span>
-            </div>
+            <OushiMark size={20} />
             <span className="text-[12px] font-semibold">Oushi</span>
           </div>
           <SidebarItem label="Today" active />

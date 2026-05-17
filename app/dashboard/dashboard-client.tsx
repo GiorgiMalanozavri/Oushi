@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import type { Classified } from "@/lib/outstanding";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { OushiMark } from "@/components/oushi-mark";
 
 interface Profile {
   bio: string;
@@ -711,9 +712,7 @@ function Sidebar({
       {/* Top: logo + collapse */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#E6DCC4]">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-[#5E8FBF] flex items-center justify-center">
-            <span className="text-white text-[12px] font-semibold leading-none">O</span>
-          </div>
+          <OushiMark size={24} />
           <span className="text-[15px] font-semibold tracking-tight text-[#2A2520]">Oushi</span>
         </div>
         <button onClick={onCollapse} className="text-[#A89F92] hover:text-[#2A2520] p-1 rounded transition-colors">

@@ -1,0 +1,28 @@
+{
+  "name": "Oushi",
+  "short_name": "Oushi",
+  "description": "An inbox that won't let you forget.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF6EB",
+  "theme_color": "#5E8FBF",
+  "icons": [
+    {
+      "src": "/logo/favicon-16.svg",
+      "sizes": "16x16",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/logo/favicon-32.svg",
+      "sizes": "32x32",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/logo/app-icon-1024.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Check, X, Sparkles } from "lucide-react";
+import { OushiMark } from "@/components/oushi-mark";
 
 interface Category {
   label: string;
@@ -360,9 +361,7 @@ function Shell({ children, wide = false }: { children: React.ReactNode; wide?: b
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-[#5E8FBF] flex items-center justify-center">
-            <span className="text-white text-[13px] font-semibold leading-none">O</span>
-          </div>
+          <OushiMark size={28} />
           <span className="text-[16px] font-semibold tracking-tight">Oushi</span>
         </div>
       </header>

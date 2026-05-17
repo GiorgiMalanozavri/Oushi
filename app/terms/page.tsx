@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { OushiMark } from "@/components/oushi-mark";
 
 export const metadata = {
   title: "Terms of Service · Oushi",
@@ -564,9 +565,7 @@ function LegalHeader() {
     <header className="border-b border-[#E6DCC4]/60 bg-[#FAF6EB]/80 backdrop-blur sticky top-0 z-20">
       <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-[#5E8FBF] flex items-center justify-center">
-            <span className="text-white text-[12px] font-semibold leading-none">O</span>
-          </div>
+          <OushiMark size={24} />
           <span className="text-[15px] font-semibold tracking-tight">Oushi</span>
         </Link>
         <Link href="/" className="inline-flex items-center gap-1 text-[13px] text-[#766E63] hover:text-[#3D6A95] transition-colors">
