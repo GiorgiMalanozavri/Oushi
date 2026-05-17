@@ -32,6 +32,7 @@ import {
 import type { Classified } from "@/lib/outstanding";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { OushiMark } from "@/components/oushi-mark";
+import { AmbientBackground } from "@/components/ambient-bg";
 
 interface Profile {
   bio: string;
@@ -372,6 +373,7 @@ export function DashboardClient({
 
   return (
     <div className="h-screen bg-[#FAF6EB] text-[#2A2520] overflow-hidden flex relative">
+      <AmbientBackground variant="subtle" />
       {/* Mobile backdrop */}
       <AnimatePresence>
         {sidebarOpen && isMobile && (
@@ -395,7 +397,7 @@ export function DashboardClient({
             animate={isMobile ? { x: 0, opacity: 1 } : { width: 260, opacity: 1 }}
             exit={isMobile ? { x: -260, opacity: 1 } : { width: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-            className={`shrink-0 h-full flex flex-col border-r border-[#E6DCC4] bg-[#FFFCF3] overflow-hidden ${
+            className={`shrink-0 h-full flex flex-col border-r border-[#E6DCC4] bg-[#FFFCF3] overflow-hidden relative z-10 ${
               isMobile ? "fixed z-40 w-[260px] shadow-2xl" : ""
             }`}
             style={isMobile ? {} : { width: 260 }}
@@ -427,7 +429,7 @@ export function DashboardClient({
       </AnimatePresence>
 
       {/* Main */}
-      <main className="flex-1 h-full overflow-y-auto">
+      <main className="flex-1 h-full overflow-y-auto relative z-10">
         {!sidebarOpen && (
           <button
             onClick={() => setSidebarOpen(true)}
@@ -710,11 +712,11 @@ function Sidebar({
   return (
     <div className="h-full flex flex-col" style={{ width: 260 }}>
       {/* Top: logo + collapse */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#E6DCC4]">
-        <div className="flex items-center gap-2">
-          <OushiMark size={24} />
-          <span className="text-[15px] font-semibold tracking-tight text-[#2A2520]">Oushi</span>
-        </div>
+      <div className="flex items-center justify-between px-4 py-4 border-b border-[#E6DCC4]">
+        <Link href="/dashboard" className="flex items-center gap-2.5 group">
+          <OushiMark size={28} />
+          <span className="text-[17px] font-semibold tracking-[-0.02em] text-[#2A2520] group-hover:text-[#3D6A95] transition-colors">Oushi</span>
+        </Link>
         <button onClick={onCollapse} className="text-[#A89F92] hover:text-[#2A2520] p-1 rounded transition-colors">
           <PanelLeftClose className="w-4 h-4" />
         </button>

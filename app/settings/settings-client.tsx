@@ -28,6 +28,8 @@ import {
   Menu,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { OushiMark } from "@/components/oushi-mark";
+import { AmbientBackground } from "@/components/ambient-bg";
 
 interface Profile {
   bio: string;
@@ -322,6 +324,7 @@ export function SettingsClient({
 
   return (
     <div className="h-screen bg-[#FAF6EB] text-[#2A2520] overflow-hidden flex relative">
+      <AmbientBackground variant="subtle" />
       {/* Mobile backdrop */}
       <AnimatePresence>
         {sidebarOpen && isMobile && (
@@ -345,24 +348,28 @@ export function SettingsClient({
             animate={isMobile ? { x: 0 } : { width: 260, opacity: 1 }}
             exit={isMobile ? { x: -260 } : { width: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-            className={`shrink-0 h-full flex flex-col border-r border-[#E6DCC4] bg-[#FFFCF3] overflow-hidden ${
+            className={`shrink-0 h-full flex flex-col border-r border-[#E6DCC4] bg-[#FFFCF3] overflow-hidden relative z-10 ${
               isMobile ? "fixed z-40 w-[260px] shadow-2xl" : ""
             }`}
             style={isMobile ? {} : { width: 260 }}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#E6DCC4]">
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#2A2520] transition-colors"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                Back to inbox
+            <div className="flex items-center justify-between px-4 py-4 border-b border-[#E6DCC4]">
+              <Link href="/dashboard" className="flex items-center gap-2.5 group">
+                <OushiMark size={28} />
+                <span className="text-[17px] font-semibold tracking-[-0.02em] text-[#2A2520] group-hover:text-[#3D6A95] transition-colors">Oushi</span>
               </Link>
             </div>
 
-            <div className="px-4 py-4">
-              <p className="text-[20px] font-semibold tracking-tight text-[#2A2520]">Settings</p>
-              <p className="text-[12px] text-[#766E63] mt-0.5 truncate">{userEmail}</p>
+            <div className="px-4 py-4 border-b border-[#E6DCC4]">
+              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#A89F92] mb-1">Settings</p>
+              <p className="text-[14px] font-medium text-[#2A2520] truncate">{userEmail}</p>
+              <Link
+                href="/dashboard"
+                className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-[#766E63] hover:text-[#3D6A95] transition-colors"
+              >
+                <ChevronLeft className="w-3 h-3" />
+                Back to inbox
+              </Link>
             </div>
 
             <nav className="flex-1 overflow-y-auto px-3 pb-3">
@@ -389,7 +396,7 @@ export function SettingsClient({
       </AnimatePresence>
 
       {/* Main */}
-      <main className="flex-1 h-full overflow-y-auto">
+      <main className="flex-1 h-full overflow-y-auto relative z-10">
         {/* Mobile top bar */}
         {isMobile && (
           <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b border-[#E6DCC4] bg-[#FAF6EB]/95 backdrop-blur">

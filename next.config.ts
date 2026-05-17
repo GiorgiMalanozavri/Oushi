@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Hide the "N" Next.js dev indicator in the corner of pages
+  devIndicators: false,
 };
 
 export default nextConfig;
