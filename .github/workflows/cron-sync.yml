@@ -1,0 +1,33 @@
+name: Sync inboxes
+
+# Runs every 5 minutes (best-effort — GitHub may delay during high load).
+# This replaces Vercel Cron, which on Hobby tier is limited to daily runs.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: # allow manual trigger from Actions UI
+
+# Avoid stacking up sync runs if one is already in progress
+concurrency:
+  group: sync-inboxes
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping sync-all endpoint
+        run: |
+          response=$(curl -sS -w "\nHTTP %{http_code}" \
+            -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "User-Agent: github-actions-cron" \
+            "${{ vars.APP_URL }}/api/cron/sync-all")
+          echo "$response"
+          status=$(echo "$response" | grep -oP 'HTTP \K\d+' | tail -1)
+          if [ "$status" != "200" ]; then
+            echo "::error::Sync failed with HTTP $status"
+            exit 1
+          fi
