@@ -1,0 +1,355 @@
+import { createAnthropicClient, extractJson } from "@/lib/claude";
+import { createServiceClient } from "@/lib/supabase/server";
+import { prefilter } from "@/lib/prefilter";
+import {
+  getActiveMemories,
+  formatMemoriesForPrompt,
+  saveExtractedMemories,
+  type ExtractedMemory,
+} from "@/lib/memory";
+
+const RANKING_SYSTEM = `You are a personal email triage assistant. You rank emails based on a specific user's profile AND surface the specific reason a user might care.
+
+Output ONLY valid JSON in this exact shape:
+{
+  "score": <integer 0-100>,
+  "category": "critical" | "useful" | "low_priority" | "noise",
+  "reasoning": "<one sentence, max 15 words — internal note about WHY you scored this way>",
+  "requires_action": <boolean>,
+  "highlight": "<null OR one sentence, max 25 words — what specifically in this email matches the user's interests/priorities. Speak directly to the user. Return null if nothing specifically matches.>",
+  "matched_interests": [<array of strings, the user's exact interest/priority tags this email maps to. Empty array if no match.>],
+  "matched_topics": [<array of strings, the user's exact TOPIC BOARD names this email belongs to. Use the names verbatim from the "USER TOPICS" list. An email can belong to multiple topics. Empty array if none apply.>],
+  "suggested_action": {
+    "label": "<short imperative button label, max 4 words — e.g. 'Reply yes', 'Add to calendar', 'Save booking number', 'Confirm interview Thursday', 'Forward to team'>",
+    "type": "reply" | "calendar" | "save" | "open" | "ignore",
+    "detail": "<one-line specific suggestion, max 20 words — e.g. 'Reply: Thursday 2pm works for me.' or 'Save confirmation #MYE8MC for your trip on May 12.' Use null if no clear action.>"
+  },
+  "memories": [
+    {
+      "kind": "person" | "project" | "commitment" | "deadline" | "preference" | "context",
+      "subject": "<short entity name, max 60 chars — canonical form, e.g. 'Maya Chen' not 'Maya'>",
+      "content": "<one sentence, max 200 chars — the durable fact to remember>",
+      "ttl_days": <integer days this memory stays valid; 30 / 90 / 365 typical>
+    }
+  ]
+}
+
+Memory extraction rules (this is the most important part):
+- Most emails should yield 0-2 memories. Many yield none. Be conservative.
+- Extract ONLY things that are TRUE and explicitly in this email. NEVER invent or speculate.
+- DO extract: human relationships and their roles, ongoing projects, commitments the user made, deadlines mentioned, user preferences expressed, durable context about the user's life.
+- DO NOT extract: login alerts, promotional content, generic newsletter facts, anything trivial or auto-generated, anything from automated senders.
+- Subjects must be canonical and specific: "Maya Chen — Verge editor" not "Maya". "Berlin AI conference CFP" not "the conference".
+- ttl_days: for deadlines, set to days until deadline. People/projects: 90. Preferences/context: 365. Commitments: until the deadline mentioned.
+
+Example good memories (DON'T copy these unless they apply):
+- {"kind":"person","subject":"Maya Chen","content":"Editor at The Verge, prefers weekly drafts by Thursday","ttl_days":90}
+- {"kind":"deadline","subject":"Berlin AI conference CFP","content":"Proposal deadline May 22, $500 honorarium","ttl_days":14}
+- {"kind":"commitment","subject":"Q3 contract response","content":"Agreed to send signed contract back by May 20","ttl_days":21}
+- {"kind":"context","subject":"NYC trip","content":"Traveling June 4-8, staying with sister","ttl_days":60}
+
+Scoring guide:
+- 90-100: time-sensitive AND directly relevant (interview, deadline, project update from someone they work with)
+- 75-89: directly relevant but not urgent (newsletter on a core interest, opportunity matching their profile)
+- 50-74: tangentially useful (general updates from orgs they're in)
+- 25-49: low signal but not noise (broad announcements)
+- 0-24: noise (promotions, automated receipts, irrelevant marketing)
+
+Highlight rules:
+- Only write a highlight if there's a SPECIFIC connection to the user's interests/priorities. Vague matches get null.
+- Quote or paraphrase the specific thing in the email that matches.
+- NEVER write a highlight for login alerts, receipts, or routine automated emails.
+- matched_interests must use the EXACT strings from the user's interests/priorities list, not paraphrases.
+
+Be honest. Most emails should score under 50.`;
+
+interface UserProfile {
+  bio: string;
+  interests: string[];
+  priorities: string[];
+  noise: string[];
+}
+
+interface EmailToRank {
+  id: string;
+  from_name: string;
+  from_email: string;
+  subject: string;
+  body_preview: string | null;
+  snippet: string;
+}
+
+interface SuggestedAction {
+  label: string;
+  type: "reply" | "calendar" | "save" | "open" | "ignore";
+  detail: string | null;
+}
+
+interface UserTopic {
+  name: string;
+  description: string | null;
+}
+
+interface RankingResult {
+  score: number;
+  category: "critical" | "useful" | "low_priority" | "noise";
+  reasoning: string;
+  requires_action: boolean;
+  highlight: string | null;
+  matched_interests: string[];
+  matched_topics: string[];
+  suggested_action: SuggestedAction | null;
+  memories?: ExtractedMemory[];
+}
+
+async function rankEmail(
+  profile: UserProfile,
+  email: EmailToRank,
+  feedbackContext: string,
+  topics: UserTopic[] = [],
+  memoryBlock: string = ""
+): Promise<RankingResult> {
+  const topicsBlock = topics.length > 0
+    ? `\nUSER TOPICS (boards the user wants emails sorted into — one email can match multiple, or none):\n${topics.map((t) => `- "${t.name}"${t.description ? `: ${t.description}` : ""}`).join("\n")}`
+    : `\nUSER TOPICS: (none defined — return empty matched_topics array)`;
+
+  const userMsg = `USER PROFILE:
+Bio: ${profile.bio}
+Interests: ${profile.interests.join(", ")}
+What they always care about: ${profile.priorities.join(", ")}
+What they consider noise: ${profile.noise.join(", ")}
+${topicsBlock}
+${memoryBlock ? `\n${memoryBlock}` : ""}
+${feedbackContext ? `\nPAST FEEDBACK (use to calibrate):\n${feedbackContext}` : ""}
+
+EMAIL:
+From: ${email.from_name} <${email.from_email}>
+Subject: ${email.subject}
+Preview: ${email.body_preview?.slice(0, 500) || email.snippet}
+
+Rank this email for this user, and extract any durable memories.`;
+
+  const client = createAnthropicClient();
+  let response;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      response = await client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 800,
+        system: RANKING_SYSTEM,
+        messages: [{ role: "user", content: userMsg }],
+      });
+      break;
+    } catch (err) {
+      if (attempt === 2) throw err;
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    }
+  }
+
+  const rawText =
+    response!.content[0].type === "text" ? response!.content[0].text : "";
+  return JSON.parse(extractJson(rawText));
+}
+
+export async function rankUnrankedEmails(userId: string) {
+  const supabase = await createServiceClient();
+
+  const { data: profile } = await supabase
+    .from("user_profile")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  if (!profile) throw new Error("No user profile found");
+
+  const { data: userTopics } = await supabase
+    .from("user_topics")
+    .select("name, description")
+    .eq("user_id", userId)
+    .order("position", { ascending: true });
+
+  const topics: UserTopic[] = (userTopics || []).map((t) => ({
+    name: t.name,
+    description: t.description,
+  }));
+
+  // Load active memories once and inject as a single block on every email
+  const activeMemories = await getActiveMemories(supabase, userId, 50);
+  const memoryBlock = formatMemoriesForPrompt(activeMemories);
+
+  // Only rank emails that have NO score AND have NO feedback
+  const { data: feedbackEmailIds } = await supabase
+    .from("feedback")
+    .select("email_id")
+    .eq("user_id", userId);
+
+  const feedbackSet = new Set(
+    (feedbackEmailIds || []).map((f) => f.email_id)
+  );
+
+  const { data: unranked } = await supabase
+    .from("emails")
+    .select("id, from_name, from_email, subject, body_preview, snippet")
+    .eq("user_id", userId)
+    .is("score", null)
+    .order("received_at", { ascending: false });
+
+  const toRank = (unranked || []).filter((e) => !feedbackSet.has(e.id));
+  if (toRank.length === 0) return 0;
+
+  // Build feedback context from history
+  const { data: recentFeedback } = await supabase
+    .from("feedback")
+    .select("signal, emails(from_email, subject, score, category)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  let feedbackContext = "";
+  if (recentFeedback && recentFeedback.length > 0) {
+    const lines = recentFeedback
+      .filter((f) => {
+        const emails = f.emails as unknown;
+        return emails !== null;
+      })
+      .map((f) => {
+        const e = f.emails as unknown as Record<string, unknown>;
+        return `- User ${f.signal === "upvote" ? "LIKED" : "DISLIKED"}: "${e.subject}" from ${e.from_email} (was scored ${e.score}, ${e.category})`;
+      });
+    feedbackContext = lines.join("\n");
+  }
+
+  // Build sender reputation from feedback
+  const { data: allFeedback } = await supabase
+    .from("feedback")
+    .select("signal, emails(from_email)")
+    .eq("user_id", userId);
+
+  const senderRep: Record<string, number> = {};
+  if (allFeedback) {
+    for (const f of allFeedback) {
+      const e = f.emails as unknown as Record<string, unknown> | null;
+      if (!e?.from_email) continue;
+      const sender = e.from_email as string;
+      if (!senderRep[sender]) senderRep[sender] = 0;
+      senderRep[sender] += f.signal === "upvote" ? 1 : -1;
+    }
+  }
+
+  // Pre-filter cheap noise — write directly without calling Claude
+  const prefiltered: Array<{ id: string } & RankingResult> = [];
+  const needsClaude: typeof toRank = [];
+  for (const email of toRank) {
+    const pre = prefilter(email);
+    if (pre) {
+      prefiltered.push({
+        id: email.id,
+        ...pre,
+        highlight: null,
+        matched_interests: [],
+        matched_topics: [],
+        suggested_action: null,
+      });
+    } else {
+      needsClaude.push(email);
+    }
+  }
+
+  let ranked = 0;
+  for (const result of prefiltered) {
+    await supabase
+      .from("emails")
+      .update({
+        score: result.score,
+        category: result.category,
+        reasoning: result.reasoning,
+        requires_action: result.requires_action,
+      })
+      .eq("id", result.id);
+    ranked++;
+  }
+
+  const batchSize = 10;
+  for (let i = 0; i < needsClaude.length; i += batchSize) {
+    const batch = needsClaude.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map(async (email) => {
+        try {
+          const result = await rankEmail(profile, email, feedbackContext, topics, memoryBlock);
+
+          const rep = senderRep[email.from_email] || 0;
+          let adjustedScore = result.score + rep * 10;
+          adjustedScore = Math.max(0, Math.min(100, adjustedScore));
+
+          const category =
+            adjustedScore >= 75
+              ? "critical"
+              : adjustedScore >= 40
+                ? "useful"
+                : adjustedScore >= 20
+                  ? "low_priority"
+                  : "noise";
+
+          const topicNames = new Set(topics.map((t) => t.name));
+          const matchedTopics = Array.isArray(result.matched_topics)
+            ? result.matched_topics.filter((t: string) => topicNames.has(t))
+            : [];
+
+          return {
+            id: email.id,
+            score: adjustedScore,
+            category: category as RankingResult["category"],
+            reasoning: result.reasoning,
+            requires_action: result.requires_action,
+            highlight: result.highlight || null,
+            matched_interests: Array.isArray(result.matched_interests) ? result.matched_interests : [],
+            matched_topics: matchedTopics,
+            suggested_action: result.suggested_action || null,
+            memories: Array.isArray(result.memories) ? result.memories : [],
+          };
+        } catch {
+          return {
+            id: email.id,
+            score: 25,
+            category: "low_priority" as const,
+            reasoning: "Could not rank — defaulting to low priority",
+            requires_action: false,
+            highlight: null,
+            matched_interests: [] as string[],
+            matched_topics: [] as string[],
+            suggested_action: null as SuggestedAction | null,
+            memories: [] as ExtractedMemory[],
+          };
+        }
+      })
+    );
+
+    for (const result of results) {
+      await supabase
+        .from("emails")
+        .update({
+          score: result.score,
+          category: result.category,
+          reasoning: result.reasoning,
+          requires_action: result.requires_action,
+          highlight: result.highlight,
+          matched_interests: result.matched_interests,
+          matched_topics: result.matched_topics,
+          suggested_action: result.suggested_action,
+        })
+        .eq("id", result.id);
+      ranked++;
+
+      // Save extracted memories (skip noise/low-priority — usually nothing useful)
+      if (result.memories && result.memories.length > 0 && result.score >= 30) {
+        try {
+          await saveExtractedMemories(supabase, userId, result.id, result.memories);
+        } catch (e) {
+          console.error("[ranking] memory save failed", e);
+        }
+      }
+    }
+  }
+
+  return ranked;
+}
