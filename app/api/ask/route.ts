@@ -7,16 +7,65 @@ import { getActiveMemories, formatMemoriesForPrompt } from "@/lib/memory";
 const ASK_MAX = 60;
 const ASK_WINDOW_MS = 60 * 60 * 1000; // 60 asks / hour / user
 
-const ASK_SYSTEM = `You are Oushi, the user's personal email assistant. The user is chatting with you about their inbox. Answer using ONLY the emails provided in the first turn.
+const ASK_SYSTEM = `You are Oushi, the user's personal email assistant. The user is chatting with you about their inbox. Answer using ONLY the emails provided.
+
+OUTPUT FORMAT — STRICT JSON, no markdown, no code fences:
+
+{
+  "text": "<short conversational answer, 1-3 sentences>",
+  "cards": [ <0 or more cards> ]
+}
+
+The "text" field is REQUIRED. It's always present — a brief conversational lead-in or the full answer for simple questions.
+The "cards" field is OPTIONAL. Include cards ONLY when visual structure makes the answer clearer.
+
+Available card types:
+
+1. TIMELINE — for trips, itineraries, sequences of dated events
+   {"type":"timeline","title":"<optional name>","events":[
+     {"date":"May 22","time":"10:30am","title":"United UA847 to NRT","subtitle":"Confirmation MYE8MC","detail":"Seat 14C","icon":"plane"}
+   ]}
+   icon: "plane" | "hotel" | "calendar" | "meeting" | "deadline" | "package" | "mail" | "dollar" | "dot"
+   USE FOR: "when's my flight", "what's my trip look like", "what's coming up"
+
+2. CHECKLIST — for commitments, action items, things-to-do extracted from emails
+   {"type":"checklist","title":"This week","items":[
+     {"text":"Send the design draft to Sarah","detail":"She asked by Friday","source":"from Sarah, May 14"}
+   ]}
+   USE FOR: "what did I commit to", "what's left to do", "what's waiting on me"
+
+3. PEOPLE — for sender lists, relationship status, who's waiting
+   {"type":"people","title":"Waiting on you","people":[
+     {"name":"Sarah Chen","email":"sarah@acme.com","role":"PM","last_contact":"3 days ago","status":"waiting","note":"Asked about the design timeline"}
+   ]}
+   status: "waiting" | "replied" | "stale" | "fresh"
+   USE FOR: "who emailed me", "who's waiting on me", "who haven't I responded to"
+
+4. COMPARISON — for 2 or 3 options side-by-side
+   {"type":"comparison","title":"Two offers","columns":[
+     {"name":"Acme Co","subtitle":"Senior Engineer","rows":[
+       {"label":"Salary","value":"$180k","highlight":true},
+       {"label":"Equity","value":"0.5%"}
+     ]}
+   ]}
+   USE FOR: any "compare X and Y" question
+   IMPORTANT: keep columns to 2-3 max. Each column should have the SAME row labels.
+
+5. SUMMARY — for digest-style answers with grouped sections
+   {"type":"summary","title":"This week","sections":[
+     {"heading":"Urgent","items":[{"text":"Contract from Stripe needs signing","from":"legal@stripe.com"}]},
+     {"heading":"Awaiting reply","items":[{"text":"Sarah wants design feedback","from":"Sarah Chen"}]}
+   ]}
+   USE FOR: "summarize my week", "what happened today", "give me an overview"
 
 Rules:
-- Be direct and conversational. 1-4 sentences usually.
-- This is an ongoing conversation — remember what the user just asked. If they say "tell me more" or "when?" or "who?", connect it to the previous turn.
-- If you reference a specific email, mention the sender's name.
-- If the answer isn't in the provided emails, say so plainly. Do NOT make things up.
-- No bullet lists unless the user asks for a list.
-- No markdown headers. Plain prose.
-- Speak in second person ("you", "your inbox").`;
+- "text" is ALWAYS present. Even with a card, the text should briefly introduce it ("Here's your Tokyo trip:").
+- For simple answers ("you have 3 unread"), use text-only with NO cards.
+- This is a chat — remember the previous turns. If the user says "tell me more" or "when?", connect to the prior context.
+- Speak in second person ("you", "your inbox").
+- Never invent dates, amounts, names, or details that aren't in the provided emails.
+- If the answer isn't in the emails, say so plainly in text. No card.
+- Output VALID JSON ONLY. No prose before or after the JSON object. No markdown code fences.`;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -220,17 +269,77 @@ export async function POST(request: Request) {
     const client = createAnthropicClient();
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 800,
+      max_tokens: 1600, // cards can be larger than plain text
       system: ASK_SYSTEM,
-      messages: claudeMessages,
+      messages: [
+        ...claudeMessages,
+        // Prefill the assistant's response with "{" to lock it into JSON.
+        { role: "assistant", content: "{" },
+      ],
     });
 
-    const answer = response.content[0].type === "text" ? response.content[0].text.trim() : "";
-    return NextResponse.json({ answer, question: latestQuestion });
+    const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+    // The model continues from our prefilled "{", so we prepend it back.
+    const jsonStr = "{" + raw;
+
+    const parsed = safeParseAskJson(jsonStr);
+    if (!parsed) {
+      // Fall back to treating the whole thing as text — best effort.
+      return NextResponse.json({
+        answer: raw || "Sorry, I didn't get that.",
+        cards: [],
+        question: latestQuestion,
+      });
+    }
+
+    return NextResponse.json({
+      answer: parsed.text,
+      cards: parsed.cards,
+      question: latestQuestion,
+    });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Ask failed" },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Parse the model's JSON response, tolerating common quirks (trailing
+ * commentary, missing fields). Returns null on unrecoverable failure.
+ */
+function safeParseAskJson(input: string): { text: string; cards: unknown[] } | null {
+  // Try to find a JSON object boundary
+  const start = input.indexOf("{");
+  if (start === -1) return null;
+
+  // Find matching closing brace
+  let depth = 0;
+  let end = -1;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < input.length; i++) {
+    const ch = input[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === "\\") { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  if (end === -1) return null;
+
+  const slice = input.slice(start, end + 1);
+  try {
+    const obj = JSON.parse(slice);
+    const text = typeof obj?.text === "string" ? obj.text : "";
+    const cards = Array.isArray(obj?.cards) ? obj.cards : [];
+    return { text, cards };
+  } catch {
+    return null;
   }
 }

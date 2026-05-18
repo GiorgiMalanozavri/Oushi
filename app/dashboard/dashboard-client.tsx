@@ -32,6 +32,8 @@ import type { Classified } from "@/lib/outstanding";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { OushiMark } from "@/components/oushi-mark";
 import { AmbientBackground } from "@/components/ambient-bg";
+import { CardStack } from "@/components/oushi-cards/card-renderer";
+import { isOushiCard, type OushiCard } from "@/components/oushi-cards/types";
 
 interface Profile {
   bio: string;
@@ -80,7 +82,11 @@ type ViewKey =
   | { type: "untagged" }
   | { type: "board"; id: string };
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  cards?: OushiCard[];
+};
 
 const ASK_SUGGESTIONS = [
   "anything urgent today?",
@@ -270,12 +276,22 @@ export function DashboardClient({
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages }),
+        // Strip cards from the payload — the model only needs role/content.
+        body: JSON.stringify({
+          messages: newMessages.map(({ role, content }) => ({ role, content })),
+        }),
       });
       const data = await res.json();
+      const cards: OushiCard[] = Array.isArray(data.cards)
+        ? data.cards.filter(isOushiCard)
+        : [];
       setAskMessages([
         ...newMessages,
-        { role: "assistant", content: data.answer || data.error || "No answer." },
+        {
+          role: "assistant",
+          content: data.answer || data.error || "No answer.",
+          cards: cards.length > 0 ? cards : undefined,
+        },
       ]);
     } catch {
       setAskMessages([
@@ -1525,16 +1541,23 @@ function ChatBubble({ message, animate }: { message: ChatMessage; animate: boole
     );
   }
 
+  const hasCards = !!message.cards && message.cards.length > 0;
+
   return (
     <div className="flex items-start gap-2.5">
       <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] flex items-center justify-center shrink-0">
         <Sparkles className="w-3.5 h-3.5 text-white" />
       </div>
-      <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[#FAF6EB] border border-[#E6DCC4] px-3.5 py-2.5 text-[13.5px] leading-[1.6] text-[#2A2520] whitespace-pre-wrap">
-        {displayed}
-        {showCursor && (
-          <span className="inline-block w-[2px] h-[13px] bg-[#5E8FBF] align-middle ml-0.5 animate-pulse" />
+      <div className={`min-w-0 ${hasCards ? "flex-1" : "max-w-[85%]"}`}>
+        {message.content && (
+          <div className="rounded-2xl rounded-tl-sm bg-[#FAF6EB] border border-[#E6DCC4] px-3.5 py-2.5 text-[13.5px] leading-[1.6] text-[#2A2520] whitespace-pre-wrap inline-block max-w-full">
+            {displayed}
+            {showCursor && (
+              <span className="inline-block w-[2px] h-[13px] bg-[#5E8FBF] align-middle ml-0.5 animate-pulse" />
+            )}
+          </div>
         )}
+        {hasCards && <CardStack cards={message.cards!} />}
       </div>
     </div>
   );
