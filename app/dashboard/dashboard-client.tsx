@@ -1282,7 +1282,10 @@ function EmailRow({
           <span className={`truncate text-[13px] ${email.is_unread ? "font-semibold text-[#2A2520]" : "font-medium text-[#766E63]"}`}>
             {email.from_name || email.from_email}
           </span>
-          <span className="shrink-0 text-[11px] text-[#A89F92] font-mono tabular-nums">
+          <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] text-[#A89F92] font-mono tabular-nums">
+            {email.has_attachments && (
+              <span title="Has attachments" className="text-[#5E8FBF]">📎</span>
+            )}
             {ageText}
           </span>
         </div>
@@ -1665,6 +1668,18 @@ function EmailPanel({
             <div className="text-[14px] leading-[1.65] text-[#2A2520] whitespace-pre-wrap break-words">
               {body ? linkify(body) : <span className="italic text-[#A89F92]">No preview available.</span>}
             </div>
+
+            {/* Attachments — extracted text */}
+            {email.attachments_text && (
+              <div className="mt-5 rounded-lg border border-[#E6DCC4] bg-[#FAF6EB]/40 p-4">
+                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-2 inline-flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> From the attachment
+                </p>
+                <pre className="text-[12px] leading-[1.6] text-[#2A2520] whitespace-pre-wrap break-words font-sans">
+                  {email.attachments_text}
+                </pre>
+              </div>
+            )}
 
             {/* Calendar */}
             <div className="mt-6">

@@ -40,7 +40,7 @@ export async function POST(
 
   const { data: email } = await service
     .from("emails")
-    .select("from_name, from_email, subject, snippet, body_preview, received_at, user_was_last_sender, user_last_sent_at")
+    .select("from_name, from_email, subject, snippet, body_preview, attachments_text, received_at, user_was_last_sender, user_last_sent_at")
     .eq("id", id)
     .eq("user_id", user.id)
     .single();
@@ -71,6 +71,9 @@ export async function POST(
   const memoryBlock = formatMemoriesForPrompt(memories);
 
   const body = (email.body_preview || email.snippet || "").slice(0, 4000);
+  const attachContext = email.attachments_text
+    ? `\n\nATTACHMENT DETAILS (PDFs/images extracted via OCR — use these specifics in your reply when relevant):\n${email.attachments_text.slice(0, 2000)}`
+    : "";
 
   const followupInstruction = isFollowup
     ? `\n\nIMPORTANT: This is a FOLLOW-UP, not a reply. The user already sent the last message in this thread ${daysSinceUserSent} day${daysSinceUserSent === 1 ? "" : "s"} ago, and the other person hasn't written back. Draft a SHORT, polite nudge — acknowledge it's been a while, gently re-surface the original question or ask, no guilt-trip. Examples of good follow-up openings: "Hey — circling back on this", "Just bumping this in case it got buried", "Quick nudge on the below". Keep it under 3 sentences.`
@@ -85,7 +88,7 @@ export async function POST(
       messages: [
         {
           role: "user",
-          content: `${profileBlock}${voiceBlock}${memoryBlock ? `\n\n${memoryBlock}` : ""}${followupInstruction}\n\n---\n\n${isFollowup ? "Thread to follow up on" : "Email to reply to"}:\nFrom: ${email.from_name} <${email.from_email}>\nSubject: ${email.subject}\n\n${body}\n\n---\n\n${isFollowup ? "Draft a follow-up nudge in the user's voice." : "Draft a reply. Use memories above to make the reply specific and informed."}`,
+          content: `${profileBlock}${voiceBlock}${memoryBlock ? `\n\n${memoryBlock}` : ""}${followupInstruction}\n\n---\n\n${isFollowup ? "Thread to follow up on" : "Email to reply to"}:\nFrom: ${email.from_name} <${email.from_email}>\nSubject: ${email.subject}\n\n${body}${attachContext}\n\n---\n\n${isFollowup ? "Draft a follow-up nudge in the user's voice." : "Draft a reply. Use memories above and any attachment details to make the reply specific and informed."}`,
         },
       ],
     });

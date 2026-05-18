@@ -1,5 +1,10 @@
 import { google } from "googleapis";
 import { createServiceClient } from "@/lib/supabase/server";
+import {
+  findExtractableAttachments,
+  extractAttachmentsForMessage,
+} from "@/lib/attachments";
+import { prefilter } from "@/lib/prefilter";
 
 export function getOAuth2Client() {
   return new google.auth.OAuth2(
@@ -239,6 +244,9 @@ export async function syncRecentEmails(userId: string, count = 100) {
   const emails: ParsedEmail[] = [];
 
   const batchSize = 10;
+  // Track raw payloads alongside parsed emails so we can later walk attachments
+  const rawPayloadByGmailId = new Map<string, unknown>();
+
   for (let i = 0; i < messageIds.length; i += batchSize) {
     const batch = messageIds.slice(i, i + batchSize);
     const results = await Promise.all(
@@ -250,7 +258,13 @@ export async function syncRecentEmails(userId: string, count = 100) {
         })
       )
     );
-    emails.push(...results.map((r) => parseGmailMessage(r.data)));
+    for (const r of results) {
+      const parsed = parseGmailMessage(r.data);
+      emails.push(parsed);
+      if (parsed.gmail_message_id) {
+        rawPayloadByGmailId.set(parsed.gmail_message_id, r.data.payload);
+      }
+    }
   }
 
   const threadIds = Array.from(new Set(emails.map((e) => e.gmail_thread_id))).filter(Boolean);
@@ -321,6 +335,56 @@ export async function syncRecentEmails(userId: string, count = 100) {
       mutedSenders.has(email.from_email) || mutedDomains.has(domain);
     const info = threadInfo.get(email.gmail_thread_id);
 
+    // Look at attachments — only spend Claude vision on emails that look real
+    // (not auto-muted, not pre-filtered as noise). Skip otherwise to save cost.
+    const rawPayload = rawPayloadByGmailId.get(email.gmail_message_id);
+    const attachmentRefs = rawPayload ? findExtractableAttachments(rawPayload) : [];
+    const hasAttachments = attachmentRefs.length > 0;
+
+    let attachmentsText: string | null = null;
+    let attachmentsExtractedAt: string | null = null;
+
+    if (hasAttachments && !isMuted) {
+      const preNoise = prefilter({
+        from_email: email.from_email,
+        subject: email.subject,
+        snippet: email.snippet,
+        body_preview: email.body_preview,
+      });
+      const isPreFilteredNoise = preNoise !== null && preNoise.score < 25;
+
+      if (!isPreFilteredNoise) {
+        try {
+          // Check if we already extracted for this message (cheap check)
+          const { data: existing } = await supabase
+            .from("emails")
+            .select("attachments_text, attachments_extracted_at")
+            .eq("user_id", userId)
+            .eq("gmail_message_id", email.gmail_message_id)
+            .maybeSingle();
+
+          if (existing?.attachments_text && existing?.attachments_extracted_at) {
+            // Already done — don't re-extract
+            attachmentsText = existing.attachments_text;
+            attachmentsExtractedAt = existing.attachments_extracted_at;
+          } else {
+            const extracted = await extractAttachmentsForMessage(
+              oauth2Client,
+              email.gmail_message_id,
+              email.subject,
+              rawPayload
+            );
+            if (extracted) {
+              attachmentsText = extracted;
+              attachmentsExtractedAt = new Date().toISOString();
+            }
+          }
+        } catch (e) {
+          console.error("[sync] attachment extract failed for", email.gmail_message_id, e instanceof Error ? e.message : e);
+        }
+      }
+    }
+
     await supabase.from("emails").upsert(
       {
         user_id: userId,
@@ -330,6 +394,8 @@ export async function syncRecentEmails(userId: string, count = 100) {
         user_was_last_sender: info?.userWasLastSender ?? false,
         user_last_sent_at: info?.userLastSentAt ?? null,
         last_synced_at: new Date().toISOString(),
+        has_attachments: hasAttachments,
+        ...(attachmentsText ? { attachments_text: attachmentsText, attachments_extracted_at: attachmentsExtractedAt } : {}),
         ...(isMuted ? { category: "noise", score: 0 } : {}),
       },
       { onConflict: "user_id,gmail_message_id" }

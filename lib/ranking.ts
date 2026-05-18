@@ -77,6 +77,7 @@ interface EmailToRank {
   subject: string;
   body_preview: string | null;
   snippet: string;
+  attachments_text?: string | null;
 }
 
 interface SuggestedAction {
@@ -125,7 +126,7 @@ ${feedbackContext ? `\nPAST FEEDBACK (use to calibrate):\n${feedbackContext}` : 
 EMAIL:
 From: ${email.from_name} <${email.from_email}>
 Subject: ${email.subject}
-Preview: ${email.body_preview?.slice(0, 500) || email.snippet}
+Preview: ${email.body_preview?.slice(0, 500) || email.snippet}${email.attachments_text ? `\n\nATTACHMENT CONTENT (extracted from PDFs/images):\n${email.attachments_text.slice(0, 2500)}` : ""}
 
 Rank this email for this user, and extract any durable memories.`;
 
@@ -189,7 +190,7 @@ export async function rankUnrankedEmails(userId: string) {
 
   const { data: unranked } = await supabase
     .from("emails")
-    .select("id, from_name, from_email, subject, body_preview, snippet")
+    .select("id, from_name, from_email, subject, body_preview, snippet, attachments_text")
     .eq("user_id", userId)
     .is("score", null)
     .order("received_at", { ascending: false });

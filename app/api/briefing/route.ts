@@ -30,7 +30,7 @@ export async function GET() {
 
   const { data: emails } = await service
     .from("emails")
-    .select("from_name, from_email, subject, snippet, score, category, received_at, is_unread, user_replied, dismissed_at, highlight")
+    .select("from_name, from_email, subject, snippet, score, category, received_at, is_unread, user_replied, dismissed_at, highlight, attachments_text")
     .eq("user_id", user.id)
     .gte("received_at", new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString())
     .gte("score", 50)
@@ -60,7 +60,8 @@ export async function GET() {
 
   const emailLines = list.slice(0, 10).map((e, i) => {
     const ageHrs = Math.round((Date.now() - new Date(e.received_at).getTime()) / 3600000);
-    return `${i + 1}. [${e.score}, ${ageHrs}h old, ${e.is_unread ? "unread" : "read"}] ${e.from_name || e.from_email}: ${e.subject}${e.highlight ? ` — ${e.highlight}` : ""}${e.snippet ? ` (preview: ${e.snippet.slice(0, 120)})` : ""}`;
+    const attach = e.attachments_text ? ` [Attachment: ${e.attachments_text.slice(0, 400)}]` : "";
+    return `${i + 1}. [${e.score}, ${ageHrs}h old, ${e.is_unread ? "unread" : "read"}] ${e.from_name || e.from_email}: ${e.subject}${e.highlight ? ` — ${e.highlight}` : ""}${e.snippet ? ` (preview: ${e.snippet.slice(0, 120)})` : ""}${attach}`;
   }).join("\n");
 
   const profileLine = profile ? `User cares about: ${(profile.priorities || []).join(", ")}. Interests: ${(profile.interests || []).join(", ")}.` : "";

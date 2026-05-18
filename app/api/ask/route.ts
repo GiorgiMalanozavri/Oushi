@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   const { data: emails } = await service
     .from("emails")
-    .select("from_name, from_email, subject, snippet, body_preview, received_at, score, is_unread, user_replied")
+    .select("from_name, from_email, subject, snippet, body_preview, attachments_text, received_at, score, is_unread, user_replied")
     .eq("user_id", user.id)
     .gte("received_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
     .order("received_at", { ascending: false })
@@ -55,6 +55,7 @@ export async function POST(request: Request) {
     subject: string | null;
     snippet: string | null;
     body_preview: string | null;
+    attachments_text: string | null;
     received_at: string;
   };
 
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
   const matched: EmailLite[] = [];
   for (const e of list) {
     if (recentSet.has(e)) continue;
-    const hay = `${e.subject || ""} ${e.snippet || ""} ${e.body_preview || ""} ${e.from_name || ""} ${e.from_email || ""}`.toLowerCase();
+    const hay = `${e.subject || ""} ${e.snippet || ""} ${e.body_preview || ""} ${e.attachments_text || ""} ${e.from_name || ""} ${e.from_email || ""}`.toLowerCase();
     const score = qWords.reduce((acc, w) => acc + (hay.includes(w) ? 1 : 0), 0);
     if (score > 0) matched.push(e);
     if (matched.length >= 8) break;
@@ -88,7 +89,10 @@ export async function POST(request: Request) {
     const body = useFullBody
       ? (e.body_preview || e.snippet || "")
       : (e.snippet || (e.body_preview?.slice(0, 200) || ""));
-    return `${header}\n${body}`;
+    const attach = useFullBody && e.attachments_text
+      ? `\n[Attachments]: ${e.attachments_text.slice(0, 1500)}`
+      : "";
+    return `${header}\n${body}${attach}`;
   }).join("\n\n---\n\n");
 
   const memories = await getActiveMemories(service, user.id, 50);

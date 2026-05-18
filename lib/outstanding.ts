@@ -5,6 +5,8 @@ export interface EmailRow {
   subject: string;
   snippet: string;
   body_preview: string | null;
+  attachments_text: string | null;
+  has_attachments: boolean;
   score: number;
   category: string;
   reasoning: string;
