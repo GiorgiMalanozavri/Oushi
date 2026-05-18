@@ -2,21 +2,38 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { OushiMark } from "@/components/oushi-mark";
+import { AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    if (err) setError(decodeURIComponent(err));
+  }, []);
 
   const handleLogin = async () => {
     setLoading(true);
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
     const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
+        redirectTo: `${appUrl.replace(/\/$/, "")}/api/auth/callback`,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
       },
     });
+    if (error) {
+      console.error("[login] OAuth init failed:", error.message);
+      setLoading(false);
+    }
   };
 
   return (
@@ -53,6 +70,15 @@ export default function LoginPage() {
             The AI assistant that reads your inbox, surfaces what matters, and replies in your voice.
           </p>
 
+          {error && (
+            <div className="mt-6 flex items-start gap-2.5 rounded-lg border border-[#B86B4A]/30 bg-[#F5E8E0]/50 px-4 py-3 text-[13px] text-[#B86B4A]">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">Sign-in failed</p>
+                <p className="mt-0.5 text-[12px] opacity-80 break-words">{error}</p>
+              </div>
+            </div>
+          )}
           <motion.button
             onClick={handleLogin}
             disabled={loading}
