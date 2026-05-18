@@ -125,6 +125,10 @@ export function DashboardClient({
   const [askInput, setAskInput] = useState("");
   const [askLoading, setAskLoading] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
+  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
+  const [recentThreads, setRecentThreads] = useState<
+    Array<{ id: string; title: string; updated_at: string; message_count: number }>
+  >([]);
   const [suggested, setSuggested] = useState<Array<{ name: string; description: string; color: string }>>([]);
   const [rematching, setRematching] = useState(false);
   const [newTopicName, setNewTopicName] = useState("");
@@ -320,7 +324,7 @@ export function DashboardClient({
       // Final pass: clear streaming flag
       const finalPartial = parsePartialAsk(buffer);
       const finalCards = finalPartial.cards.filter(isOushiCard) as OushiCard[];
-      setAskMessages([
+      const finalMessages: ChatMessage[] = [
         ...userMessages,
         {
           role: "assistant",
@@ -328,7 +332,29 @@ export function DashboardClient({
           cards: finalCards.length > 0 ? finalCards : undefined,
           streaming: false,
         },
-      ]);
+      ];
+      setAskMessages(finalMessages);
+
+      // Save thread (fire and forget). Title comes from the first user message.
+      const firstUserMsg = finalMessages.find((m) => m.role === "user");
+      const title = (firstUserMsg?.content || "Untitled chat").slice(0, 80);
+      try {
+        const saveRes = await fetch("/api/chat/threads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: currentThreadId || undefined,
+            title,
+            messages: finalMessages,
+          }),
+        });
+        if (saveRes.ok) {
+          const data = await saveRes.json();
+          if (!currentThreadId && data.id) setCurrentThreadId(data.id);
+        }
+      } catch {
+        // Non-fatal — the chat still works, just won't be saved.
+      }
     } catch {
       setAskMessages([
         ...userMessages,
@@ -336,6 +362,54 @@ export function DashboardClient({
       ]);
     } finally {
       setAskLoading(false);
+    }
+  };
+
+  // Fetch recent threads when the spotlight opens with no messages.
+  useEffect(() => {
+    if (!askOpen || askMessages.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/chat/threads");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data.threads)) {
+          setRecentThreads(data.threads);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [askOpen, askMessages.length]);
+
+  const loadThread = async (threadId: string) => {
+    try {
+      const res = await fetch(`/api/chat/threads/${threadId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const msgs = Array.isArray(data.messages) ? data.messages : [];
+      // Strip the streaming flag from any old messages
+      const clean: ChatMessage[] = msgs.map((m: { role: string; content?: string; cards?: unknown[] }) => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: typeof m.content === "string" ? m.content : "",
+        cards: Array.isArray(m.cards) ? (m.cards.filter(isOushiCard) as OushiCard[]) : undefined,
+        streaming: false,
+      }));
+      setAskMessages(clean);
+      setCurrentThreadId(threadId);
+    } catch {
+      // ignore
+    }
+  };
+
+  const deleteThread = async (threadId: string) => {
+    setRecentThreads((p) => p.filter((t) => t.id !== threadId));
+    try {
+      await fetch(`/api/chat/threads/${threadId}`, { method: "DELETE" });
+    } catch {
+      // ignore
     }
   };
 
@@ -377,6 +451,7 @@ export function DashboardClient({
   const resetChat = () => {
     setAskMessages([]);
     setAskInput("");
+    setCurrentThreadId(null);
   };
 
   // Cmd+K / Ctrl+K opens the chat
@@ -588,6 +663,9 @@ export function DashboardClient({
           onSend={sendAsk}
           onClear={resetChat}
           actionCtx={actionCtx}
+          recentThreads={recentThreads}
+          onLoadThread={loadThread}
+          onDeleteThread={deleteThread}
         />
         {/* View content */}
         <ErrorBoundary label="View content">

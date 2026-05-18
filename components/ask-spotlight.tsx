@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowUp, Loader2, RotateCcw } from "lucide-react";
+import { Sparkles, ArrowUp, Loader2, RotateCcw, MessageSquare, Trash2 } from "lucide-react";
 import { CardStack } from "@/components/oushi-cards/card-renderer";
 import type { OushiCard } from "@/components/oushi-cards/types";
 import type { CardActionContext } from "@/components/oushi-cards/card-actions";
@@ -23,6 +23,13 @@ const SUGGESTIONS = [
   "any bills due soon?",
 ];
 
+export interface RecentThread {
+  id: string;
+  title: string;
+  updated_at: string;
+  message_count: number;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -33,6 +40,9 @@ interface Props {
   onSend: (text: string) => void;
   onClear: () => void;
   actionCtx: CardActionContext;
+  recentThreads?: RecentThread[];
+  onLoadThread?: (id: string) => void;
+  onDeleteThread?: (id: string) => void;
 }
 
 export function AskSpotlight({
@@ -45,6 +55,9 @@ export function AskSpotlight({
   onSend,
   onClear,
   actionCtx,
+  recentThreads = [],
+  onLoadThread,
+  onDeleteThread,
 }: Props) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
@@ -129,7 +142,12 @@ export function AskSpotlight({
                 }`}
               >
                 {!hasMessages ? (
-                  <SuggestionsGrid onPick={(s) => onSend(s)} />
+                  <EmptyState
+                    onPick={(s) => onSend(s)}
+                    recentThreads={recentThreads}
+                    onLoadThread={onLoadThread}
+                    onDeleteThread={onDeleteThread}
+                  />
                 ) : (
                   <div className="px-5 py-4 space-y-4">
                     {messages.map((m, i) => (
@@ -232,25 +250,92 @@ function SpotlightInput({
   );
 }
 
-function SuggestionsGrid({ onPick }: { onPick: (s: string) => void }) {
+function EmptyState({
+  onPick,
+  recentThreads,
+  onLoadThread,
+  onDeleteThread,
+}: {
+  onPick: (s: string) => void;
+  recentThreads: RecentThread[];
+  onLoadThread?: (id: string) => void;
+  onDeleteThread?: (id: string) => void;
+}) {
+  const top = recentThreads.slice(0, 5);
   return (
-    <div className="px-5 pb-5 pt-2">
-      <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#A89F92] mb-2.5">
-        Try asking
-      </p>
-      <div className="grid grid-cols-2 gap-1.5">
-        {SUGGESTIONS.map((s) => (
-          <button
-            key={s}
-            onClick={() => onPick(s)}
-            className="text-left px-3 py-2 rounded-lg border border-[#E6DCC4] bg-white/40 hover:bg-white hover:border-[#5E8FBF] hover:text-[#3D6A95] text-[12.5px] text-[#2A2520] transition-all"
-          >
-            {s}
-          </button>
-        ))}
+    <div className="px-5 pb-5 pt-2 space-y-4">
+      {/* Suggestions */}
+      <div>
+        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#A89F92] mb-2">
+          Try asking
+        </p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {SUGGESTIONS.map((s) => (
+            <button
+              key={s}
+              onClick={() => onPick(s)}
+              className="text-left px-3 py-2 rounded-lg border border-[#E6DCC4] bg-white/40 hover:bg-white hover:border-[#5E8FBF] hover:text-[#3D6A95] text-[12.5px] text-[#2A2520] transition-all"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Recent threads */}
+      {top.length > 0 && onLoadThread && (
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#A89F92] mb-2">
+            Recent
+          </p>
+          <ul className="-mx-1.5">
+            {top.map((t) => (
+              <li key={t.id} className="group">
+                <div className="flex items-center gap-2 rounded-lg hover:bg-white/60 px-2 py-1.5">
+                  <button
+                    onClick={() => onLoadThread(t.id)}
+                    className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-[#A89F92] shrink-0" />
+                    <span className="text-[12.5px] text-[#2A2520] truncate">{t.title}</span>
+                    <span className="text-[10.5px] text-[#A89F92] shrink-0 font-mono tabular-nums">
+                      {relativeTime(t.updated_at)}
+                    </span>
+                  </button>
+                  {onDeleteThread && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteThread(t.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-[#A89F92] hover:text-[#B86B4A] hover:bg-[#F5E8E0] transition-all"
+                      title="Delete chat"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
+}
+
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  const now = Date.now();
+  const mins = Math.floor((now - then) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  return `${weeks}w ago`;
 }
 
 function Message({
