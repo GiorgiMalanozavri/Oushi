@@ -4,7 +4,6 @@ import { createAnthropicClient } from "@/lib/claude";
 import { getActiveMemories, formatMemoriesForPrompt } from "@/lib/memory";
 
 const BRIEFING_TTL_MS = 15 * 60 * 1000;
-const cache = new Map<string, { text: string; createdAt: number; signature: string }>();
 
 const BRIEFING_SYSTEM = `You are the user's personal email chief of staff. Write a SHORT, conversational morning briefing in the user's own voice — like a chief of staff would, not like a newsletter.
 
@@ -41,14 +40,39 @@ export async function GET() {
   const list = emails || [];
   const signature = `${list.length}:${list.map((e) => `${e.subject}-${e.score}`).join("|").slice(0, 200)}`;
 
-  const cached = cache.get(user.id);
-  if (cached && cached.signature === signature && Date.now() - cached.createdAt < BRIEFING_TTL_MS) {
-    return NextResponse.json({ briefing: cached.text, cached: true });
+  // Persisted cache (survives Vercel cold starts unlike the old in-memory Map)
+  const { data: cacheRow } = await service
+    .from("user_sync_state")
+    .select("cached_briefing_text, cached_briefing_signature, cached_briefing_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (
+    cacheRow?.cached_briefing_text &&
+    cacheRow.cached_briefing_signature === signature &&
+    cacheRow.cached_briefing_at &&
+    Date.now() - new Date(cacheRow.cached_briefing_at).getTime() < BRIEFING_TTL_MS
+  ) {
+    return NextResponse.json({ briefing: cacheRow.cached_briefing_text, cached: true });
   }
+
+  const writeCache = async (text: string) => {
+    await service
+      .from("user_sync_state")
+      .upsert(
+        {
+          user_id: user.id,
+          cached_briefing_text: text,
+          cached_briefing_signature: signature,
+          cached_briefing_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+  };
 
   if (list.length === 0) {
     const text = "Inbox is quiet. Nothing pressing.";
-    cache.set(user.id, { text, createdAt: Date.now(), signature });
+    await writeCache(text);
     return NextResponse.json({ briefing: text, cached: false });
   }
 
@@ -84,7 +108,7 @@ export async function GET() {
     });
 
     const text = response.content[0].type === "text" ? response.content[0].text.trim() : "";
-    cache.set(user.id, { text, createdAt: Date.now(), signature });
+    await writeCache(text);
     return NextResponse.json({ briefing: text, cached: false });
   } catch (e) {
     return NextResponse.json(

@@ -1,11 +1,15 @@
 name: Sync inboxes
 
-# Runs every 5 minutes (best-effort — GitHub may delay during high load).
+# Runs every 15 minutes (best-effort — GitHub may delay during high load).
 # This replaces Vercel Cron, which on Hobby tier is limited to daily runs.
+#
+# Why 15 min and not 5: most emails aren't time-critical within that window,
+# and 5-min polling burns 3x the cron overhead + ranks newsletters into noise
+# the instant they land. 15 min is the sweet spot for personal inboxes.
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch: # allow manual trigger from Actions UI
 
 # Avoid stacking up sync runs if one is already in progress

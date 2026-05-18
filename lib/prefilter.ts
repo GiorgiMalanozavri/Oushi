@@ -22,6 +22,43 @@ const NOISE_SENDER_PATTERNS = [
   /^mailer-daemon@/i,
   /^bounce@/i,
   /^digest@/i,
+  /^email@/i,                 // email@email.brand.com style
+  /^mail@/i,
+  /^press@/i,
+  /^announcement@/i,
+  /^announcements@/i,
+  /^reply\+/i,                // reply+abc123@... transactional bounce-trackers
+  /^[a-z0-9]{20,}@/i,         // 20+ char hex senders (auto-gen IDs)
+];
+
+// Subdomain prefixes that indicate a marketing/bulk send (e.g. mail.acme.com,
+// email.brand.com, e.retailer.com). If the From domain starts with one of these
+// followed by a dot, the email is almost certainly bulk.
+const NOISE_SUBDOMAIN_PREFIXES = [
+  "email.",
+  "mail.",
+  "e.",
+  "marketing.",
+  "mkt.",
+  "news.",
+  "newsletter.",
+  "promo.",
+  "promotions.",
+  "updates.",
+  "notify.",
+  "notifications.",
+  "bulk.",
+  "sender.",
+  "broadcast.",
+  "campaign.",
+  "campaigns.",
+  "send.",
+  "ses.",
+  "sendgrid.",
+  "trk.",
+  "click.",
+  "links.",
+  "info.",
 ];
 
 const NOISE_DOMAIN_HINTS = [
@@ -40,21 +77,42 @@ const NOISE_DOMAIN_HINTS = [
   "amazonses",
   "sparkpost",
   "postmark",
+  "sendinblue",
+  "brevo",
+  "mailjet",
+  "iterable",
+  "braze",
+  "customer.io",
+  "drip",
+  "moosend",
+  "omnisend",
+  "intercom-mail",
 ];
 
 const PROMO_SUBJECT_PATTERNS = [
   /\d+%\s*off/i,
+  /\$\d+\s*off/i,
   /\bsale\b/i,
   /\bdeal\b/i,
+  /\bdiscount(ed|s)?\b/i,
   /limited[\s-]time/i,
   /flash\s*sale/i,
   /last\s*chance/i,
+  /final\s*(hours?|days?|chance)/i,
+  /ends?\s*(today|tonight|tomorrow|soon)/i,
   /clearance/i,
   /coupon/i,
   /promo\s*code/i,
   /free\s*shipping/i,
   /unsubscribe/i,
   /\bbuy\s+\d+/i,
+  /just\s*dropped/i,
+  /new\s*arrival/i,
+  /shop\s*(now|the)/i,
+  /(perfect|new)\s+\w+\s+are\s+here/i,    // "your perfect shorts are HERE"
+  /now\s+\d+%/i,
+  /\bbogo\b/i,
+  /save\s+(up\s+to\s+)?\$?\d+/i,
 ];
 
 const LOW_VALUE_NOTIFICATION_PATTERNS = [
@@ -104,6 +162,27 @@ export function prefilter(email: PrefilterInput): PrefilterResult | null {
       score: 18,
       category: "noise",
       reasoning: "Bulk email service",
+      requires_action: false,
+    };
+  }
+
+  if (NOISE_SUBDOMAIN_PREFIXES.some((p) => domain.startsWith(p))) {
+    return {
+      score: 16,
+      category: "noise",
+      reasoning: "Marketing subdomain",
+      requires_action: false,
+    };
+  }
+
+  // Emoji-heavy subjects (3+ emojis or 2+ uncommon ones) — almost always marketing
+  // eslint-disable-next-line no-misleading-character-class
+  const emojiMatches = subject.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu);
+  if (emojiMatches && emojiMatches.length >= 3) {
+    return {
+      score: 14,
+      category: "noise",
+      reasoning: "Emoji-heavy promotional subject",
       requires_action: false,
     };
   }
