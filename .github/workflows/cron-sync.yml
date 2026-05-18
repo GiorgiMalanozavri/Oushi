@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Ping sync-all endpoint
         run: |
-          response=$(curl -sS -w "\nHTTP %{http_code}" \
+          response=$(curl -sS -L --location-trusted --max-redirs 3 -w "\nHTTP %{http_code}" \
             -X GET \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "User-Agent: github-actions-cron" \
