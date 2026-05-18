@@ -1,4 +1,5 @@
 import type { PeopleCard } from "./types";
+import { CardActionRow, type CardActionContext } from "./card-actions";
 
 const STATUS_STYLE: Record<
   NonNullable<PeopleCard["people"][number]["status"]>,
@@ -34,7 +35,13 @@ function avatarColor(seed: string) {
   return palette[hash % palette.length];
 }
 
-export function PeopleCardView({ card }: { card: PeopleCard }) {
+export function PeopleCardView({
+  card,
+  actionCtx,
+}: {
+  card: PeopleCard;
+  actionCtx: CardActionContext;
+}) {
   return (
     <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] overflow-hidden shadow-sm">
       <div className="px-4 py-3 border-b border-[#E6DCC4] bg-gradient-to-r from-[#FAF6EB] to-[#FFFCF3]">
@@ -81,6 +88,9 @@ export function PeopleCardView({ card }: { card: PeopleCard }) {
                   >
                     {status.label}
                   </span>
+                )}
+                {p.actions && p.actions.length > 0 && (
+                  <CardActionRow actions={p.actions} ctx={actionCtx} />
                 )}
               </div>
             </li>

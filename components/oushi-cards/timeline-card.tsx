@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { TimelineCard, TimelineIcon } from "./types";
+import { CardActionRow, type CardActionContext } from "./card-actions";
 
 const ICON_MAP: Record<TimelineIcon, LucideIcon> = {
   plane: Plane,
@@ -36,7 +37,13 @@ const ICON_TINT: Record<TimelineIcon, { bg: string; fg: string }> = {
   dot: { bg: "#F0E9D6", fg: "#766E63" },
 };
 
-export function TimelineCardView({ card }: { card: TimelineCard }) {
+export function TimelineCardView({
+  card,
+  actionCtx,
+}: {
+  card: TimelineCard;
+  actionCtx: CardActionContext;
+}) {
   return (
     <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] overflow-hidden shadow-sm">
       {card.title && (
@@ -76,6 +83,9 @@ export function TimelineCardView({ card }: { card: TimelineCard }) {
                 )}
                 {ev.detail && (
                   <p className="text-[11.5px] text-[#A89F92] mt-1 leading-relaxed">{ev.detail}</p>
+                )}
+                {ev.actions && ev.actions.length > 0 && (
+                  <CardActionRow actions={ev.actions} ctx={actionCtx} />
                 )}
               </li>
             );

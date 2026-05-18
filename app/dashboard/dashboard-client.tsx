@@ -32,8 +32,10 @@ import type { Classified } from "@/lib/outstanding";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { OushiMark } from "@/components/oushi-mark";
 import { AmbientBackground } from "@/components/ambient-bg";
-import { CardStack } from "@/components/oushi-cards/card-renderer";
 import { isOushiCard, type OushiCard } from "@/components/oushi-cards/types";
+import type { CardActionContext } from "@/components/oushi-cards/card-actions";
+import { AskSpotlight, type ChatMessage } from "@/components/ask-spotlight";
+import { parsePartialAsk } from "@/lib/partial-json";
 
 interface Profile {
   bio: string;
@@ -82,20 +84,7 @@ type ViewKey =
   | { type: "untagged" }
   | { type: "board"; id: string };
 
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-  cards?: OushiCard[];
-};
-
-const ASK_SUGGESTIONS = [
-  "anything urgent today?",
-  "what's waiting on me?",
-  "did anyone email about my trip?",
-  "what's my flight info?",
-  "summarize this week",
-  "any bills due soon?",
-];
+// ChatMessage type now lives in ask-spotlight.tsx — imported above.
 
 export function DashboardClient({
   buckets: initialBuckets,
@@ -268,40 +257,122 @@ export function DashboardClient({
     const trimmed = text.trim();
     if (!trimmed || askLoading) return;
     setAskOpen(true);
-    const newMessages: ChatMessage[] = [...askMessages, { role: "user", content: trimmed }];
-    setAskMessages(newMessages);
+    const userMessages: ChatMessage[] = [...askMessages, { role: "user", content: trimmed }];
+    setAskMessages(userMessages);
     setAskInput("");
     setAskLoading(true);
+
     try {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // Strip cards from the payload — the model only needs role/content.
         body: JSON.stringify({
-          messages: newMessages.map(({ role, content }) => ({ role, content })),
+          messages: userMessages.map(({ role, content }) => ({ role, content })),
         }),
       });
-      const data = await res.json();
-      const cards: OushiCard[] = Array.isArray(data.cards)
-        ? data.cards.filter(isOushiCard)
-        : [];
+
+      if (!res.ok || !res.body) {
+        const errPayload = await res.json().catch(() => null);
+        setAskMessages([
+          ...userMessages,
+          {
+            role: "assistant",
+            content: errPayload?.error || "Couldn't reach Oushi.",
+          },
+        ]);
+        return;
+      }
+
+      // Streaming parse loop. The server returned raw JSON token deltas;
+      // we prefilled the assistant's response with "{" on the server, so
+      // we prepend it back here. parsePartialAsk extracts text + complete
+      // card objects as they arrive.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "{";
+
+      // Add an empty assistant message that we'll mutate as tokens stream.
       setAskMessages([
-        ...newMessages,
+        ...userMessages,
+        { role: "assistant", content: "", streaming: true },
+      ]);
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const partial = parsePartialAsk(buffer);
+        const cards = partial.cards.filter(isOushiCard) as OushiCard[];
+
+        setAskMessages([
+          ...userMessages,
+          {
+            role: "assistant",
+            content: partial.text,
+            cards: cards.length > 0 ? cards : undefined,
+            streaming: !partial.textComplete,
+          },
+        ]);
+      }
+
+      // Final pass: clear streaming flag
+      const finalPartial = parsePartialAsk(buffer);
+      const finalCards = finalPartial.cards.filter(isOushiCard) as OushiCard[];
+      setAskMessages([
+        ...userMessages,
         {
           role: "assistant",
-          content: data.answer || data.error || "No answer.",
-          cards: cards.length > 0 ? cards : undefined,
+          content: finalPartial.text || "(no response)",
+          cards: finalCards.length > 0 ? finalCards : undefined,
+          streaming: false,
         },
       ]);
     } catch {
       setAskMessages([
-        ...newMessages,
+        ...userMessages,
         { role: "assistant", content: "Couldn't reach Oushi." },
       ]);
     } finally {
       setAskLoading(false);
     }
   };
+
+  // Action handlers used by card buttons (Reply / Open / Dismiss / Mute etc.)
+  const actionCtx: CardActionContext = useMemo(
+    () => ({
+      openEmail: (emailId) => {
+        const found = allEmails.find((e) => e.id === emailId);
+        if (found) {
+          setSelectedEmail(found);
+          setAskOpen(false); // dismiss spotlight so the modal is visible
+        }
+      },
+      ask: (prompt) => {
+        sendAsk(prompt);
+      },
+      dismiss: async (emailId) => {
+        setDismissedIds((p) => new Set(p).add(emailId));
+        await fetch("/api/email/dismiss", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email_id: emailId }),
+        });
+      },
+      muteSender: async (emailId) => {
+        const found = allEmails.find((e) => e.id === emailId);
+        if (!found?.from_email) return;
+        await fetch("/api/mute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mute_type: "sender", value: found.from_email }),
+        });
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allEmails, askMessages]
+  );
 
   const resetChat = () => {
     setAskMessages([]);
@@ -484,16 +555,16 @@ export function DashboardClient({
           </button>
         )}
 
-        {/* Floating Ask Oushi button — always visible top-right */}
+        {/* Floating Ask Oushi pill — Spotlight-style search trigger */}
         {!askOpen && (
           <button
             onClick={() => setAskOpen(true)}
-            className="fixed top-3 right-3 z-30 group flex items-center gap-2 px-3.5 py-2 rounded-full bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] text-white shadow-lg hover:shadow-xl hover:scale-[1.03] active:scale-100 transition-all"
+            className="fixed top-3 right-3 z-30 group flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-full bg-[#FFFCF3]/90 backdrop-blur-md border border-[#E6DCC4] hover:border-[#5E8FBF] text-[#766E63] hover:text-[#3D6A95] shadow-[0_4px_24px_-4px_rgba(42,37,32,0.12)] hover:shadow-[0_8px_32px_-4px_rgba(94,143,191,0.25)] transition-all"
             title="Ask Oushi (⌘K)"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="text-[13px] font-medium">Ask Oushi</span>
-            <kbd className="hidden sm:inline-block text-[10px] font-mono opacity-70 bg-white/15 rounded px-1 py-0.5">⌘K</kbd>
+            <Sparkles className="w-3.5 h-3.5 text-[#5E8FBF]" />
+            <span className="text-[13px] font-medium">Ask Oushi anything</span>
+            <kbd className="text-[10px] font-mono text-[#A89F92] bg-[#FAF6EB] rounded px-1.5 py-0.5 border border-[#E6DCC4] group-hover:border-[#5E8FBF]/30">⌘K</kbd>
           </button>
         )}
 
@@ -507,42 +578,18 @@ export function DashboardClient({
           </div>
         )}
 
-        {/* Slide-out chat panel */}
-        <AnimatePresence>
-          {askOpen && (
-            <>
-              <motion.div
-                key="chat-backdrop"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setAskOpen(false)}
-                className="fixed inset-0 z-40 bg-[#2A2520]/20 backdrop-blur-[2px]"
-              />
-              <motion.div
-                key="chat-panel"
-                initial={{ x: 440, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: 440, opacity: 0 }}
-                transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-                className={`fixed right-0 top-0 h-screen z-50 flex flex-col bg-[#FFFCF3] border-l border-[#E6DCC4] shadow-2xl ${
-                  isMobile ? "w-full" : "w-[440px]"
-                }`}
-              >
-                <AskChatPanel
-                  messages={askMessages}
-                  loading={askLoading}
-                  input={askInput}
-                  setInput={setAskInput}
-                  onSend={sendAsk}
-                  onClose={() => setAskOpen(false)}
-                  onClear={resetChat}
-                />
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-
+        {/* Spotlight-style chat overlay */}
+        <AskSpotlight
+          open={askOpen}
+          onClose={() => setAskOpen(false)}
+          messages={askMessages}
+          input={askInput}
+          setInput={setAskInput}
+          loading={askLoading}
+          onSend={sendAsk}
+          onClear={resetChat}
+          actionCtx={actionCtx}
+        />
         {/* View content */}
         <ErrorBoundary label="View content">
           {view.type === "today" && (
@@ -1353,212 +1400,6 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   return (
     <div className={`rounded-lg border border-[#E6DCC4] bg-[#FFFCF3] overflow-hidden ${className}`}>
       {children}
-    </div>
-  );
-}
-
-// ====== ASK CHAT PANEL ======
-
-function AskChatPanel({
-  messages,
-  loading,
-  input,
-  setInput,
-  onSend,
-  onClose,
-  onClear,
-}: {
-  messages: ChatMessage[];
-  loading: boolean;
-  input: string;
-  setInput: (v: string) => void;
-  onSend: (text: string) => void;
-  onClose: () => void;
-  onClear: () => void;
-}) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages.length, loading]);
-
-  const submit = () => {
-    if (!input.trim() || loading) return;
-    onSend(input);
-  };
-
-  return (
-    <>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#E6DCC4] shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] flex items-center justify-center shadow-sm">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <p className="text-[14px] font-semibold text-[#2A2520] leading-tight">Ask Oushi</p>
-            <p className="text-[11px] text-[#A89F92] leading-tight">Your inbox assistant</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          {messages.length > 0 && (
-            <button
-              onClick={onClear}
-              className="text-[11px] text-[#766E63] hover:text-[#2A2520] px-2 py-1 rounded transition-colors"
-              title="Start a new chat"
-            >
-              New chat
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            className="text-[#A89F92] hover:text-[#2A2520] p-1.5 rounded transition-colors"
-            title="Close (Esc)"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-5">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center text-center pt-6">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#D0E1F0] to-[#A8C5E0] flex items-center justify-center mb-4 shadow-sm">
-              <Sparkles className="w-6 h-6 text-[#3D6A95]" />
-            </div>
-            <p className="text-[15px] font-semibold text-[#2A2520] mb-1">Ask anything about your inbox</p>
-            <p className="text-[12.5px] text-[#766E63] mb-6 max-w-[280px]">
-              I'll search your emails and answer. Try one of these:
-            </p>
-            <div className="space-y-2 w-full">
-              {ASK_SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => onSend(s)}
-                  className="w-full text-left px-3.5 py-2.5 rounded-lg border border-[#E6DCC4] bg-white/50 hover:border-[#5E8FBF] hover:bg-white hover:shadow-sm text-[13px] text-[#2A2520] transition-all"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {messages.map((m, i) => (
-              <ChatBubble
-                key={i}
-                message={m}
-                animate={i === messages.length - 1 && m.role === "assistant"}
-              />
-            ))}
-            {loading && (
-              <div className="flex items-start gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] flex items-center justify-center shrink-0">
-                  <Sparkles className="w-3.5 h-3.5 text-white" />
-                </div>
-                <div className="rounded-2xl rounded-tl-sm bg-[#FAF6EB] border border-[#E6DCC4] px-3.5 py-2.5 flex items-center gap-2 text-[#766E63]">
-                  <ThinkingDots large />
-                  <span className="text-[12.5px]">Reading your inbox…</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Input */}
-      <div className="border-t border-[#E6DCC4] p-3 shrink-0 bg-[#FFFCF3]">
-        <form
-          onSubmit={(e) => { e.preventDefault(); submit(); }}
-          className="flex items-end gap-2 rounded-xl border border-[#E6DCC4] bg-white focus-within:border-[#5E8FBF] focus-within:shadow-[0_0_0_3px_rgba(94,143,191,0.12)] transition-all"
-        >
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                submit();
-              }
-            }}
-            placeholder={messages.length === 0 ? "Ask about your inbox…" : "Reply…"}
-            rows={1}
-            className="flex-1 resize-none bg-transparent text-[13.5px] text-[#2A2520] outline-none px-3.5 py-2.5 placeholder:text-[#A89F92] max-h-32 leading-[1.5]"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || loading}
-            className="m-1.5 p-2 rounded-lg bg-[#5E8FBF] hover:bg-[#3D6A95] disabled:bg-[#D6CDB8] disabled:cursor-not-allowed text-white transition-colors shrink-0"
-            title="Send"
-          >
-            <Send className="w-3.5 h-3.5" />
-          </button>
-        </form>
-        <p className="text-[10.5px] text-[#A89F92] mt-2 px-1">
-          Enter to send · Shift+Enter for newline · Esc to close
-        </p>
-      </div>
-    </>
-  );
-}
-
-function ChatBubble({ message, animate }: { message: ChatMessage; animate: boolean }) {
-  // Each ChatBubble has a stable identity (keyed by message index), and the
-  // content is immutable once rendered. Initialize once based on the animate
-  // prop and run the typewriter as a side-effect only.
-  const [typed, setTyped] = useState(animate ? "" : message.content);
-
-  useEffect(() => {
-    if (!animate) return;
-    let i = 0;
-    const t = setInterval(() => {
-      i++;
-      setTyped(message.content.slice(0, i));
-      if (i >= message.content.length) clearInterval(t);
-    }, 8);
-    return () => clearInterval(t);
-    // Intentionally run once on mount — bubbles are not re-used for new content.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const displayed = animate ? typed : message.content;
-  const showCursor = animate && displayed.length < message.content.length;
-
-  if (message.role === "user") {
-    return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-[#5E8FBF] text-white px-3.5 py-2.5 text-[13.5px] leading-[1.5] whitespace-pre-wrap shadow-sm">
-          {message.content}
-        </div>
-      </div>
-    );
-  }
-
-  const hasCards = !!message.cards && message.cards.length > 0;
-
-  return (
-    <div className="flex items-start gap-2.5">
-      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] flex items-center justify-center shrink-0">
-        <Sparkles className="w-3.5 h-3.5 text-white" />
-      </div>
-      <div className={`min-w-0 ${hasCards ? "flex-1" : "max-w-[85%]"}`}>
-        {message.content && (
-          <div className="rounded-2xl rounded-tl-sm bg-[#FAF6EB] border border-[#E6DCC4] px-3.5 py-2.5 text-[13.5px] leading-[1.6] text-[#2A2520] whitespace-pre-wrap inline-block max-w-full">
-            {displayed}
-            {showCursor && (
-              <span className="inline-block w-[2px] h-[13px] bg-[#5E8FBF] align-middle ml-0.5 animate-pulse" />
-            )}
-          </div>
-        )}
-        {hasCards && <CardStack cards={message.cards!} />}
-      </div>
     </div>
   );
 }

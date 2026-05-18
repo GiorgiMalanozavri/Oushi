@@ -58,6 +58,25 @@ Available card types:
    ]}
    USE FOR: "summarize my week", "what happened today", "give me an overview"
 
+INLINE ACTIONS — attach to any card item to make it actionable:
+
+  Each item in a timeline/checklist/people card can have an "actions" array:
+    "actions":[
+      {"type":"open_email","label":"Open","email_id":"<the email's db id>"},
+      {"type":"draft_reply","label":"Reply","email_id":"<id>"},
+      {"type":"dismiss","label":"Dismiss","email_id":"<id>"},
+      {"type":"ask_followup","label":"More on this","prompt":"tell me more about the United flight"}
+    ]
+
+  Action types:
+    - open_email: opens the source email modal. Use when item refers to a specific email.
+    - draft_reply: opens the email AND auto-drafts a reply. Use for "waiting on you" items.
+    - dismiss: marks the email as handled. Use for noise/low-value items.
+    - ask_followup: re-prompts the chat with the given text. Use for "drill in" buttons.
+
+  Email IDs are shown in brackets at the start of each email line: [<uuid>]. Use that exact uuid.
+  Only attach actions when they make sense for that specific item. Max 2 actions per item.
+
 Rules:
 - "text" is ALWAYS present. Even with a card, the text should briefly introduce it ("Here's your Tokyo trip:").
 - For simple answers ("you have 3 unread"), use text-only with NO cards.
@@ -110,6 +129,7 @@ export async function POST(request: Request) {
   const service = await createServiceClient();
 
   type EmailLite = {
+    id: string;
     from_name: string | null;
     from_email: string | null;
     subject: string | null;
@@ -123,7 +143,7 @@ export async function POST(request: Request) {
   // Pull recent emails (last 30 days) for "what's in my inbox" type questions.
   const { data: recentEmails } = await service
     .from("emails")
-    .select("from_name, from_email, subject, snippet, body_preview, attachments_text, received_at, score, is_unread, user_replied")
+    .select("id, from_name, from_email, subject, snippet, body_preview, attachments_text, received_at, score, is_unread, user_replied")
     .eq("user_id", user.id)
     .gte("received_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
     .order("received_at", { ascending: false })
@@ -188,7 +208,7 @@ export async function POST(request: Request) {
 
     const { data: olderMatches } = await service
       .from("emails")
-      .select("from_name, from_email, subject, snippet, body_preview, attachments_text, received_at, score, is_unread, user_replied")
+      .select("id, from_name, from_email, subject, snippet, body_preview, attachments_text, received_at, score, is_unread, user_replied")
       .eq("user_id", user.id)
       .gte("received_at", new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString())
       .or(orFilter)
@@ -230,7 +250,8 @@ export async function POST(request: Request) {
   const emailContext = list.map((e: EmailLite, i) => {
     const date = new Date(e.received_at);
     const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    const header = `[${i + 1}] ${dateStr} | ${e.from_name || e.from_email} <${e.from_email}> | ${e.subject}`;
+    // [id] is the database uuid — the model uses this for action.email_id
+    const header = `[${e.id}] (#${i + 1}) ${dateStr} | ${e.from_name || e.from_email} <${e.from_email}> | ${e.subject}`;
     const useFullBody = fullBodyIds.has(e);
     const bodyText = useFullBody
       ? (e.body_preview || e.snippet || "")
@@ -267,9 +288,9 @@ export async function POST(request: Request) {
 
   try {
     const client = createAnthropicClient();
-    const response = await client.messages.create({
+    const stream = client.messages.stream({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 1600, // cards can be larger than plain text
+      max_tokens: 2000, // cards with actions need more headroom
       system: ASK_SYSTEM,
       messages: [
         ...claudeMessages,
@@ -278,24 +299,34 @@ export async function POST(request: Request) {
       ],
     });
 
-    const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "";
-    // The model continues from our prefilled "{", so we prepend it back.
-    const jsonStr = "{" + raw;
+    // Pipe raw text deltas back to the client. The client prepends "{" and
+    // does incremental JSON parsing to surface text + cards as they arrive.
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          for await (const event of stream) {
+            if (
+              event.type === "content_block_delta" &&
+              event.delta.type === "text_delta" &&
+              event.delta.text
+            ) {
+              controller.enqueue(encoder.encode(event.delta.text));
+            }
+          }
+          controller.close();
+        } catch (err) {
+          controller.error(err);
+        }
+      },
+    });
 
-    const parsed = safeParseAskJson(jsonStr);
-    if (!parsed) {
-      // Fall back to treating the whole thing as text — best effort.
-      return NextResponse.json({
-        answer: raw || "Sorry, I didn't get that.",
-        cards: [],
-        question: latestQuestion,
-      });
-    }
-
-    return NextResponse.json({
-      answer: parsed.text,
-      cards: parsed.cards,
-      question: latestQuestion,
+    return new Response(body, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "X-Accel-Buffering": "no",
+      },
     });
   } catch (e) {
     return NextResponse.json(
@@ -305,41 +336,3 @@ export async function POST(request: Request) {
   }
 }
 
-/**
- * Parse the model's JSON response, tolerating common quirks (trailing
- * commentary, missing fields). Returns null on unrecoverable failure.
- */
-function safeParseAskJson(input: string): { text: string; cards: unknown[] } | null {
-  // Try to find a JSON object boundary
-  const start = input.indexOf("{");
-  if (start === -1) return null;
-
-  // Find matching closing brace
-  let depth = 0;
-  let end = -1;
-  let inString = false;
-  let escaped = false;
-  for (let i = start; i < input.length; i++) {
-    const ch = input[i];
-    if (escaped) { escaped = false; continue; }
-    if (ch === "\\") { escaped = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (ch === "{") depth++;
-    else if (ch === "}") {
-      depth--;
-      if (depth === 0) { end = i; break; }
-    }
-  }
-  if (end === -1) return null;
-
-  const slice = input.slice(start, end + 1);
-  try {
-    const obj = JSON.parse(slice);
-    const text = typeof obj?.text === "string" ? obj.text : "";
-    const cards = Array.isArray(obj?.cards) ? obj.cards : [];
-    return { text, cards };
-  } catch {
-    return null;
-  }
-}

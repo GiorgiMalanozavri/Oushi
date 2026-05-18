@@ -3,8 +3,15 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import type { ChecklistCard } from "./types";
+import { CardActionRow, type CardActionContext } from "./card-actions";
 
-export function ChecklistCardView({ card }: { card: ChecklistCard }) {
+export function ChecklistCardView({
+  card,
+  actionCtx,
+}: {
+  card: ChecklistCard;
+  actionCtx: CardActionContext;
+}) {
   // Local check state — these are advisory todos pulled from emails,
   // not persisted yet. Letting the user tick them off still feels good.
   const [checked, setChecked] = useState<Set<number>>(
@@ -41,12 +48,10 @@ export function ChecklistCardView({ card }: { card: ChecklistCard }) {
         {card.items.map((it, i) => {
           const isChecked = checked.has(i);
           return (
-            <li key={i}>
-              <button
-                onClick={() => toggle(i)}
-                className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[#FAF6EB] transition-colors group"
-              >
-                <span
+            <li key={i} className="px-4 py-3 hover:bg-[#FAF6EB] transition-colors group">
+              <div className="flex items-start gap-3">
+                <button
+                  onClick={() => toggle(i)}
                   className={`mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-all ${
                     isChecked
                       ? "bg-[#5E8FBF] border-[#5E8FBF]"
@@ -54,7 +59,7 @@ export function ChecklistCardView({ card }: { card: ChecklistCard }) {
                   }`}
                 >
                   {isChecked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                </span>
+                </button>
                 <div className="flex-1 min-w-0">
                   <p
                     className={`text-[13px] leading-snug ${
@@ -75,8 +80,11 @@ export function ChecklistCardView({ card }: { card: ChecklistCard }) {
                   {it.source && (
                     <p className="text-[10.5px] text-[#A89F92] mt-1 font-mono">{it.source}</p>
                   )}
+                  {it.actions && it.actions.length > 0 && (
+                    <CardActionRow actions={it.actions} ctx={actionCtx} />
+                  )}
                 </div>
-              </button>
+              </div>
             </li>
           );
         })}

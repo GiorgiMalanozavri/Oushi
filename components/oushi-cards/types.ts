@@ -5,6 +5,26 @@
  * Each card is a small interactive widget rendered inline in the chat.
  */
 
+/**
+ * Inline action buttons that turn cards from read-only displays into
+ * tiny workspaces. The model attaches these to specific rows when the
+ * answer warrants action.
+ */
+export type CardActionType =
+  | "open_email"      // open the email modal
+  | "draft_reply"     // open the email + auto-fire draft
+  | "dismiss"         // mark email as handled
+  | "add_calendar"    // open calendar suggestion flow
+  | "mute_sender"     // add to noise list
+  | "ask_followup";   // re-fire the chat with this prompt
+
+export interface CardAction {
+  type: CardActionType;
+  label: string;          // "Reply", "Snooze", "Open email"
+  email_id?: string;      // db id of the source email when relevant
+  prompt?: string;        // for ask_followup
+}
+
 export type TimelineIcon =
   | "plane"
   | "hotel"
@@ -26,6 +46,7 @@ export interface TimelineCard {
     subtitle?: string;       // "Confirmation MYE8MC"
     detail?: string;         // optional second-line detail
     icon?: TimelineIcon;
+    actions?: CardAction[];
   }>;
 }
 
@@ -37,6 +58,7 @@ export interface ChecklistCard {
     detail?: string;
     source?: string;         // "from Sarah, May 10"
     completed?: boolean;
+    actions?: CardAction[];
   }>;
 }
 
@@ -50,6 +72,7 @@ export interface PeopleCard {
     last_contact?: string;   // "2 days ago"
     status?: "waiting" | "replied" | "stale" | "fresh";
     note?: string;           // 1-line context
+    actions?: CardAction[];
   }>;
 }
 
