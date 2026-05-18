@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -22,7 +22,6 @@ import {
   AlertCircle,
   CornerDownLeft,
   Clock,
-  Search,
   PanelLeftClose,
   PanelLeft,
   Hash,
@@ -81,12 +80,15 @@ type ViewKey =
   | { type: "untagged" }
   | { type: "board"; id: string };
 
+type ChatMessage = { role: "user" | "assistant"; content: string };
+
 const ASK_SUGGESTIONS = [
-  "Ask Oushi…",
   "anything urgent today?",
   "what's waiting on me?",
   "did anyone email about my trip?",
+  "what's my flight info?",
   "summarize this week",
+  "any bills due soon?",
 ];
 
 export function DashboardClient({
@@ -124,8 +126,8 @@ export function DashboardClient({
   }, []);
   const [briefing, setBriefing] = useState<string | null>(null);
   const [briefingLoading, setBriefingLoading] = useState(true);
-  const [askQuestion, setAskQuestion] = useState("");
-  const [askAnswer, setAskAnswer] = useState<string | null>(null);
+  const [askMessages, setAskMessages] = useState<ChatMessage[]>([]);
+  const [askInput, setAskInput] = useState("");
   const [askLoading, setAskLoading] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const [suggested, setSuggested] = useState<Array<{ name: string; description: string; color: string }>>([]);
@@ -256,24 +258,53 @@ export function DashboardClient({
     });
   };
 
-  const handleAsk = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!askQuestion.trim() || askLoading) return;
-    setAskLoading(true);
-    setAskAnswer(null);
+  const sendAsk = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || askLoading) return;
     setAskOpen(true);
+    const newMessages: ChatMessage[] = [...askMessages, { role: "user", content: trimmed }];
+    setAskMessages(newMessages);
+    setAskInput("");
+    setAskLoading(true);
     try {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: askQuestion.trim() }),
+        body: JSON.stringify({ messages: newMessages }),
       });
       const data = await res.json();
-      setAskAnswer(data.answer || data.error || "No answer.");
+      setAskMessages([
+        ...newMessages,
+        { role: "assistant", content: data.answer || data.error || "No answer." },
+      ]);
     } catch {
-      setAskAnswer("Couldn't reach Oushi.");
-    } finally { setAskLoading(false); }
+      setAskMessages([
+        ...newMessages,
+        { role: "assistant", content: "Couldn't reach Oushi." },
+      ]);
+    } finally {
+      setAskLoading(false);
+    }
   };
+
+  const resetChat = () => {
+    setAskMessages([]);
+    setAskInput("");
+  };
+
+  // Cmd+K / Ctrl+K opens the chat
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setAskOpen(true);
+      } else if (e.key === "Escape" && askOpen) {
+        setAskOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [askOpen]);
 
   const triggerRematch = async () => {
     setRematching(true);
@@ -416,10 +447,7 @@ export function DashboardClient({
               boardCounts={emailsByTopic.byTopic}
               view={view}
               setView={handleSetView}
-              askQuestion={askQuestion}
-              setAskQuestion={setAskQuestion}
-              onAsk={handleAsk}
-              askLoading={askLoading}
+              onOpenAsk={() => setAskOpen(true)}
               onCollapse={() => setSidebarOpen(false)}
               lastSyncedAt={lastSyncedAt}
               now={now}
@@ -440,6 +468,19 @@ export function DashboardClient({
           </button>
         )}
 
+        {/* Floating Ask Oushi button — always visible top-right */}
+        {!askOpen && (
+          <button
+            onClick={() => setAskOpen(true)}
+            className="fixed top-3 right-3 z-30 group flex items-center gap-2 px-3.5 py-2 rounded-full bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] text-white shadow-lg hover:shadow-xl hover:scale-[1.03] active:scale-100 transition-all"
+            title="Ask Oushi (⌘K)"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="text-[13px] font-medium">Ask Oushi</span>
+            <kbd className="hidden sm:inline-block text-[10px] font-mono opacity-70 bg-white/15 rounded px-1 py-0.5">⌘K</kbd>
+          </button>
+        )}
+
         {/* Mobile-only top bar (when sidebar is closed) — gives breathing room for the floating menu button */}
         {isMobile && !sidebarOpen && <div className="h-12" />}
 
@@ -450,21 +491,39 @@ export function DashboardClient({
           </div>
         )}
 
-        {/* Ask answer floats below the sidebar input — show in main area */}
+        {/* Slide-out chat panel */}
         <AnimatePresence>
           {askOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden border-b border-[#E6DCC4] bg-[#FFFCF3]"
-            >
-              <AskAnswer
-                answer={askAnswer}
-                loading={askLoading}
-                onClose={() => { setAskOpen(false); setAskAnswer(null); setAskQuestion(""); }}
+            <>
+              <motion.div
+                key="chat-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setAskOpen(false)}
+                className="fixed inset-0 z-40 bg-[#2A2520]/20 backdrop-blur-[2px]"
               />
-            </motion.div>
+              <motion.div
+                key="chat-panel"
+                initial={{ x: 440, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: 440, opacity: 0 }}
+                transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+                className={`fixed right-0 top-0 h-screen z-50 flex flex-col bg-[#FFFCF3] border-l border-[#E6DCC4] shadow-2xl ${
+                  isMobile ? "w-full" : "w-[440px]"
+                }`}
+              >
+                <AskChatPanel
+                  messages={askMessages}
+                  loading={askLoading}
+                  input={askInput}
+                  setInput={setAskInput}
+                  onSend={sendAsk}
+                  onClose={() => setAskOpen(false)}
+                  onClear={resetChat}
+                />
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
 
@@ -676,10 +735,7 @@ function Sidebar({
   boardCounts,
   view,
   setView,
-  askQuestion,
-  setAskQuestion,
-  onAsk,
-  askLoading,
+  onOpenAsk,
   onCollapse,
   lastSyncedAt,
   now,
@@ -690,23 +746,11 @@ function Sidebar({
   boardCounts: Map<string, Classified[]>;
   view: ViewKey;
   setView: (v: ViewKey) => void;
-  askQuestion: string;
-  setAskQuestion: (q: string) => void;
-  onAsk: (e: React.FormEvent) => void;
-  askLoading: boolean;
+  onOpenAsk: () => void;
   onCollapse: () => void;
   lastSyncedAt: string | null;
   now: Date;
 }) {
-  const [placeholderIdx, setPlaceholderIdx] = useState(0);
-  const [askFocused, setAskFocused] = useState(false);
-
-  useEffect(() => {
-    if (askFocused || askQuestion) return;
-    const t = setInterval(() => setPlaceholderIdx((i) => (i + 1) % ASK_SUGGESTIONS.length), 3500);
-    return () => clearInterval(t);
-  }, [askFocused, askQuestion]);
-
   const syncFresh = lastSyncedAt && (now.getTime() - new Date(lastSyncedAt).getTime()) / 60000 < 10;
 
   return (
@@ -722,41 +766,16 @@ function Sidebar({
         </button>
       </div>
 
-      {/* Ask Oushi */}
+      {/* Ask Oushi — prominent button that opens the chat panel */}
       <div className="px-3 py-3 border-b border-[#E6DCC4]">
-        <form onSubmit={onAsk} className={`relative rounded-md border bg-[#FAF6EB]/50 transition-all ${askFocused ? "border-[#5E8FBF] shadow-[0_0_0_3px_rgba(94,143,191,0.12)]" : "border-[#E6DCC4]"}`}>
-          <div className="flex items-center gap-2 px-2.5 py-1.5">
-            <Search className="w-3.5 h-3.5 text-[#A89F92] shrink-0" />
-            <div className="relative flex-1 min-w-0">
-              <input
-                type="text"
-                value={askQuestion}
-                onChange={(e) => setAskQuestion(e.target.value)}
-                onFocus={() => setAskFocused(true)}
-                onBlur={() => setAskFocused(false)}
-                className="w-full bg-transparent text-[13px] text-[#2A2520] outline-none placeholder:text-transparent"
-                placeholder=" "
-              />
-              {!askQuestion && (
-                <div className="pointer-events-none absolute inset-0 flex items-center overflow-hidden">
-                  <AnimatePresence mode="wait">
-                    <motion.span
-                      key={placeholderIdx}
-                      initial={{ y: 6, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      exit={{ y: -6, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="text-[13px] text-[#A89F92] truncate"
-                    >
-                      {ASK_SUGGESTIONS[placeholderIdx]}
-                    </motion.span>
-                  </AnimatePresence>
-                </div>
-              )}
-            </div>
-            {askLoading && <ThinkingDots />}
-          </div>
-        </form>
+        <button
+          onClick={onOpenAsk}
+          className="w-full group flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] text-white shadow-sm hover:shadow-md hover:from-[#3D6A95] hover:to-[#2D5A85] transition-all"
+        >
+          <Sparkles className="w-4 h-4 shrink-0" />
+          <span className="text-[13px] font-medium flex-1 text-left">Ask Oushi</span>
+          <kbd className="text-[10px] font-mono opacity-70 bg-white/15 rounded px-1.5 py-0.5">⌘K</kbd>
+        </button>
       </div>
 
       {/* Nav */}
@@ -1322,55 +1341,201 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   );
 }
 
-// ====== ASK ANSWER ======
+// ====== ASK CHAT PANEL ======
 
-function AskAnswer({
-  answer,
+function AskChatPanel({
+  messages,
   loading,
+  input,
+  setInput,
+  onSend,
   onClose,
+  onClear,
 }: {
-  answer: string | null;
+  messages: ChatMessage[];
   loading: boolean;
+  input: string;
+  setInput: (v: string) => void;
+  onSend: (text: string) => void;
   onClose: () => void;
+  onClear: () => void;
 }) {
-  const [displayed, setDisplayed] = useState("");
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    if (!answer) { setDisplayed(""); return; }
-    setDisplayed("");
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages.length, loading]);
+
+  const submit = () => {
+    if (!input.trim() || loading) return;
+    onSend(input);
+  };
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#E6DCC4] shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] flex items-center justify-center shadow-sm">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <p className="text-[14px] font-semibold text-[#2A2520] leading-tight">Ask Oushi</p>
+            <p className="text-[11px] text-[#A89F92] leading-tight">Your inbox assistant</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          {messages.length > 0 && (
+            <button
+              onClick={onClear}
+              className="text-[11px] text-[#766E63] hover:text-[#2A2520] px-2 py-1 rounded transition-colors"
+              title="Start a new chat"
+            >
+              New chat
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="text-[#A89F92] hover:text-[#2A2520] p-1.5 rounded transition-colors"
+            title="Close (Esc)"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-5">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center text-center pt-6">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#D0E1F0] to-[#A8C5E0] flex items-center justify-center mb-4 shadow-sm">
+              <Sparkles className="w-6 h-6 text-[#3D6A95]" />
+            </div>
+            <p className="text-[15px] font-semibold text-[#2A2520] mb-1">Ask anything about your inbox</p>
+            <p className="text-[12.5px] text-[#766E63] mb-6 max-w-[280px]">
+              I'll search your emails and answer. Try one of these:
+            </p>
+            <div className="space-y-2 w-full">
+              {ASK_SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => onSend(s)}
+                  className="w-full text-left px-3.5 py-2.5 rounded-lg border border-[#E6DCC4] bg-white/50 hover:border-[#5E8FBF] hover:bg-white hover:shadow-sm text-[13px] text-[#2A2520] transition-all"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map((m, i) => (
+              <ChatBubble
+                key={i}
+                message={m}
+                animate={i === messages.length - 1 && m.role === "assistant"}
+              />
+            ))}
+            {loading && (
+              <div className="flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] flex items-center justify-center shrink-0">
+                  <Sparkles className="w-3.5 h-3.5 text-white" />
+                </div>
+                <div className="rounded-2xl rounded-tl-sm bg-[#FAF6EB] border border-[#E6DCC4] px-3.5 py-2.5 flex items-center gap-2 text-[#766E63]">
+                  <ThinkingDots large />
+                  <span className="text-[12.5px]">Reading your inbox…</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-[#E6DCC4] p-3 shrink-0 bg-[#FFFCF3]">
+        <form
+          onSubmit={(e) => { e.preventDefault(); submit(); }}
+          className="flex items-end gap-2 rounded-xl border border-[#E6DCC4] bg-white focus-within:border-[#5E8FBF] focus-within:shadow-[0_0_0_3px_rgba(94,143,191,0.12)] transition-all"
+        >
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            placeholder={messages.length === 0 ? "Ask about your inbox…" : "Reply…"}
+            rows={1}
+            className="flex-1 resize-none bg-transparent text-[13.5px] text-[#2A2520] outline-none px-3.5 py-2.5 placeholder:text-[#A89F92] max-h-32 leading-[1.5]"
+          />
+          <button
+            type="submit"
+            disabled={!input.trim() || loading}
+            className="m-1.5 p-2 rounded-lg bg-[#5E8FBF] hover:bg-[#3D6A95] disabled:bg-[#D6CDB8] disabled:cursor-not-allowed text-white transition-colors shrink-0"
+            title="Send"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </button>
+        </form>
+        <p className="text-[10.5px] text-[#A89F92] mt-2 px-1">
+          Enter to send · Shift+Enter for newline · Esc to close
+        </p>
+      </div>
+    </>
+  );
+}
+
+function ChatBubble({ message, animate }: { message: ChatMessage; animate: boolean }) {
+  // Each ChatBubble has a stable identity (keyed by message index), and the
+  // content is immutable once rendered. Initialize once based on the animate
+  // prop and run the typewriter as a side-effect only.
+  const [typed, setTyped] = useState(animate ? "" : message.content);
+
+  useEffect(() => {
+    if (!animate) return;
     let i = 0;
     const t = setInterval(() => {
       i++;
-      setDisplayed(answer.slice(0, i));
-      if (i >= answer.length) clearInterval(t);
-    }, 10);
+      setTyped(message.content.slice(0, i));
+      if (i >= message.content.length) clearInterval(t);
+    }, 8);
     return () => clearInterval(t);
-  }, [answer]);
+    // Intentionally run once on mount — bubbles are not re-used for new content.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const displayed = animate ? typed : message.content;
+  const showCursor = animate && displayed.length < message.content.length;
+
+  if (message.role === "user") {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-[#5E8FBF] text-white px-3.5 py-2.5 text-[13.5px] leading-[1.5] whitespace-pre-wrap shadow-sm">
+          {message.content}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="px-8 lg:px-12 py-5 flex items-start gap-3 border-l-2 border-[#5E8FBF]">
-      <div className="w-6 h-6 rounded-md bg-[#D0E1F0] flex items-center justify-center shrink-0 mt-0.5">
-        <Sparkles className="w-3 h-3 text-[#3D6A95]" />
+    <div className="flex items-start gap-2.5">
+      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] flex items-center justify-center shrink-0">
+        <Sparkles className="w-3.5 h-3.5 text-white" />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-1">Oushi</p>
-        {loading ? (
-          <div className="flex items-center gap-2 text-[#766E63]">
-            <ThinkingDots large />
-            <span className="text-[13px]">Reading your inbox…</span>
-          </div>
-        ) : (
-          <p className="text-[14px] leading-[1.6] text-[#2A2520] whitespace-pre-wrap">
-            {displayed}
-            {displayed.length < (answer?.length || 0) && (
-              <span className="inline-block w-[2px] h-[14px] bg-[#5E8FBF] align-middle ml-0.5 animate-pulse" />
-            )}
-          </p>
+      <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[#FAF6EB] border border-[#E6DCC4] px-3.5 py-2.5 text-[13.5px] leading-[1.6] text-[#2A2520] whitespace-pre-wrap">
+        {displayed}
+        {showCursor && (
+          <span className="inline-block w-[2px] h-[13px] bg-[#5E8FBF] align-middle ml-0.5 animate-pulse" />
         )}
       </div>
-      <button onClick={onClose} className="text-[#A89F92] hover:text-[#2A2520] p-1 rounded shrink-0">
-        <X className="w-3.5 h-3.5" />
-      </button>
     </div>
   );
 }

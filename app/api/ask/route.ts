@@ -4,18 +4,21 @@ import { createAnthropicClient } from "@/lib/claude";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getActiveMemories, formatMemoriesForPrompt } from "@/lib/memory";
 
-const ASK_MAX = 30;
-const ASK_WINDOW_MS = 60 * 60 * 1000; // 30 asks / hour / user
+const ASK_MAX = 60;
+const ASK_WINDOW_MS = 60 * 60 * 1000; // 60 asks / hour / user
 
-const ASK_SYSTEM = `You are Oushi, the user's personal email assistant. The user will ask a question about their inbox. Answer using ONLY the emails provided.
+const ASK_SYSTEM = `You are Oushi, the user's personal email assistant. The user is chatting with you about their inbox. Answer using ONLY the emails provided in the first turn.
 
 Rules:
 - Be direct and conversational. 1-4 sentences usually.
+- This is an ongoing conversation — remember what the user just asked. If they say "tell me more" or "when?" or "who?", connect it to the previous turn.
 - If you reference a specific email, mention the sender's name.
 - If the answer isn't in the provided emails, say so plainly. Do NOT make things up.
 - No bullet lists unless the user asks for a list.
 - No markdown headers. Plain prose.
 - Speak in second person ("you", "your inbox").`;
+
+type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -32,10 +35,28 @@ export async function POST(request: Request) {
     );
   }
 
-  const { question } = await request.json();
-  if (!question || typeof question !== "string" || question.trim().length === 0) {
-    return NextResponse.json({ error: "question required" }, { status: 400 });
+  const body = await request.json();
+
+  // Accept either { messages: [...] } (multi-turn chat) or { question: "..." }
+  // (legacy single-shot). Normalize to messages.
+  let messages: ChatMessage[] = [];
+  if (Array.isArray(body.messages)) {
+    messages = body.messages
+      .filter((m: { role?: string; content?: string }) =>
+        (m.role === "user" || m.role === "assistant") &&
+        typeof m.content === "string" &&
+        m.content.trim().length > 0
+      )
+      .slice(-12); // cap history at 12 turns
+  } else if (typeof body.question === "string" && body.question.trim().length > 0) {
+    messages = [{ role: "user", content: body.question.trim() }];
   }
+
+  if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
+    return NextResponse.json({ error: "messages must end with a user turn" }, { status: 400 });
+  }
+
+  const latestQuestion = messages[messages.length - 1].content;
 
   const service = await createServiceClient();
 
@@ -59,23 +80,28 @@ export async function POST(request: Request) {
     .order("received_at", { ascending: false })
     .limit(60);
 
-  // Extract meaningful keywords from the question.
+  // For keyword extraction, combine the latest question with the prior user turn
+  // (gives "tell me more about it" enough context to find the right emails).
+  const lastTwoUserTurns = messages
+    .filter((m) => m.role === "user")
+    .slice(-2)
+    .map((m) => m.content)
+    .join(" ");
+
   const STOP_WORDS = new Set([
     "the", "and", "for", "what", "when", "where", "who", "why", "how",
     "from", "this", "that", "with", "have", "has", "had", "are", "was",
     "were", "been", "being", "did", "does", "doing", "will", "would",
     "could", "should", "can", "may", "might", "must", "shall", "into",
     "about", "tell", "show", "give", "find", "any", "all", "some", "more",
-    "next", "last", "your", "mine", "ours", "yours", "their",
+    "next", "last", "your", "mine", "ours", "yours", "their", "you",
   ]);
-  const rawWords = question
+  const rawWords = lastTwoUserTurns
     .toLowerCase()
     .split(/\W+/)
     .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
 
-  // Synonym expansion — when the user asks about a flight, also pull
-  // "ticket / itinerary / airline / booking" emails, since airlines rarely
-  // put the word "flight" in subject lines.
+  // Synonym expansion — airlines rarely put "flight" in subject lines.
   const SYNONYMS: Record<string, string[]> = {
     flight: ["flight", "airline", "boarding", "ticket", "itinerary", "departure", "trip", "booking", "confirmation", "eticket"],
     flights: ["flight", "airline", "boarding", "ticket", "itinerary", "departure", "trip", "booking", "confirmation", "eticket"],
@@ -96,8 +122,7 @@ export async function POST(request: Request) {
   }
   const qWords = Array.from(expanded);
 
-  // ALSO do a wider keyword search going back 6 months — flights, hotels, bookings
-  // are often confirmed months in advance, so the 30-day window misses them.
+  // Wider keyword search going back 6 months
   let widerMatches: EmailLite[] = [];
   if (qWords.length > 0) {
     const orFilter = qWords
@@ -123,7 +148,7 @@ export async function POST(request: Request) {
     widerMatches = olderMatches || [];
   }
 
-  // De-dupe by subject+from
+  // De-dupe by subject+from+date
   const seen = new Set<string>();
   const list: EmailLite[] = [];
   for (const e of [...(recentEmails || []), ...widerMatches]) {
@@ -133,21 +158,14 @@ export async function POST(request: Request) {
     list.push(e);
   }
 
-  // Build the "full body" set. Three buckets:
-  //   1. Top 8 most recent emails (always)
-  //   2. Top 8 highest-scored emails from the last 30 days (catches important
-  //      stuff like flight confirmations that may not be in top-recent)
-  //   3. Up to 12 keyword-matched emails (with synonym expansion)
+  // Full-body set: top 8 recent + top 8 highest-scored + up to 12 keyword-matched
   const fullBodyIds = new Set<EmailLite>();
-
   for (const e of list.slice(0, 8)) fullBodyIds.add(e);
-
   const byScore = [...list]
     .filter((e) => (e.score ?? 0) >= 50)
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
     .slice(0, 8);
   for (const e of byScore) fullBodyIds.add(e);
-
   let matchedCount = 0;
   for (const e of list) {
     if (fullBodyIds.has(e)) continue;
@@ -160,23 +178,43 @@ export async function POST(request: Request) {
     }
   }
 
-  // Compose: full body for important set, snippet only for the rest.
   const emailContext = list.map((e: EmailLite, i) => {
     const date = new Date(e.received_at);
     const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const header = `[${i + 1}] ${dateStr} | ${e.from_name || e.from_email} <${e.from_email}> | ${e.subject}`;
     const useFullBody = fullBodyIds.has(e);
-    const body = useFullBody
+    const bodyText = useFullBody
       ? (e.body_preview || e.snippet || "")
       : (e.snippet || (e.body_preview?.slice(0, 200) || ""));
     const attach = useFullBody && e.attachments_text
       ? `\n[Attachments]: ${e.attachments_text.slice(0, 1500)}`
       : "";
-    return `${header}\n${body}${attach}`;
+    return `${header}\n${bodyText}${attach}`;
   }).join("\n\n---\n\n");
 
   const memories = await getActiveMemories(service, user.id, 50);
   const memoryBlock = formatMemoriesForPrompt(memories);
+
+  // Build Claude-format messages. The first user turn gets the inbox context
+  // prepended. Subsequent turns are passed through as-is for natural chat.
+  const claudeMessages: ChatMessage[] = messages.map((m, idx) => {
+    if (idx === 0 && m.role === "user") {
+      return {
+        role: "user",
+        content: `${memoryBlock ? `${memoryBlock}\n\n---\n\n` : ""}My inbox (most recent first, including any older emails that match the question):\n\n${emailContext}\n\n---\n\n${m.content}`,
+      };
+    }
+    // Update inbox context on the latest turn too — so follow-up questions
+    // about new keywords also get the right emails surfaced. Skip if this is
+    // already the first turn (handled above).
+    if (idx === messages.length - 1 && m.role === "user" && messages.length > 1) {
+      return {
+        role: "user",
+        content: `[Updated inbox context for this question:\n\n${emailContext}\n\n---\n\n]\n\n${m.content}`,
+      };
+    }
+    return m;
+  });
 
   try {
     const client = createAnthropicClient();
@@ -184,16 +222,11 @@ export async function POST(request: Request) {
       model: "claude-haiku-4-5-20251001",
       max_tokens: 800,
       system: ASK_SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content: `${memoryBlock ? `${memoryBlock}\n\n---\n\n` : ""}My inbox (most recent first, including any older emails that match the question):\n\n${emailContext}\n\n---\n\nMy question: ${question.trim()}`,
-        },
-      ],
+      messages: claudeMessages,
     });
 
     const answer = response.content[0].type === "text" ? response.content[0].text.trim() : "";
-    return NextResponse.json({ answer });
+    return NextResponse.json({ answer, question: latestQuestion });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Ask failed" },
