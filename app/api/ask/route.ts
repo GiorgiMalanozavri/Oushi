@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     body_preview: string | null;
     attachments_text: string | null;
     received_at: string;
+    score: number | null;
   };
 
   // Pull recent emails (last 30 days) for "what's in my inbox" type questions.
@@ -58,25 +59,49 @@ export async function POST(request: Request) {
     .order("received_at", { ascending: false })
     .limit(60);
 
-  // Extract meaningful keywords from the question. Includes "flight", "booking", etc.
+  // Extract meaningful keywords from the question.
   const STOP_WORDS = new Set([
     "the", "and", "for", "what", "when", "where", "who", "why", "how",
     "from", "this", "that", "with", "have", "has", "had", "are", "was",
     "were", "been", "being", "did", "does", "doing", "will", "would",
     "could", "should", "can", "may", "might", "must", "shall", "into",
     "about", "tell", "show", "give", "find", "any", "all", "some", "more",
+    "next", "last", "your", "mine", "ours", "yours", "their",
   ]);
-  const qWords = question
+  const rawWords = question
     .toLowerCase()
     .split(/\W+/)
     .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+
+  // Synonym expansion — when the user asks about a flight, also pull
+  // "ticket / itinerary / airline / booking" emails, since airlines rarely
+  // put the word "flight" in subject lines.
+  const SYNONYMS: Record<string, string[]> = {
+    flight: ["flight", "airline", "boarding", "ticket", "itinerary", "departure", "trip", "booking", "confirmation", "eticket"],
+    flights: ["flight", "airline", "boarding", "ticket", "itinerary", "departure", "trip", "booking", "confirmation", "eticket"],
+    travel: ["flight", "hotel", "booking", "reservation", "itinerary", "trip", "airline"],
+    trip: ["flight", "hotel", "booking", "reservation", "itinerary", "trip", "airline"],
+    hotel: ["hotel", "booking", "reservation", "check-in", "checkin", "stay", "airbnb"],
+    package: ["package", "delivery", "shipment", "shipped", "tracking", "order"],
+    order: ["order", "purchase", "receipt", "shipment", "delivery", "tracking"],
+    bill: ["bill", "invoice", "payment", "due", "balance", "statement"],
+    invoice: ["bill", "invoice", "payment", "due", "balance", "statement"],
+    meeting: ["meeting", "calendar", "schedule", "appointment", "invite"],
+    interview: ["interview", "schedule", "calendar", "appointment", "call"],
+  };
+  const expanded = new Set<string>();
+  for (const w of rawWords) {
+    expanded.add(w);
+    if (SYNONYMS[w]) for (const s of SYNONYMS[w]) expanded.add(s);
+  }
+  const qWords = Array.from(expanded);
 
   // ALSO do a wider keyword search going back 6 months — flights, hotels, bookings
   // are often confirmed months in advance, so the 30-day window misses them.
   let widerMatches: EmailLite[] = [];
   if (qWords.length > 0) {
     const orFilter = qWords
-      .slice(0, 6)
+      .slice(0, 10)
       .flatMap((w) => [
         `subject.ilike.%${w}%`,
         `from_email.ilike.%${w}%`,
@@ -93,8 +118,8 @@ export async function POST(request: Request) {
       .eq("user_id", user.id)
       .gte("received_at", new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString())
       .or(orFilter)
-      .order("received_at", { ascending: false })
-      .limit(20);
+      .order("score", { ascending: false })
+      .limit(30);
     widerMatches = olderMatches || [];
   }
 
@@ -108,22 +133,32 @@ export async function POST(request: Request) {
     list.push(e);
   }
 
-  // Always include the 10 most recent emails with full body.
-  const recentSet = new Set<EmailLite>();
-  for (const e of list.slice(0, 10)) recentSet.add(e);
+  // Build the "full body" set. Three buckets:
+  //   1. Top 8 most recent emails (always)
+  //   2. Top 8 highest-scored emails from the last 30 days (catches important
+  //      stuff like flight confirmations that may not be in top-recent)
+  //   3. Up to 12 keyword-matched emails (with synonym expansion)
+  const fullBodyIds = new Set<EmailLite>();
 
-  // Also include up to 12 keyword-matched emails not already in the recent set.
-  const matched: EmailLite[] = [];
+  for (const e of list.slice(0, 8)) fullBodyIds.add(e);
+
+  const byScore = [...list]
+    .filter((e) => (e.score ?? 0) >= 50)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, 8);
+  for (const e of byScore) fullBodyIds.add(e);
+
+  let matchedCount = 0;
   for (const e of list) {
-    if (recentSet.has(e)) continue;
+    if (fullBodyIds.has(e)) continue;
     const hay = `${e.subject || ""} ${e.snippet || ""} ${e.body_preview || ""} ${e.attachments_text || ""} ${e.from_name || ""} ${e.from_email || ""}`.toLowerCase();
-    const score = qWords.reduce((acc, w) => acc + (hay.includes(w) ? 1 : 0), 0);
-    if (score > 0) matched.push(e);
-    if (matched.length >= 12) break;
+    const hits = qWords.reduce((acc, w) => acc + (hay.includes(w) ? 1 : 0), 0);
+    if (hits > 0) {
+      fullBodyIds.add(e);
+      matchedCount++;
+      if (matchedCount >= 12) break;
+    }
   }
-
-  const fullBodyEmails: EmailLite[] = [...recentSet, ...matched];
-  const fullBodyIds = new Set(fullBodyEmails);
 
   // Compose: full body for important set, snippet only for the rest.
   const emailContext = list.map((e: EmailLite, i) => {
@@ -152,7 +187,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "user",
-          content: `${memoryBlock ? `${memoryBlock}\n\n---\n\n` : ""}My inbox (last 14 days, most recent first):\n\n${emailContext}\n\n---\n\nMy question: ${question.trim()}`,
+          content: `${memoryBlock ? `${memoryBlock}\n\n---\n\n` : ""}My inbox (most recent first, including any older emails that match the question):\n\n${emailContext}\n\n---\n\nMy question: ${question.trim()}`,
         },
       ],
     });
