@@ -27,6 +27,7 @@ import {
   Hash,
   CircleDot,
   Archive,
+  Handshake,
 } from "lucide-react";
 import type { Classified } from "@/lib/outstanding";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -36,6 +37,7 @@ import { isOushiCard, type OushiCard } from "@/components/oushi-cards/types";
 import type { CardActionContext } from "@/components/oushi-cards/card-actions";
 import { AskSpotlight, type ChatMessage } from "@/components/ask-spotlight";
 import { parsePartialAsk } from "@/lib/partial-json";
+import { PromisesView } from "@/components/promises-view";
 
 interface Profile {
   bio: string;
@@ -82,6 +84,7 @@ type ViewKey =
   | { type: "following" }
   | { type: "reference" }
   | { type: "untagged" }
+  | { type: "promises" }
   | { type: "board"; id: string };
 
 // ChatMessage type now lives in ask-spotlight.tsx — imported above.
@@ -129,6 +132,25 @@ export function DashboardClient({
   const [recentThreads, setRecentThreads] = useState<
     Array<{ id: string; title: string; updated_at: string; message_count: number }>
   >([]);
+  const [promisesCount, setPromisesCount] = useState<number>(0);
+
+  // Lazy-fetch promises count for the sidebar badge.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/commitments?status=open");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data.commitments)) {
+          setPromisesCount(data.commitments.length);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [view]);
   const [suggested, setSuggested] = useState<Array<{ name: string; description: string; color: string }>>([]);
   const [rematching, setRematching] = useState(false);
   const [newTopicName, setNewTopicName] = useState("");
@@ -604,6 +626,7 @@ export function DashboardClient({
                 following: visible.following.length,
                 reference: visible.reference.length,
                 untagged: emailsByTopic.untagged.length,
+                promises: promisesCount,
                 total: allEmails.filter((e) => !dismissedIds.has(e.id) && e.score >= 30 && e.bucket !== "handled").length,
               }}
               boardCounts={emailsByTopic.byTopic}
@@ -743,6 +766,7 @@ export function DashboardClient({
               emptyMessage="Everything is sorted."
             />
           )}
+          {view.type === "promises" && <PromisesView />}
           {view.type === "board" && (() => {
             const topic = topics.find((t) => t.id === view.id);
             if (!topic) return null;
@@ -881,7 +905,7 @@ function Sidebar({
 }: {
   userEmail: string;
   topics: Topic[];
-  counts: { urgent: number; awaiting: number; following: number; reference: number; untagged: number; total: number };
+  counts: { urgent: number; awaiting: number; following: number; reference: number; untagged: number; promises: number; total: number };
   boardCounts: Map<string, Classified[]>;
   view: ViewKey;
   setView: (v: ViewKey) => void;
@@ -936,6 +960,14 @@ function Sidebar({
           countColor="ink"
           active={view.type === "following"}
           onClick={() => setView({ type: "following" })}
+        />
+        <NavItem
+          icon={<Handshake className="w-3.5 h-3.5 text-[#5E8FBF]" />}
+          label="Promises"
+          count={counts.promises}
+          countColor="sky"
+          active={view.type === "promises"}
+          onClick={() => setView({ type: "promises" })}
         />
         <NavItem
           icon={<Archive className="w-3.5 h-3.5" />}
