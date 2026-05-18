@@ -534,7 +534,6 @@ export function DashboardClient({
               boardCounts={emailsByTopic.byTopic}
               view={view}
               setView={handleSetView}
-              onOpenAsk={() => setAskOpen(true)}
               onCollapse={() => setSidebarOpen(false)}
               lastSyncedAt={lastSyncedAt}
               now={now}
@@ -798,7 +797,6 @@ function Sidebar({
   boardCounts,
   view,
   setView,
-  onOpenAsk,
   onCollapse,
   lastSyncedAt,
   now,
@@ -809,7 +807,6 @@ function Sidebar({
   boardCounts: Map<string, Classified[]>;
   view: ViewKey;
   setView: (v: ViewKey) => void;
-  onOpenAsk: () => void;
   onCollapse: () => void;
   lastSyncedAt: string | null;
   now: Date;
@@ -826,18 +823,6 @@ function Sidebar({
         </Link>
         <button onClick={onCollapse} className="text-[#A89F92] hover:text-[#2A2520] p-1 rounded transition-colors">
           <PanelLeftClose className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Ask Oushi — prominent button that opens the chat panel */}
-      <div className="px-3 py-3 border-b border-[#E6DCC4]">
-        <button
-          onClick={onOpenAsk}
-          className="w-full group flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] text-white shadow-sm hover:shadow-md hover:from-[#3D6A95] hover:to-[#2D5A85] transition-all"
-        >
-          <Sparkles className="w-4 h-4 shrink-0" />
-          <span className="text-[13px] font-medium flex-1 text-left">Ask Oushi</span>
-          <kbd className="text-[10px] font-mono opacity-70 bg-white/15 rounded px-1.5 py-0.5">⌘K</kbd>
         </button>
       </div>
 
