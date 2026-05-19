@@ -91,11 +91,15 @@ export async function GET() {
   }
 
   const service = await createServiceClient();
+  // Filter by start_at instead of end_at — end_at can be null for some
+  // event types and would silently exclude them. Use a 6-hour back-look so
+  // in-progress events still show up.
+  const lookback = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
   const { data, error } = await service
     .from("calendar_events")
     .select("*")
     .eq("user_id", user.id)
-    .gte("end_at", new Date().toISOString())
+    .gte("start_at", lookback)
     .order("start_at", { ascending: true })
     .limit(10);
 
