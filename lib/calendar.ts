@@ -26,6 +26,8 @@ export interface CalendarEventLite {
 
 /**
  * Fetch the user's events for the next `hours` window via Google Calendar API.
+ * Aggregates across ALL calendars the user owns or has selected — not just
+ * "primary" — since people commonly keep work events in a separate calendar.
  * Uses calendar.events scope which already allows reading.
  */
 export async function fetchUpcomingEvents(
@@ -37,54 +39,97 @@ export async function fetchUpcomingEvents(
   const now = new Date();
   const end = new Date(now.getTime() + hours * 60 * 60 * 1000);
 
-  const res = await cal.events.list({
-    calendarId: "primary",
-    timeMin: now.toISOString(),
-    timeMax: end.toISOString(),
-    singleEvents: true,    // expand recurring events
-    orderBy: "startTime",
-    maxResults: 50,
-  });
-
-  const items = res.data.items || [];
-  const out: CalendarEventLite[] = [];
-
-  for (const ev of items) {
-    if (!ev.id || ev.status === "cancelled") continue;
-
-    // Start/end can be dateTime (timed) or date (all-day)
-    const startRaw = ev.start?.dateTime || ev.start?.date;
-    const endRaw = ev.end?.dateTime || ev.end?.date;
-    if (!startRaw) continue;
-
-    const isAllDay = !ev.start?.dateTime;
-
-    const attendees =
-      (ev.attendees || [])
-        .filter((a) => a.email)
-        .map((a) => ({
-          email: a.email!,
-          name: a.displayName || undefined,
-          responseStatus: a.responseStatus || undefined,
-          self: a.self || false,
-        }));
-
-    out.push({
-      google_event_id: ev.id,
-      summary: ev.summary || null,
-      description: ev.description || null,
-      location: ev.location || null,
-      start_at: new Date(startRaw).toISOString(),
-      end_at: endRaw ? new Date(endRaw).toISOString() : null,
-      is_all_day: isAllDay,
-      hangout_link: ev.hangoutLink || null,
-      attendees,
-      organizer_email: ev.organizer?.email || null,
-      organizer_name: ev.organizer?.displayName || null,
-      organizer_self: ev.organizer?.self || false,
+  // Step 1: list calendars the user owns or has "selected" in their UI.
+  // Skip read-only shared calendars they probably don't care about (holidays,
+  // birthdays, etc.) by filtering on accessRole / selected.
+  let calendarIds: string[] = ["primary"];
+  try {
+    const listRes = await cal.calendarList.list({
+      maxResults: 50,
+      showHidden: false,
     });
+    const items = listRes.data.items || [];
+    const useful = items.filter((c) => {
+      if (!c.id) return false;
+      // Owner has full control — almost always wanted
+      if (c.accessRole === "owner") return true;
+      // Writer = shared calendars the user can edit (often work cals)
+      if (c.accessRole === "writer") return true;
+      // primary is duplicated under owner but include just in case
+      if (c.primary) return true;
+      // "selected" means the user has it visible in their Google UI
+      if (c.selected) return true;
+      return false;
+    });
+    if (useful.length > 0) {
+      calendarIds = Array.from(new Set(useful.map((c) => c.id!)));
+    }
+  } catch (e) {
+    console.error("[calendar.fetchUpcomingEvents] calendarList failed, falling back to primary", e instanceof Error ? e.message : e);
   }
 
+  // Step 2: fetch events from each calendar in parallel
+  const perCalendar = await Promise.allSettled(
+    calendarIds.map((id) =>
+      cal.events.list({
+        calendarId: id,
+        timeMin: now.toISOString(),
+        timeMax: end.toISOString(),
+        singleEvents: true, // expand recurring
+        orderBy: "startTime",
+        maxResults: 50,
+      })
+    )
+  );
+
+  const out: CalendarEventLite[] = [];
+  const seen = new Set<string>(); // dedupe events that appear in multiple calendars
+
+  for (const r of perCalendar) {
+    if (r.status !== "fulfilled") continue;
+    const items = r.value.data.items || [];
+
+    for (const ev of items) {
+      if (!ev.id || ev.status === "cancelled") continue;
+      if (seen.has(ev.id)) continue;
+      seen.add(ev.id);
+
+      // Start/end can be dateTime (timed) or date (all-day)
+      const startRaw = ev.start?.dateTime || ev.start?.date;
+      const endRaw = ev.end?.dateTime || ev.end?.date;
+      if (!startRaw) continue;
+
+      const isAllDay = !ev.start?.dateTime;
+
+      const attendees =
+        (ev.attendees || [])
+          .filter((a) => a.email)
+          .map((a) => ({
+            email: a.email!,
+            name: a.displayName || undefined,
+            responseStatus: a.responseStatus || undefined,
+            self: a.self || false,
+          }));
+
+      out.push({
+        google_event_id: ev.id,
+        summary: ev.summary || null,
+        description: ev.description || null,
+        location: ev.location || null,
+        start_at: new Date(startRaw).toISOString(),
+        end_at: endRaw ? new Date(endRaw).toISOString() : null,
+        is_all_day: isAllDay,
+        hangout_link: ev.hangoutLink || null,
+        attendees,
+        organizer_email: ev.organizer?.email || null,
+        organizer_name: ev.organizer?.displayName || null,
+        organizer_self: ev.organizer?.self || false,
+      });
+    }
+  }
+
+  // Sort by start time across the merged set
+  out.sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
   return out;
 }
 
