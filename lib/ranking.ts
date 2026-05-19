@@ -220,13 +220,18 @@ export async function rankUnrankedEmails(userId: string) {
     feedbackContext = lines.join("\n");
   }
 
-  // Build sender reputation from feedback
+  // Build sender reputation from two sources:
+  //   1. Explicit feedback (upvote/downvote on specific emails)
+  //   2. Bootstrap signals (sent-to, starred, important — from initial Gmail scan)
+  // Both contribute to the same map; feedback is binary (-1/+1), bootstrap
+  // contributes a scaled value so a strong existing relationship gives a
+  // meaningful day-1 score bump.
+  const senderRep: Record<string, number> = {};
+
   const { data: allFeedback } = await supabase
     .from("feedback")
     .select("signal, emails(from_email)")
     .eq("user_id", userId);
-
-  const senderRep: Record<string, number> = {};
   if (allFeedback) {
     for (const f of allFeedback) {
       const e = f.emails as unknown as Record<string, unknown> | null;
@@ -234,6 +239,20 @@ export async function rankUnrankedEmails(userId: string) {
       const sender = e.from_email as string;
       if (!senderRep[sender]) senderRep[sender] = 0;
       senderRep[sender] += f.signal === "upvote" ? 1 : -1;
+    }
+  }
+
+  const { data: bootstrapRep } = await supabase
+    .from("sender_reputation")
+    .select("sender_email, reputation")
+    .eq("user_id", userId);
+  if (bootstrapRep) {
+    for (const r of bootstrapRep) {
+      const sender = r.sender_email;
+      if (!senderRep[sender]) senderRep[sender] = 0;
+      // Bootstrap reputation is on a -100..100 scale. Down-weight to roughly
+      // match the feedback signal (1 unit = ~10 pts of score adjustment below).
+      senderRep[sender] += Math.round((r.reputation || 0) / 5);
     }
   }
 

@@ -28,6 +28,8 @@ import {
   CircleDot,
   Archive,
   Handshake,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import type { Classified } from "@/lib/outstanding";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -171,6 +173,11 @@ export function DashboardClient({
       try {
         // Sync is the user-visible blocker — wait for it first
         await fetch("/api/gmail/sync", { method: "POST" });
+        // Bootstrap personalization runs in parallel with sync — it reads
+        // sent / starred / important emails to seed sender reputation BEFORE
+        // ranking. Without it, the first-pass ranking is just Claude guessing.
+        const bootstrap = fetch("/api/personalize/bootstrap", { method: "POST" }).catch(() => null);
+        await bootstrap; // wait so the rank call sees the bootstrap signals
         // Then ranking + calendar in parallel (fewer round-trips than serial)
         const ranking = fetch("/api/rank", { method: "POST" });
         const calendar = fetch("/api/calendar/sync", { method: "POST" }).catch(() => null);
@@ -1518,12 +1525,34 @@ function EmailRow({
 }) {
   const ageText = ageString(email.received_at, now);
   const score = scoreShade(email.score);
+  const [voted, setVoted] = useState<"up" | "down" | null>(null);
+
+  const sendFeedback = async (signal: "upvote" | "downvote") => {
+    if (voted) return;
+    setVoted(signal === "upvote" ? "up" : "down");
+    try {
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email_id: email.id, signal }),
+      });
+    } catch {
+      // Non-fatal — keep the optimistic state
+    }
+  };
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onOpen(email)}
-      className="group flex w-full items-start gap-3 text-left px-4 py-3 hover:bg-[#FAF6EB]/60 transition-colors"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(email);
+        }
+      }}
+      className="group relative flex w-full items-start gap-3 text-left px-4 py-3 hover:bg-[#FAF6EB]/60 transition-colors cursor-pointer"
     >
       <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${score.bg} ${score.text} text-[11px] font-semibold mt-0.5 ring-1 ${score.ring}`}>
         {email.score}
@@ -1559,7 +1588,57 @@ function EmailRow({
           </div>
         )}
       </div>
-    </button>
+
+      {/* Inline feedback — appears on hover. Lets the user correct Oushi's
+          ranking with one tap, which immediately updates score + sender rep. */}
+      <div
+        className={`absolute right-3 top-3 flex items-center gap-1 transition-opacity ${
+          voted ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {voted === null && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                sendFeedback("upvote");
+              }}
+              className="p-1 rounded-md text-[#A89F92] hover:text-[#6B8E68] hover:bg-[#E8EFE5]/60 transition-colors"
+              title="More like this"
+              aria-label="More like this"
+            >
+              <ThumbsUp className="w-3 h-3" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                sendFeedback("downvote");
+              }}
+              className="p-1 rounded-md text-[#A89F92] hover:text-[#B86B4A] hover:bg-[#F5E8E0]/60 transition-colors"
+              title="Less like this"
+              aria-label="Less like this"
+            >
+              <ThumbsDown className="w-3 h-3" />
+            </button>
+          </>
+        )}
+        {voted === "up" && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#E8EFE5] text-[#6B8E68] text-[10.5px] font-medium">
+            <Check className="w-2.5 h-2.5" strokeWidth={3} />
+            Boosted
+          </span>
+        )}
+        {voted === "down" && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#F5E8E0] text-[#B86B4A] text-[10.5px] font-medium">
+            <Check className="w-2.5 h-2.5" strokeWidth={3} />
+            Muted
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
