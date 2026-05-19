@@ -39,6 +39,7 @@ import { AskSpotlight, type ChatMessage } from "@/components/ask-spotlight";
 import { parsePartialAsk } from "@/lib/partial-json";
 import { PromisesView } from "@/components/promises-view";
 import { ComingUp } from "@/components/coming-up";
+import { FirstSyncSplash } from "@/components/first-sync-splash";
 
 interface Profile {
   bio: string;
@@ -168,8 +169,14 @@ export function DashboardClient({
     if (!isFirstSync || !hasGmail) return;
     (async () => {
       try {
+        // Sync is the user-visible blocker — wait for it first
         await fetch("/api/gmail/sync", { method: "POST" });
-        await fetch("/api/rank", { method: "POST" });
+        // Then ranking + calendar in parallel (fewer round-trips than serial)
+        const ranking = fetch("/api/rank", { method: "POST" });
+        const calendar = fetch("/api/calendar/sync", { method: "POST" }).catch(() => null);
+        await Promise.allSettled([ranking, calendar]);
+        // Brief floor so the splash doesn't strobe on fast accounts
+        await new Promise((r) => setTimeout(r, 600));
         window.history.replaceState({}, "", "/dashboard");
         window.location.reload();
       } catch (e) {
@@ -589,6 +596,8 @@ export function DashboardClient({
 
   return (
     <div className="h-screen bg-[#FAF6EB] text-[#2A2520] overflow-hidden flex relative">
+      {/* First-time setup splash — covers everything until the auto-reload */}
+      {isFirstSync && hasGmail && <FirstSyncSplash />}
       <AmbientBackground variant="subtle" />
       {/* Mobile backdrop */}
       <AnimatePresence>
