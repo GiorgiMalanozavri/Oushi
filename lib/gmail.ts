@@ -4,7 +4,6 @@ import {
   findExtractableAttachments,
   extractAttachmentsForMessage,
 } from "@/lib/attachments";
-import { prefilter } from "@/lib/prefilter";
 
 export function getOAuth2Client() {
   return new google.auth.OAuth2(
@@ -348,8 +347,13 @@ export async function syncRecentEmails(userId: string, count = 100) {
       mutedSenders.has(email.from_email) || mutedDomains.has(domain);
     const info = threadInfo.get(email.gmail_thread_id);
 
-    // Look at attachments — only spend Claude vision on emails that look real
-    // (not auto-muted, not pre-filtered as noise). Skip otherwise to save cost.
+    // Extract attachments for any non-muted email. We used to gate this on
+    // the prefilter score, but flight confirmations / receipts / contracts
+    // routinely come from noreply@ senders that prefilter scores as noise.
+    // Skipping them broke the "what's my flight?" use case. The extra vision
+    // cost is small because most emails have no attachments anyway, and the
+    // prefilter still skips RANKING those emails — just not the attachment
+    // OCR which is the actually-useful content.
     const rawPayload = rawPayloadByGmailId.get(email.gmail_message_id);
     const attachmentRefs = rawPayload ? findExtractableAttachments(rawPayload) : [];
     const hasAttachments = attachmentRefs.length > 0;
@@ -358,15 +362,7 @@ export async function syncRecentEmails(userId: string, count = 100) {
     let attachmentsExtractedAt: string | null = null;
 
     if (hasAttachments && !isMuted) {
-      const preNoise = prefilter({
-        from_email: email.from_email,
-        subject: email.subject,
-        snippet: email.snippet,
-        body_preview: email.body_preview,
-      });
-      const isPreFilteredNoise = preNoise !== null && preNoise.score < 25;
-
-      if (!isPreFilteredNoise) {
+      {
         try {
           // Check if we already extracted for this message (cheap check)
           const { data: existing } = await supabase

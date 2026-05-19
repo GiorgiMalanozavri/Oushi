@@ -68,7 +68,10 @@ export async function POST() {
       let attachmentsText: string | null = null;
       let attachmentsExtractedAt: string | null = null;
 
-      if (hasAttachments && !row.attachments_text && (row.score === null || row.score >= 25)) {
+      // Extract attachments for any email that has them and hasn't been
+      // extracted yet. Removed the score >= 25 gate that was hiding flight
+      // confirmations from noreply@ senders.
+      if (hasAttachments && !row.attachments_text) {
         try {
           const text = await extractAttachmentsForMessage(
             oauth2Client,

@@ -260,7 +260,10 @@ export async function POST(request: Request) {
     list.push(e);
   }
 
-  // Full-body set: top 8 recent + top 8 highest-scored + up to 12 keyword-matched
+  // Full-body set: top 8 recent + top 8 highest-scored + up to 12 keyword-
+  // matched + every email with attachments (limited to 10 to bound tokens).
+  // The attachment inclusion catches the "what's in this PDF" case even when
+  // the email itself was prefilter-scored as noise.
   const fullBodyIds = new Set<EmailLite>();
   for (const e of list.slice(0, 8)) fullBodyIds.add(e);
   const byScore = [...list]
@@ -268,6 +271,14 @@ export async function POST(request: Request) {
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
     .slice(0, 8);
   for (const e of byScore) fullBodyIds.add(e);
+
+  // Emails with extracted attachment text: include the body so the model can
+  // reconcile attachment data with the email it came from.
+  const withAttachments = list
+    .filter((e) => e.attachments_text && !fullBodyIds.has(e))
+    .slice(0, 10);
+  for (const e of withAttachments) fullBodyIds.add(e);
+
   let matchedCount = 0;
   for (const e of list) {
     if (fullBodyIds.has(e)) continue;
@@ -289,7 +300,11 @@ export async function POST(request: Request) {
     const bodyText = useFullBody
       ? (e.body_preview || e.snippet || "")
       : (e.snippet || (e.body_preview?.slice(0, 200) || ""));
-    const attach = useFullBody && e.attachments_text
+    // Always include attachment text when it exists — even for emails that
+    // only get a snippet in the body. Attachments tend to be the actual
+    // answer to questions like "when's my flight?" (extracted via OCR at
+    // sync time, ~6-12 lines max, so total token cost stays bounded).
+    const attach = e.attachments_text
       ? `\n[Attachments]: ${e.attachments_text.slice(0, 1500)}`
       : "";
     return `${header}\n${bodyText}${attach}`;
