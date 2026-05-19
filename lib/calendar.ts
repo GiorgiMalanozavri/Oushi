@@ -18,9 +18,10 @@ export interface CalendarEventLite {
   end_at: string | null;     // ISO
   is_all_day: boolean;
   hangout_link: string | null;
-  attendees: Array<{ email: string; name?: string; responseStatus?: string }>;
+  attendees: Array<{ email: string; name?: string; responseStatus?: string; self?: boolean }>;
   organizer_email: string | null;
   organizer_name: string | null;
+  organizer_self: boolean;
 }
 
 /**
@@ -65,6 +66,7 @@ export async function fetchUpcomingEvents(
           email: a.email!,
           name: a.displayName || undefined,
           responseStatus: a.responseStatus || undefined,
+          self: a.self || false,
         }));
 
     out.push({
@@ -79,6 +81,7 @@ export async function fetchUpcomingEvents(
       attendees,
       organizer_email: ev.organizer?.email || null,
       organizer_name: ev.organizer?.displayName || null,
+      organizer_self: ev.organizer?.self || false,
     });
   }
 
@@ -95,7 +98,9 @@ async function findRelatedEmail(
   service: SupabaseClient<any, "public", any>,
   userId: string,
   attendees: CalendarEventLite["attendees"],
-  organizerEmail: string | null
+  organizerEmail: string | null,
+  organizerSelf: boolean,
+  userEmail: string | null
 ): Promise<{
   id: string;
   subject: string | null;
@@ -103,13 +108,24 @@ async function findRelatedEmail(
   snippet: string | null;
   received_at: string;
 } | null> {
-  // Collect candidate email addresses (drop the user themselves later via RLS)
+  const selfEmail = userEmail?.toLowerCase();
+
+  // Collect candidate addresses excluding the user themselves. Trust both
+  // Google's `self` flag and a string match on the user's own email.
   const candidates = new Set<string>();
   for (const a of attendees) {
-    if (a.email) candidates.add(a.email.toLowerCase());
+    if (!a.email) continue;
+    if (a.self) continue;
+    const lower = a.email.toLowerCase();
+    if (selfEmail && lower === selfEmail) continue;
+    candidates.add(lower);
   }
-  if (organizerEmail) candidates.add(organizerEmail.toLowerCase());
+  if (organizerEmail && !organizerSelf) {
+    const lower = organizerEmail.toLowerCase();
+    if (!selfEmail || lower !== selfEmail) candidates.add(lower);
+  }
 
+  // Solo event (no other attendees) — no related email to find.
   if (candidates.size === 0) return null;
 
   const addressList = Array.from(candidates);
@@ -158,9 +174,28 @@ export async function syncCalendarForUser(
     return { events: 0, matched: 0 };
   }
 
+  // Resolve the user's own email so we can exclude them from attendee matching.
+  // The auth admin call requires the service role key which createServiceClient
+  // already uses.
+  let userEmail: string | null = null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: userRes } = await (service.auth as any).admin.getUserById(userId);
+    userEmail = userRes?.user?.email || null;
+  } catch {
+    // Non-fatal — fall back to attendee.self detection only
+  }
+
   let matched = 0;
   for (const ev of events) {
-    const related = await findRelatedEmail(service, userId, ev.attendees, ev.organizer_email);
+    const related = await findRelatedEmail(
+      service,
+      userId,
+      ev.attendees,
+      ev.organizer_email,
+      ev.organizer_self,
+      userEmail
+    );
     if (related) matched++;
 
     await service.from("calendar_events").upsert(
