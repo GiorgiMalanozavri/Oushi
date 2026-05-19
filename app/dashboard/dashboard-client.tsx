@@ -42,6 +42,7 @@ import { parsePartialAsk } from "@/lib/partial-json";
 import { PromisesView } from "@/components/promises-view";
 import { ComingUp } from "@/components/coming-up";
 import { FirstSyncSplash } from "@/components/first-sync-splash";
+import { TodayOushi } from "@/components/today-oushi";
 
 interface Profile {
   bio: string;
@@ -763,21 +764,16 @@ export function DashboardClient({
         {/* View content */}
         <ErrorBoundary label="View content">
           {view.type === "today" && (
-            <TodayView
-              briefing={briefing}
-              briefingLoading={briefingLoading}
-              urgent={visible.urgent}
-              awaiting={visible.awaiting}
-              following={visible.following}
-              totalNeedsAttention={totalNeedsAttention}
-              onOpen={setSelectedEmail}
-              onSetView={handleSetView}
-              now={now}
-              userEmail={userEmail}
-              onOpenEmailById={(id) => {
+            <TodayOushi
+              onOpenSpotlight={(initialPrompt) => {
+                if (initialPrompt) setAskInput(initialPrompt);
+                setAskOpen(true);
+              }}
+              onOpenEmail={(id) => {
                 const found = allEmails.find((e) => e.id === id);
                 if (found) setSelectedEmail(found);
               }}
+              onOpenCommitments={() => setView({ type: "promises" })}
             />
           )}
           {view.type === "urgent" && (
