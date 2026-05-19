@@ -10,6 +10,7 @@ import {
   X,
   Mail,
   Bell,
+  BellRing,
   User,
   VolumeX,
   LogOut,
@@ -77,7 +78,7 @@ interface SettingsClientProps {
   memories: Memory[];
 }
 
-type SettingsSection = "profile" | "voice" | "memory" | "briefing" | "filters" | "account";
+type SettingsSection = "profile" | "voice" | "memory" | "briefing" | "notifications" | "filters" | "account";
 
 const KIND_LABELS: Record<MemoryKind, string> = {
   person: "People",
@@ -316,6 +317,7 @@ export function SettingsClient({
     { key: "voice", label: "Voice", icon: <Sparkles className="w-3.5 h-3.5" />, description: "How Oushi writes as you" },
     { key: "memory", label: "Memory", icon: <BrainCircuit className="w-3.5 h-3.5" />, description: "What Oushi remembers" },
     { key: "briefing", label: "Daily briefing", icon: <Bell className="w-3.5 h-3.5" />, description: "Morning digest settings" },
+    { key: "notifications", label: "Push notifications", icon: <BellRing className="w-3.5 h-3.5" />, description: "Nudges so you don't forget" },
     { key: "filters", label: "Filters", icon: <VolumeX className="w-3.5 h-3.5" />, description: "Muted senders & domains" },
     { key: "account", label: "Account & data", icon: <Mail className="w-3.5 h-3.5" />, description: "Gmail, exports, delete" },
   ];
@@ -459,6 +461,8 @@ export function SettingsClient({
               hasGmail={hasGmail}
             />
           )}
+
+          {section === "notifications" && <NotificationsSection />}
 
           {section === "filters" && (
             <FiltersSection mutes={mutes} onRemove={handleRemoveMute} />
@@ -1062,6 +1066,171 @@ function BriefingSection({
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ===== NOTIFICATIONS SECTION =====
+
+function NotificationsSection() {
+  const [permission, setPermission] = useState<"default" | "granted" | "denied" | "unsupported">("default");
+  const [subscribed, setSubscribed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [testStatus, setTestStatus] = useState<null | { ok: boolean; message: string }>(null);
+
+  // Load support + current state on mount
+  useEffect(() => {
+    (async () => {
+      const { getPushSupport, getActiveSubscription } = await import("@/lib/push-client");
+      const p = getPushSupport();
+      setPermission(p);
+      const sub = await getActiveSubscription();
+      setSubscribed(!!sub);
+    })();
+  }, []);
+
+  const handleEnable = async () => {
+    setBusy(true);
+    setTestStatus(null);
+    try {
+      const { enablePush } = await import("@/lib/push-client");
+      const sub = await enablePush();
+      if (sub) {
+        setSubscribed(true);
+        setPermission("granted");
+      } else {
+        // Permission may have been denied
+        setPermission(Notification.permission as "default" | "granted" | "denied");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDisable = async () => {
+    setBusy(true);
+    setTestStatus(null);
+    try {
+      const { disablePush } = await import("@/lib/push-client");
+      await disablePush();
+      setSubscribed(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleTest = async () => {
+    setBusy(true);
+    setTestStatus(null);
+    try {
+      const { sendTestPush } = await import("@/lib/push-client");
+      const r = await sendTestPush();
+      if (r.delivered > 0) {
+        setTestStatus({ ok: true, message: `Sent to ${r.delivered} device${r.delivered === 1 ? "" : "s"}.` });
+      } else if (r.pruned > 0) {
+        setTestStatus({ ok: false, message: "Your subscription was stale — try Re-enable." });
+        setSubscribed(false);
+      } else {
+        setTestStatus({ ok: false, message: "Couldn't deliver. Server may be missing VAPID keys." });
+      }
+    } catch {
+      setTestStatus({ ok: false, message: "Network error." });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div>
+      <SectionHeader
+        title="Push notifications"
+        description="Oushi nudges you only when something matters: an overdue promise, a thread you opened and forgot to reply to. Quiet by default."
+      />
+
+      {permission === "unsupported" && (
+        <div className="rounded-lg border border-[#E6DCC4] bg-[#FAF6EB]/40 px-4 py-3 text-[12.5px] text-[#766E63]">
+          This browser doesn&apos;t support push notifications. Try Chrome, Edge, or Safari 16.4+.
+        </div>
+      )}
+
+      {permission === "denied" && (
+        <div className="rounded-lg border border-[#B86B4A]/30 bg-[#F5E8E0]/40 px-4 py-3 text-[12.5px] text-[#B86B4A]">
+          You blocked notifications for this site. Re-enable them in your browser settings (next to the URL bar) and reload.
+        </div>
+      )}
+
+      {permission !== "unsupported" && permission !== "denied" && (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] px-4 py-3.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                  subscribed ? "bg-[#E8EFE5]" : "bg-[#FAF6EB]"
+                }`}
+              >
+                <BellRing className={`w-4 h-4 ${subscribed ? "text-[#6B8E68]" : "text-[#A89F92]"}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium text-[#2A2520]">
+                  {subscribed ? "Notifications are on" : "Notifications are off"}
+                </p>
+                <p className="text-[11.5px] text-[#766E63] truncate">
+                  {subscribed
+                    ? "Oushi will ping this device when something matters."
+                    : "Turn on to get nudges for overdue promises and stale replies."}
+                </p>
+              </div>
+            </div>
+            {subscribed ? (
+              <button
+                onClick={handleDisable}
+                disabled={busy}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E6DCC4] text-[12px] text-[#766E63] hover:text-[#B86B4A] hover:border-[#B86B4A]/40 transition-colors disabled:opacity-60"
+              >
+                Turn off
+              </button>
+            ) : (
+              <button
+                onClick={handleEnable}
+                disabled={busy}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#5E8FBF] hover:bg-[#3D6A95] text-white text-[12px] font-medium shadow-sm transition-colors disabled:opacity-60"
+              >
+                <BellRing className="w-3 h-3" />
+                Turn on
+              </button>
+            )}
+          </div>
+
+          {subscribed && (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleTest}
+                disabled={busy}
+                className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] text-[12px] text-[#2A2520] hover:border-[#5E8FBF] hover:text-[#3D6A95] transition-colors disabled:opacity-60"
+              >
+                <Send className="w-3 h-3" />
+                Send test notification
+              </button>
+              {testStatus && (
+                <p
+                  className={`text-[11.5px] ${
+                    testStatus.ok ? "text-[#6B8E68]" : "text-[#B86B4A]"
+                  }`}
+                >
+                  {testStatus.message}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="rounded-lg border border-[#D0E1F0] bg-[#D0E1F0]/20 px-4 py-3 text-[11.5px] text-[#3D6A95] leading-relaxed">
+            <strong className="text-[#2A2520]">What you&apos;ll get:</strong> a ping when a promise you made is overdue,
+            when an email you opened has been sitting unanswered for 2+ days, and a short morning brief.
+            <strong className="text-[#2A2520]"> What you won&apos;t get:</strong> newsletters, marketing, or routine emails.
+            Quiet by default.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
