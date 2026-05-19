@@ -5,22 +5,26 @@ import { sendEmailAsUser } from "@/lib/gmail";
 
 export const maxDuration = 300;
 
-const DIGEST_SYSTEM = `You write a short, personal email digest from "Oushi" to the user. It is sent at the start of their day to tell them what to pay attention to.
+const DIGEST_SYSTEM = `You write a short morning email digest from "Oushi" to the user. It tells them what to pay attention to today.
 
-Tone: Like a chief of staff. Direct, warm, never corporate. The user is busy.
+Tone: Chief of staff. Direct, warm, never corporate. The user is busy.
 
-Structure (HTML, NOT markdown — output valid HTML that renders in an email client):
-1. A one-sentence headline summarizing the day, wrapped in <h2 style="font-family:Georgia,serif;font-size:20px;color:#1a1a1a;margin:0 0 16px 0;font-weight:normal;">...</h2>
-2. 2-4 short paragraphs, each highlighting ONE important item. Lead each with the sender's name in bold. Use <p style="font-size:15px;line-height:1.6;color:#333;margin:0 0 12px 0;"><strong>Sender</strong> — what they said and why it matters.</p>
-3. If a "Waiting on you to reply" item is included, mention it has been sitting for X days.
-4. End with a single line: <p style="font-size:13px;color:#888;margin:24px 0 0 0;font-style:italic;">— Oushi</p>
+OUTPUT FORMAT — STRICT:
+Output ONLY raw HTML fragment content. No <html>, <head>, <body> tags. No markdown. No code fences (no \`\`\`html or \`\`\`). Just the inner HTML.
+
+Structure:
+1. A one-sentence headline wrapped in:
+   <h2 class="oushi-headline">...</h2>
+2. 2-4 short paragraphs, each highlighting ONE important item, wrapped in:
+   <p class="oushi-item"><strong>Sender name</strong> — what they said and why it matters.</p>
+3. If a "Waiting on you to reply" item is included, mention how many days it's been sitting.
 
 Rules:
 - No greeting like "Hi Giorgi" — jump straight in.
 - Maximum 4 items. Be ruthless.
 - If there is genuinely nothing important, output ONE paragraph saying so casually.
 - Never invent details. Use only what's in the emails provided.
-- Output ONLY the HTML body (no <html>, <head>, or <body> tags).`;
+- Do NOT include any markdown formatting, code fences, or wrapping characters.`;
 
 export async function GET(request: Request) {
   const auth = request.headers.get("authorization") || "";
@@ -98,6 +102,21 @@ export async function POST() {
 
 type ServiceClient = Awaited<ReturnType<typeof createServiceClient>>;
 
+/**
+ * Strip markdown code fences if the model wrapped its output in them
+ * (Claude sometimes adds ```html ... ``` despite explicit instructions).
+ */
+function stripCodeFences(input: string): string {
+  let s = input.trim();
+  // Pull contents out of the first code fence if present
+  const fenced = s.match(/^```(?:html|HTML)?\s*\n?([\s\S]*?)\n?```\s*$/);
+  if (fenced) return fenced[1].trim();
+  // Or just strip leading/trailing fences without a full match
+  s = s.replace(/^```(?:html|HTML)?\s*\n?/i, "");
+  s = s.replace(/\n?```\s*$/i, "");
+  return s.trim();
+}
+
 async function sendDigestForUser(userId: string, service: ServiceClient) {
   // Pull the most-important emails from the last 3 days
   const { data: emails } = await service
@@ -125,15 +144,14 @@ async function sendDigestForUser(userId: string, service: ServiceClient) {
   const emailLines = list.slice(0, 10).map((e, i) => {
     const ageDays = Math.round((Date.now() - new Date(e.received_at).getTime()) / 86400000);
     const ageStr = ageDays === 0 ? "today" : ageDays === 1 ? "1 day ago" : `${ageDays} days ago`;
-    return `${i + 1}. [${e.score}, ${ageStr}, ${e.is_unread ? "unread" : "read"}${e.user_replied ? ", replied" : ""}] ${e.from_name || e.from_email}: ${e.subject}${e.highlight ? ` — ${e.highlight}` : ""}${e.snippet ? ` (preview: ${e.snippet.slice(0, 120)})` : ""}`;
+    return `${i + 1}. [${e.score}, ${ageStr}, ${e.is_unread ? "unread" : "read"}${e.user_replied ? ", replied" : ""}] ${e.from_name || e.from_email}: ${e.subject}${e.highlight ? ` ${e.highlight}` : ""}${e.snippet ? ` (preview: ${e.snippet.slice(0, 120)})` : ""}`;
   }).join("\n");
 
   let htmlBody: string;
   if (list.length === 0) {
     htmlBody = `
-      <h2 style="font-family:Georgia,serif;font-size:20px;color:#1a1a1a;margin:0 0 16px 0;font-weight:normal;">Your inbox is quiet.</h2>
-      <p style="font-size:15px;line-height:1.6;color:#333;margin:0 0 12px 0;">Nothing important arrived in the last few days. I'll be watching.</p>
-      <p style="font-size:13px;color:#888;margin:24px 0 0 0;font-style:italic;">— Oushi</p>
+      <h2 class="oushi-headline">Your inbox is quiet.</h2>
+      <p class="oushi-item">Nothing important arrived in the last few days. I'll be watching.</p>
     `;
   } else {
     const client = createAnthropicClient();
@@ -148,25 +166,110 @@ async function sendDigestForUser(userId: string, service: ServiceClient) {
         },
       ],
     });
-    htmlBody = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+    const raw = response.content[0].type === "text" ? response.content[0].text : "";
+    htmlBody = stripCodeFences(raw);
   }
 
-  // Wrap in a clean email template
-  const html = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8" /></head>
-<body style="margin:0;padding:0;background:#FAFAF7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
-    <div style="border-bottom:1px solid #eee;padding-bottom:16px;margin-bottom:24px;">
-      <p style="font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:600;color:#D97757;margin:0;letter-spacing:-0.01em;">Oushi</p>
-      <p style="font-size:11px;color:#888;margin:4px 0 0 0;text-transform:uppercase;letter-spacing:0.12em;font-family:ui-monospace,monospace;">Daily Briefing · ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
-    </div>
-    ${htmlBody}
-    <div style="margin-top:40px;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#aaa;">
-      Open Oushi → <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard" style="color:#D97757;text-decoration:none;">your dashboard</a>
-    </div>
-  </div>
+  // Inline the headline + item styles since most email clients don't
+  // respect <style> tags consistently (Gmail strips them).
+  htmlBody = htmlBody
+    .replace(
+      /<h2 class="oushi-headline">/g,
+      '<h2 style="font-family:Georgia,\'Source Serif 4\',serif;font-size:22px;line-height:1.3;color:#2A2520;margin:0 0 18px 0;font-weight:600;letter-spacing:-0.01em;">'
+    )
+    .replace(
+      /<p class="oushi-item">/g,
+      '<p style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#2A2520;margin:0 0 14px 0;">'
+    );
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const dateLine = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  // The Oushi mark as inline SVG — works in Gmail, Apple Mail, Outlook 365.
+  // Table-based layout for maximum email-client compatibility.
+  const html = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oushi briefing</title>
+</head>
+<body style="margin:0;padding:0;background-color:#FAF6EB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#2A2520;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#FAF6EB;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;background-color:#FFFCF3;border:1px solid #E6DCC4;border-radius:14px;overflow:hidden;">
+          <!-- Header: logo + brand + date -->
+          <tr>
+            <td style="padding:24px 28px 18px 28px;border-bottom:1px solid #E6DCC4;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="vertical-align:middle;padding-right:10px;">
+                    <!-- Oushi mark: sky-blue rounded square with cream circle outline -->
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td width="32" height="32" align="center" valign="middle" style="background-color:#5E8FBF;border-radius:7px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td width="14" height="14" style="border:2px solid #FFFCF3;border-radius:50%;font-size:0;line-height:0;">&nbsp;</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <p style="margin:0;font-family:'Source Serif 4',Georgia,serif;font-size:17px;font-weight:600;color:#2A2520;letter-spacing:-0.01em;">Oushi</p>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:14px 0 0 0;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:#5E8FBF;font-weight:600;">
+                Daily briefing &middot; ${dateLine}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:28px 28px 24px 28px;">
+              ${htmlBody}
+              <p style="margin:24px 0 0 0;font-family:'Source Serif 4',Georgia,serif;font-size:13px;color:#A89F92;font-style:italic;">&mdash; Oushi</p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:18px 28px;border-top:1px solid #E6DCC4;background-color:#FAF6EB;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:11.5px;color:#A89F92;">
+                    Open the inbox that won&apos;t let you forget
+                  </td>
+                  <td align="right" style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:11.5px;">
+                    <a href="${appUrl}/dashboard" style="color:#5E8FBF;text-decoration:none;font-weight:500;">Your dashboard &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Footnote outside the card -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;margin-top:14px;">
+          <tr>
+            <td align="center" style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:10.5px;color:#A89F92;">
+              You're receiving this because you turned on Oushi briefings &middot;
+              <a href="${appUrl}/settings" style="color:#766E63;text-decoration:underline;">manage</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 
@@ -181,7 +284,10 @@ async function sendDigestForUser(userId: string, service: ServiceClient) {
   const { data: { user: authUser } } = await service.auth.admin.getUserById(userId);
   if (!authUser?.email) throw new Error("No email on user");
 
-  const subject = `Oushi — ${new Date().toLocaleDateString("en-US", { weekday: "long" })} briefing`;
+  // Use a plain ASCII separator in the subject to avoid mojibake even with
+  // proper MIME encoding (some Gmail label rendering still trips on em-dash).
+  // The actual email body keeps the brand typography.
+  const subject = `Oushi briefing - ${new Date().toLocaleDateString("en-US", { weekday: "long" })}`;
 
   await sendEmailAsUser(userId, {
     to: authUser.email,

@@ -72,6 +72,19 @@ interface SendEmailOptions {
   html?: boolean;
 }
 
+/**
+ * RFC 2047 encoded-word for headers containing non-ASCII bytes.
+ * Without this, em-dashes and unicode in subject lines render as
+ * mojibake ("Ã¢Â€Â") in most clients.
+ */
+function encodeMimeHeader(value: string): string {
+  // Pure ASCII? Leave it alone.
+  // eslint-disable-next-line no-control-regex
+  if (/^[\x20-\x7E]*$/.test(value)) return value;
+  const b64 = Buffer.from(value, "utf-8").toString("base64");
+  return `=?UTF-8?B?${b64}?=`;
+}
+
 export async function sendEmailAsUser(userId: string, opts: SendEmailOptions) {
   const oauth2Client = await getAuthenticatedClient(userId);
   const gmail = google.gmail({ version: "v1", auth: oauth2Client });
@@ -82,7 +95,7 @@ export async function sendEmailAsUser(userId: string, opts: SendEmailOptions) {
   const headers: string[] = [
     `From: ${fromEmail}`,
     `To: ${opts.to}`,
-    `Subject: ${opts.subject}`,
+    `Subject: ${encodeMimeHeader(opts.subject)}`,
     `Content-Type: ${opts.html ? "text/html" : "text/plain"}; charset=utf-8`,
     "MIME-Version: 1.0",
   ];
