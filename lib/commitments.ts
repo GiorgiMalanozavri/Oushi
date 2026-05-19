@@ -8,6 +8,7 @@
 
 import { google } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAnthropicClient, extractJson } from "@/lib/claude";
 
 /**
@@ -259,4 +260,100 @@ function stripHtml(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * Auto-fulfill commitments: if the user sent another email in the same
+ * thread AFTER the commitment was made, the promise is considered closed.
+ *
+ * `sentEmails` is the batch of sent messages we already fetched (free data —
+ * no extra Gmail API calls). Returns the number of commitments auto-closed.
+ *
+ * Conservative by design: we only close based on the user sending again,
+ * never based on inbound activity. Users can re-open mistakes via the PATCH
+ * endpoint.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function autoFulfillByFollowup(
+  service: SupabaseClient<any, "public", any>,
+  userId: string,
+  sentEmails: SentEmailLite[]
+): Promise<number> {
+  // Build map of thread_id -> latest sent message in that thread
+  const latestByThread = new Map<string, SentEmailLite>();
+  for (const s of sentEmails) {
+    if (!s.gmail_thread_id) continue;
+    const cur = latestByThread.get(s.gmail_thread_id);
+    if (!cur || new Date(s.sent_at).getTime() > new Date(cur.sent_at).getTime()) {
+      latestByThread.set(s.gmail_thread_id, s);
+    }
+  }
+
+  const { data: openCommitments } = await service
+    .from("commitments")
+    .select("id, gmail_thread_id, gmail_message_id, sent_at")
+    .eq("user_id", userId)
+    .eq("status", "open");
+
+  if (!openCommitments || openCommitments.length === 0) return 0;
+
+  let fulfilled = 0;
+  for (const c of openCommitments) {
+    if (!c.gmail_thread_id) continue;
+    const newest = latestByThread.get(c.gmail_thread_id);
+    if (!newest) continue;
+
+    // Must be strictly newer AND a different message than the one that
+    // produced the commitment.
+    const newerByTime =
+      new Date(newest.sent_at).getTime() > new Date(c.sent_at).getTime();
+    const differentMessage = newest.gmail_message_id !== c.gmail_message_id;
+    if (!newerByTime || !differentMessage) continue;
+
+    const { error } = await service
+      .from("commitments")
+      .update({
+        status: "fulfilled",
+        fulfilled_at: newest.sent_at,
+        fulfilled_gmail_message_id: newest.gmail_message_id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", c.id)
+      .eq("status", "open"); // double-check it hasn't been touched
+    if (!error) fulfilled++;
+  }
+
+  return fulfilled;
+}
+
+/**
+ * Real-time variant: called immediately after the user sends a reply via
+ * Oushi. Closes any open commitment in that thread without needing a full
+ * sent-mail scan.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function autoFulfillForThread(
+  service: SupabaseClient<any, "public", any>,
+  userId: string,
+  threadId: string,
+  fulfillingMessageId: string
+): Promise<number> {
+  if (!threadId) return 0;
+
+  const { data, error } = await service
+    .from("commitments")
+    .update({
+      status: "fulfilled",
+      fulfilled_at: new Date().toISOString(),
+      fulfilled_gmail_message_id: fulfillingMessageId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId)
+    .eq("gmail_thread_id", threadId)
+    .eq("status", "open")
+    .neq("gmail_message_id", fulfillingMessageId)
+    .select("id");
+
+  if (error) return 0;
+  return data?.length || 0;
 }

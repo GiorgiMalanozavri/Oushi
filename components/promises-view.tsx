@@ -46,7 +46,7 @@ export function PromisesView() {
   const [items, setItems] = useState<Commitment[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
-  const [scanResult, setScanResult] = useState<{ extracted: number; scanned: number } | null>(null);
+  const [scanResult, setScanResult] = useState<{ extracted: number; scanned: number; autoFulfilled?: number } | null>(null);
 
   const load = async () => {
     try {
@@ -70,7 +70,11 @@ export function PromisesView() {
       const res = await fetch("/api/commitments/scan", { method: "POST" });
       if (res.ok) {
         const data = await res.json();
-        setScanResult({ extracted: data.extracted || 0, scanned: data.scanned || 0 });
+        setScanResult({
+          extracted: data.extracted || 0,
+          scanned: data.scanned || 0,
+          autoFulfilled: data.autoFulfilled || 0,
+        });
         await load();
       }
     } finally {
@@ -140,7 +144,15 @@ export function PromisesView() {
         <div className="mt-5 rounded-lg border border-[#D0E1F0] bg-[#D0E1F0]/30 px-3.5 py-2 text-[12px] text-[#3D6A95]">
           Scanned {scanResult.scanned} sent emails · Found{" "}
           <span className="font-semibold">{scanResult.extracted}</span> new commitment
-          {scanResult.extracted === 1 ? "" : "s"}.
+          {scanResult.extracted === 1 ? "" : "s"}
+          {(scanResult.autoFulfilled ?? 0) > 0 && (
+            <>
+              {" "}· Auto-closed{" "}
+              <span className="font-semibold">{scanResult.autoFulfilled}</span> follow-up
+              {scanResult.autoFulfilled === 1 ? "" : "s"}
+            </>
+          )}
+          .
         </div>
       )}
 

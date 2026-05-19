@@ -4,6 +4,7 @@ import { getAuthenticatedClient } from "@/lib/gmail";
 import {
   extractCommitment,
   fetchRecentSent,
+  autoFulfillByFollowup,
   type ExtractedCommitment,
 } from "@/lib/commitments";
 
@@ -102,10 +103,14 @@ export async function POST() {
 
   // Auto-fulfillment pass: any open commitments where the user has sent
   // ANOTHER email in the same thread after the commitment date are marked
-  // "fulfilled" (best-effort — user can re-open if wrong).
-  await autoFulfillByThreadFollowup(service, user.id);
+  // "fulfilled" (best-effort — user can re-open if wrong). Free — uses the
+  // sent emails we already fetched, no extra Gmail/Claude calls.
+  //
+  // Done AFTER extraction so commitments just created can also be auto-
+  // fulfilled if a follow-up exists in the same scan window.
+  const autoFulfilled = await autoFulfillByFollowup(service, user.id, sent);
 
-  return NextResponse.json({ scanned: sent.length, extracted, skipped });
+  return NextResponse.json({ scanned: sent.length, extracted, skipped, autoFulfilled });
 }
 
 async function upsertCommitment(
@@ -137,28 +142,3 @@ async function upsertCommitment(
     );
 }
 
-/**
- * If the user has sent ANOTHER email in the same thread after a commitment
- * was made, assume they followed through. Cheap heuristic — better than
- * doing nothing, the user can always re-open a commitment.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function autoFulfillByThreadFollowup(service: any, userId: string) {
-  const { data: openCommitments } = await service
-    .from("commitments")
-    .select("id, gmail_thread_id, sent_at")
-    .eq("user_id", userId)
-    .eq("status", "open");
-
-  if (!openCommitments || openCommitments.length === 0) return;
-
-  // We need to know if there's a NEWER sent email in the same thread.
-  // We can check the emails table for any inbound on the same thread after
-  // the commitment date — that doesn't prove fulfillment, so skip.
-  //
-  // For now we only auto-fulfill when there's no thread (already a 1-off
-  // and we can't detect a followup easily — leave for user to dismiss).
-  //
-  // TODO: bring sent emails into the loop. Keeping conservative for v1.
-  void openCommitments;
-}

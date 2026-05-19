@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { sendEmailAsUser, getMessageHeaders } from "@/lib/gmail";
+import { autoFulfillForThread } from "@/lib/commitments";
 
 export async function POST(
   request: Request,
@@ -61,7 +62,27 @@ export async function POST(
       .eq("user_id", user.id)
       .eq("gmail_thread_id", threadId);
 
-    return NextResponse.json({ ok: true, messageId: result.data.id });
+    // Auto-fulfill any open commitments in this thread — the user just
+    // sent a follow-up, so the promise is done.
+    let autoFulfilled = 0;
+    if (threadId && result.data.id) {
+      try {
+        autoFulfilled = await autoFulfillForThread(
+          service,
+          user.id,
+          threadId,
+          result.data.id
+        );
+      } catch {
+        // Non-fatal — the reply went out successfully.
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      messageId: result.data.id,
+      autoFulfilled,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Send failed";
     const needsReauth = /insufficient.*scope|invalid_scope|permission/i.test(msg);
