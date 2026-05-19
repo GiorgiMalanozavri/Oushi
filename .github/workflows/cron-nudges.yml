@@ -10,7 +10,10 @@ name: Push nudges
 
 on:
   schedule:
-    - cron: "0 * * * *"
+    # Every 15 min — needed for meeting_preflight to land near T-30 to T-60
+    # before a meeting starts. Other nudge types are deduped via
+    # push_nudges_sent so the higher frequency doesn't double-fire.
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 concurrency:

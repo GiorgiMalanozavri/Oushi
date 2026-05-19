@@ -38,6 +38,7 @@ import type { CardActionContext } from "@/components/oushi-cards/card-actions";
 import { AskSpotlight, type ChatMessage } from "@/components/ask-spotlight";
 import { parsePartialAsk } from "@/lib/partial-json";
 import { PromisesView } from "@/components/promises-view";
+import { ComingUp } from "@/components/coming-up";
 
 interface Profile {
   bio: string;
@@ -704,6 +705,10 @@ export function DashboardClient({
               onSetView={handleSetView}
               now={now}
               userEmail={userEmail}
+              onOpenEmailById={(id) => {
+                const found = allEmails.find((e) => e.id === id);
+                if (found) setSelectedEmail(found);
+              }}
             />
           )}
           {view.type === "urgent" && (
@@ -1081,6 +1086,7 @@ function TodayView({
   onSetView,
   now,
   userEmail,
+  onOpenEmailById,
 }: {
   briefing: string | null;
   briefingLoading: boolean;
@@ -1092,6 +1098,7 @@ function TodayView({
   onSetView: (v: ViewKey) => void;
   now: Date;
   userEmail: string;
+  onOpenEmailById: (id: string) => void;
 }) {
   const greeting = (() => {
     const h = now.getHours();
@@ -1119,6 +1126,11 @@ function TodayView({
             ? "One thing needs your attention."
             : `${totalNeedsAttention} things need your attention.`}
       </p>
+
+      {/* Coming up — calendar awareness */}
+      <div className="mt-6">
+        <ComingUp onOpenEmail={onOpenEmailById} />
+      </div>
 
       {/* Briefing card */}
       <Card className="mt-6">

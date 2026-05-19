@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { syncRecentEmails } from "@/lib/gmail";
 import { rankUnrankedEmails } from "@/lib/ranking";
+import { syncCalendarForUser } from "@/lib/calendar";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -22,7 +23,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ synced: 0, users: 0 });
   }
 
-  const results: Array<{ user_id: string; synced: number; ranked: number; error?: string }> = [];
+  const results: Array<{
+    user_id: string;
+    synced: number;
+    ranked: number;
+    cal_events: number;
+    cal_matched: number;
+    error?: string;
+  }> = [];
 
   for (const { user_id } of tokens) {
     try {
@@ -35,16 +43,32 @@ export async function GET(request: Request) {
           user_id,
           synced,
           ranked: 0,
+          cal_events: 0,
+          cal_matched: 0,
           error: rankErr instanceof Error ? rankErr.message : "rank failed",
         });
         continue;
       }
-      results.push({ user_id, synced, ranked });
+
+      // Sync calendar — best-effort, never blocks email sync
+      let cal_events = 0;
+      let cal_matched = 0;
+      try {
+        const calResult = await syncCalendarForUser(supabase, user_id, 48);
+        cal_events = calResult.events;
+        cal_matched = calResult.matched;
+      } catch (e) {
+        console.error("[sync-all] calendar sync failed for", user_id, e instanceof Error ? e.message : e);
+      }
+
+      results.push({ user_id, synced, ranked, cal_events, cal_matched });
     } catch (e) {
       results.push({
         user_id,
         synced: 0,
         ranked: 0,
+        cal_events: 0,
+        cal_matched: 0,
         error: e instanceof Error ? e.message : "sync failed",
       });
     }

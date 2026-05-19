@@ -36,10 +36,10 @@ export async function GET(request: Request) {
   const userIds = Array.from(new Set(subs.map((s) => s.user_id))).filter(Boolean);
 
   let total = 0;
-  const perUser: Record<string, { commitments: number; stale: number }> = {};
+  const perUser: Record<string, { commitments: number; stale: number; meetings?: number }> = {};
 
   for (const userId of userIds) {
-    perUser[userId] = { commitments: 0, stale: 0 };
+    perUser[userId] = { commitments: 0, stale: 0, meetings: 0 };
 
     // --- Check push_enabled preference ---
     const { data: state } = await service
@@ -110,6 +110,50 @@ export async function GET(request: Request) {
       });
       total++;
       perUser[userId].stale++;
+    }
+
+    // --- 3. Meeting preflight (event starts within ~90 min, has related email) ---
+    const meetingHorizonMin = 90;
+    const horizonEnd = new Date(Date.now() + meetingHorizonMin * 60 * 1000).toISOString();
+    const { data: upcomingMeetings } = await service
+      .from("calendar_events")
+      .select("google_event_id, summary, start_at, related_email_id, related_email_subject, related_email_from_name, related_email_snippet")
+      .eq("user_id", userId)
+      .gte("start_at", new Date().toISOString())
+      .lte("start_at", horizonEnd)
+      .not("related_email_id", "is", null)
+      .order("start_at", { ascending: true })
+      .limit(5);
+
+    for (const m of upcomingMeetings || []) {
+      const fresh = await recordNudge(service, userId, "meeting_preflight", m.google_event_id);
+      if (!fresh) continue;
+      const startMs = new Date(m.start_at).getTime();
+      const minsUntil = Math.max(0, Math.round((startMs - Date.now()) / 60000));
+      const when =
+        minsUntil < 5 ? "starting now" :
+        minsUntil < 60 ? `in ${minsUntil} min` :
+        `at ${new Date(startMs).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+      const who = m.related_email_from_name || "them";
+      const meetingName = m.summary || "Your meeting";
+      const lastLine =
+        (m.related_email_snippet || m.related_email_subject || "")
+          .slice(0, 90)
+          .trim();
+      await sendPushToUser(service, userId, {
+        title: `${meetingName} ${when}`,
+        body: lastLine
+          ? `Last from ${who}: "${lastLine}…"`
+          : `Last email from ${who} — worth a glance before you walk in.`,
+        url: m.related_email_id
+          ? `/dashboard?openEmail=${m.related_email_id}`
+          : "/dashboard",
+        tag: `meeting-${m.google_event_id}`,
+        nudgeType: "meeting_preflight",
+        resourceId: m.google_event_id,
+      });
+      total++;
+      perUser[userId].meetings = (perUser[userId].meetings || 0) + 1;
     }
   }
 
