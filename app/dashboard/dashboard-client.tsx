@@ -35,7 +35,7 @@ import { OushiMark } from "@/components/oushi-mark";
 import { AmbientBackground } from "@/components/ambient-bg";
 import { isOushiCard, type OushiCard } from "@/components/oushi-cards/types";
 import type { CardActionContext } from "@/components/oushi-cards/card-actions";
-import { AskSpotlight, type ChatMessage } from "@/components/ask-spotlight";
+import { AskSpotlight, type ChatMessage, type AttachmentPreview } from "@/components/ask-spotlight";
 import { parsePartialAsk } from "@/lib/partial-json";
 import { PromisesView } from "@/components/promises-view";
 import { ComingUp } from "@/components/coming-up";
@@ -287,22 +287,49 @@ export function DashboardClient({
     });
   };
 
-  const sendAsk = async (text: string) => {
+  const sendAsk = async (text: string, attachments?: AttachmentPreview[]) => {
     const trimmed = text.trim();
-    if (!trimmed || askLoading) return;
+    if ((!trimmed && (!attachments || attachments.length === 0)) || askLoading) return;
     setAskOpen(true);
-    const userMessages: ChatMessage[] = [...askMessages, { role: "user", content: trimmed }];
+
+    // Strip the base64 from the message we put in state — it's huge and
+    // not needed for rendering. Keep only filename + mime metadata.
+    const attachmentMeta = (attachments || []).map((a) => ({
+      filename: a.filename,
+      mime_type: a.mime_type,
+    }));
+
+    const userMessages: ChatMessage[] = [
+      ...askMessages,
+      {
+        role: "user",
+        content: trimmed || "(see attached file)",
+        attachments: attachmentMeta.length > 0 ? attachmentMeta : undefined,
+      },
+    ];
     setAskMessages(userMessages);
     setAskInput("");
     setAskLoading(true);
+
+    // 60s overall timeout + 25s per-chunk timeout for streaming
+    const controller = new AbortController();
+    const overallTimeout = setTimeout(() => controller.abort("overall_timeout"), 60_000);
+    let chunkTimeout: ReturnType<typeof setTimeout> | null = null;
+    const resetChunkTimeout = () => {
+      if (chunkTimeout) clearTimeout(chunkTimeout);
+      chunkTimeout = setTimeout(() => controller.abort("chunk_timeout"), 25_000);
+    };
 
     try {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Strip cards from the payload — the model only needs role/content.
+        signal: controller.signal,
         body: JSON.stringify({
+          // Strip cards + attachments from the message history — model only needs role/content
           messages: userMessages.map(({ role, content }) => ({ role, content })),
+          // But send the actual files with this turn
+          attachments: attachments || [],
         }),
       });
 
@@ -313,54 +340,66 @@ export function DashboardClient({
           {
             role: "assistant",
             content: errPayload?.error || "Couldn't reach Oushi.",
+            error: true,
           },
         ]);
         return;
       }
 
-      // Streaming parse loop. The server returned raw JSON token deltas;
-      // we prefilled the assistant's response with "{" on the server, so
-      // we prepend it back here. parsePartialAsk extracts text + complete
-      // card objects as they arrive.
+      // Streaming parse loop. Server prefilled "{" and pumps heartbeats
+      // so the connection doesn't appear idle. We re-parse partial JSON
+      // on every chunk to surface text + complete card objects as they arrive.
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "{";
+      let gotAnyText = false;
 
-      // Add an empty assistant message that we'll mutate as tokens stream.
       setAskMessages([
         ...userMessages,
         { role: "assistant", content: "", streaming: true },
       ]);
 
+      resetChunkTimeout();
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
+        resetChunkTimeout();
         buffer += decoder.decode(value, { stream: true });
 
-        const partial = parsePartialAsk(buffer);
-        const cards = partial.cards.filter(isOushiCard) as OushiCard[];
+        try {
+          const partial = parsePartialAsk(buffer);
+          const cards = partial.cards.filter(isOushiCard) as OushiCard[];
+          if (partial.text || cards.length > 0) gotAnyText = true;
 
-        setAskMessages([
-          ...userMessages,
-          {
-            role: "assistant",
-            content: partial.text,
-            cards: cards.length > 0 ? cards : undefined,
-            streaming: !partial.textComplete,
-          },
-        ]);
+          setAskMessages([
+            ...userMessages,
+            {
+              role: "assistant",
+              content: partial.text,
+              cards: cards.length > 0 ? cards : undefined,
+              streaming: !partial.textComplete,
+            },
+          ]);
+        } catch (parseErr) {
+          // Skip a bad chunk — keep going
+          console.warn("[ask] parse error mid-stream", parseErr);
+        }
       }
+
+      if (chunkTimeout) clearTimeout(chunkTimeout);
 
       // Final pass: clear streaming flag
       const finalPartial = parsePartialAsk(buffer);
       const finalCards = finalPartial.cards.filter(isOushiCard) as OushiCard[];
+      const finalContent = finalPartial.text || (gotAnyText ? "(no response)" : "Something interrupted the answer — try again?");
       const finalMessages: ChatMessage[] = [
         ...userMessages,
         {
           role: "assistant",
-          content: finalPartial.text || "(no response)",
+          content: finalContent,
           cards: finalCards.length > 0 ? finalCards : undefined,
           streaming: false,
+          error: !gotAnyText,
         },
       ];
       setAskMessages(finalMessages);
@@ -385,12 +424,26 @@ export function DashboardClient({
       } catch {
         // Non-fatal — the chat still works, just won't be saved.
       }
-    } catch {
+    } catch (e) {
+      // Stream timeout / network error
+      const reason = controller.signal.aborted
+        ? controller.signal.reason || "timeout"
+        : e instanceof Error
+          ? e.message
+          : "network error";
+      const friendly =
+        reason === "overall_timeout"
+          ? "Took too long — try again with a shorter question."
+          : reason === "chunk_timeout"
+            ? "The answer stalled mid-stream. Try again."
+            : "Couldn't reach Oushi.";
       setAskMessages([
         ...userMessages,
-        { role: "assistant", content: "Couldn't reach Oushi." },
+        { role: "assistant", content: friendly, error: true },
       ]);
     } finally {
+      clearTimeout(overallTimeout);
+      if (chunkTimeout) clearTimeout(chunkTimeout);
       setAskLoading(false);
     }
   };

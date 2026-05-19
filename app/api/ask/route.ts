@@ -4,8 +4,18 @@ import { createAnthropicClient } from "@/lib/claude";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getActiveMemories, formatMemoriesForPrompt } from "@/lib/memory";
 
+// Streaming endpoint — needs the Node runtime + force-dynamic so Vercel
+// doesn't try to cache/buffer the response.
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 const ASK_MAX = 60;
 const ASK_WINDOW_MS = 60 * 60 * 1000; // 60 asks / hour / user
+
+// File upload limits — keep per-request well under model + Vercel limits
+const MAX_FILE_BYTES = 5 * 1024 * 1024;   // 5MB per file
+const MAX_FILES_PER_REQUEST = 3;
 
 const ASK_SYSTEM = `You are Oushi, the user's personal email assistant. The user is chatting with you about their inbox. Answer using ONLY the emails provided.
 
@@ -83,10 +93,17 @@ Rules:
 - This is a chat — remember the previous turns. If the user says "tell me more" or "when?", connect to the prior context.
 - Speak in second person ("you", "your inbox").
 - Never invent dates, amounts, names, or details that aren't in the provided emails.
-- If the answer isn't in the emails, say so plainly in text. No card.
+- If the user attaches a PDF or image, READ IT and use it — extract dates, amounts, names, deadlines, anything specific. If the attachment is the main thing they're asking about, the answer should be grounded in the attachment, not their inbox.
+- If the answer isn't in the emails or attachments, say so plainly in text. No card.
 - Output VALID JSON ONLY. No prose before or after the JSON object. No markdown code fences.`;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
+
+interface UploadedFile {
+  filename: string;
+  mime_type: string;
+  data_base64: string;   // raw base64, no data: prefix
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -104,6 +121,22 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
+
+  // Parse + validate attachments (PDFs / images uploaded inline with the question)
+  const rawAttachments: UploadedFile[] = Array.isArray(body.attachments)
+    ? body.attachments.slice(0, MAX_FILES_PER_REQUEST)
+    : [];
+  const attachments: UploadedFile[] = [];
+  for (const a of rawAttachments) {
+    if (!a || typeof a !== "object") continue;
+    const { filename, mime_type, data_base64 } = a as UploadedFile;
+    if (typeof filename !== "string" || typeof mime_type !== "string" || typeof data_base64 !== "string") continue;
+    if (!isAllowedMime(mime_type)) continue;
+    // Cap byte size
+    const approxBytes = Math.floor((data_base64.length * 3) / 4);
+    if (approxBytes > MAX_FILE_BYTES) continue;
+    attachments.push({ filename, mime_type, data_base64 });
+  }
 
   // Accept either { messages: [...] } (multi-turn chat) or { question: "..." }
   // (legacy single-shot). Normalize to messages.
@@ -267,21 +300,41 @@ export async function POST(request: Request) {
 
   // Build Claude-format messages. The first user turn gets the inbox context
   // prepended. Subsequent turns are passed through as-is for natural chat.
-  const claudeMessages: ChatMessage[] = messages.map((m, idx) => {
-    if (idx === 0 && m.role === "user") {
-      return {
-        role: "user",
-        content: `${memoryBlock ? `${memoryBlock}\n\n---\n\n` : ""}My inbox (most recent first, including any older emails that match the question):\n\n${emailContext}\n\n---\n\n${m.content}`,
-      };
+  // The latest user turn ALSO gets any uploaded files attached as content blocks.
+  type ClaudeContentBlock =
+    | { type: "text"; text: string }
+    | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
+    | { type: "document"; source: { type: "base64"; media_type: string; data: string } };
+
+  type ClaudeMessage = { role: "user" | "assistant"; content: string | ClaudeContentBlock[] };
+
+  const claudeMessages: ClaudeMessage[] = messages.map((m, idx) => {
+    const isLatest = idx === messages.length - 1;
+    const isFirst = idx === 0;
+
+    if (isFirst && m.role === "user") {
+      const textContent = `${memoryBlock ? `${memoryBlock}\n\n---\n\n` : ""}My inbox (most recent first, including any older emails that match the question):\n\n${emailContext}\n\n---\n\n${m.content}`;
+
+      if (isLatest && attachments.length > 0) {
+        return {
+          role: "user",
+          content: attachmentsToBlocks(attachments, textContent),
+        };
+      }
+      return { role: "user", content: textContent };
     }
+
     // Update inbox context on the latest turn too — so follow-up questions
-    // about new keywords also get the right emails surfaced. Skip if this is
-    // already the first turn (handled above).
-    if (idx === messages.length - 1 && m.role === "user" && messages.length > 1) {
-      return {
-        role: "user",
-        content: `[Updated inbox context for this question:\n\n${emailContext}\n\n---\n\n]\n\n${m.content}`,
-      };
+    // about new keywords also get the right emails surfaced.
+    if (isLatest && m.role === "user" && messages.length > 1) {
+      const textContent = `[Updated inbox context for this question:\n\n${emailContext}\n\n---\n\n]\n\n${m.content}`;
+      if (attachments.length > 0) {
+        return {
+          role: "user",
+          content: attachmentsToBlocks(attachments, textContent),
+        };
+      }
+      return { role: "user", content: textContent };
     }
     return m;
   });
@@ -292,11 +345,15 @@ export async function POST(request: Request) {
       model: "claude-haiku-4-5-20251001",
       max_tokens: 2000, // cards with actions need more headroom
       system: ASK_SYSTEM,
-      messages: [
+      // The SDK has strict literal types for media_type that our generic
+      // string can't satisfy — we validated MIME at the boundary, so the
+      // cast is safe.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      messages: ([
         ...claudeMessages,
         // Prefill the assistant's response with "{" to lock it into JSON.
         { role: "assistant", content: "{" },
-      ],
+      ] as unknown) as any,
     });
 
     // Pipe raw text deltas back to the client. The client prepends "{" and
@@ -304,6 +361,28 @@ export async function POST(request: Request) {
     const encoder = new TextEncoder();
     const body = new ReadableStream<Uint8Array>({
       async start(controller) {
+        // Send an immediate space byte to defeat any intermediate buffering.
+        // The client's tolerant JSON parser ignores leading whitespace.
+        try {
+          controller.enqueue(encoder.encode(" "));
+        } catch {
+          /* fine */
+        }
+
+        // Heartbeat — keeps the connection alive on slow Anthropic responses.
+        // Sends a single space every 15s if no real chunks have come through.
+        let lastChunkAt = Date.now();
+        const heartbeat = setInterval(() => {
+          if (Date.now() - lastChunkAt > 12_000) {
+            try {
+              controller.enqueue(encoder.encode(" "));
+              lastChunkAt = Date.now();
+            } catch {
+              /* fine */
+            }
+          }
+        }, 5_000);
+
         try {
           for await (const event of stream) {
             if (
@@ -312,11 +391,25 @@ export async function POST(request: Request) {
               event.delta.text
             ) {
               controller.enqueue(encoder.encode(event.delta.text));
+              lastChunkAt = Date.now();
             }
           }
+          clearInterval(heartbeat);
           controller.close();
         } catch (err) {
-          controller.error(err);
+          clearInterval(heartbeat);
+          console.error("[ask] stream error", err instanceof Error ? err.message : err);
+          // Emit a JSON-shaped error trailer so the client still parses something
+          try {
+            controller.enqueue(
+              encoder.encode(
+                `"text":"Sorry — I hit a problem reading the response. Try again?","cards":[]}`
+              )
+            );
+          } catch {
+            /* fine */
+          }
+          controller.close();
         }
       },
     });
@@ -324,8 +417,10 @@ export async function POST(request: Request) {
     return new Response(body, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache, no-transform",
+        "Cache-Control": "no-cache, no-transform, no-store",
         "X-Accel-Buffering": "no",
+        Connection: "keep-alive",
+        "Transfer-Encoding": "chunked",
       },
     });
   } catch (e) {
@@ -334,5 +429,58 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+const IMAGE_MIMES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]);
+const DOC_MIMES = new Set(["application/pdf"]);
+
+function isAllowedMime(mime: string): boolean {
+  return IMAGE_MIMES.has(mime) || DOC_MIMES.has(mime);
+}
+
+/**
+ * Build the Claude content-block array for the latest user turn when files
+ * are attached. PDFs go in as "document" blocks; images as "image" blocks.
+ * The text question becomes the last block so the model anchors on the
+ * latest typed words.
+ */
+function attachmentsToBlocks(
+  files: UploadedFile[],
+  textContent: string
+): Array<
+  | { type: "text"; text: string }
+  | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
+  | { type: "document"; source: { type: "base64"; media_type: string; data: string } }
+> {
+  const blocks: Array<
+    | { type: "text"; text: string }
+    | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
+    | { type: "document"; source: { type: "base64"; media_type: string; data: string } }
+  > = [];
+
+  for (const f of files) {
+    if (IMAGE_MIMES.has(f.mime_type)) {
+      blocks.push({
+        type: "image",
+        source: { type: "base64", media_type: f.mime_type, data: f.data_base64 },
+      });
+    } else if (DOC_MIMES.has(f.mime_type)) {
+      blocks.push({
+        type: "document",
+        source: { type: "base64", media_type: f.mime_type, data: f.data_base64 },
+      });
+    }
+  }
+
+  // Tell the model about the files by name before the question
+  const fileNote =
+    files.length > 0
+      ? `\n\n(The user has attached ${files.length} file${files.length === 1 ? "" : "s"}: ${files
+          .map((f) => `${f.filename}`)
+          .join(", ")}. Use them as primary context for the question that follows.)`
+      : "";
+
+  blocks.push({ type: "text", text: textContent + fileNote });
+  return blocks;
 }
 

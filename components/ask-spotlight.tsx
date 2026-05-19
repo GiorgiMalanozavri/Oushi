@@ -1,18 +1,49 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowUp, Loader2, RotateCcw, MessageSquare, Trash2 } from "lucide-react";
+import {
+  Sparkles,
+  ArrowUp,
+  Loader2,
+  RotateCcw,
+  MessageSquare,
+  Trash2,
+  Paperclip,
+  FileText,
+  Image as ImageIcon,
+  X,
+  AlertCircle,
+} from "lucide-react";
 import { CardStack } from "@/components/oushi-cards/card-renderer";
 import type { OushiCard } from "@/components/oushi-cards/types";
 import type { CardActionContext } from "@/components/oushi-cards/card-actions";
+
+export interface AttachmentPreview {
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  data_base64: string;
+}
 
 export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   cards?: OushiCard[];
   streaming?: boolean; // true while the assistant is still streaming
+  attachments?: Array<{ filename: string; mime_type: string }>; // metadata only — for history rendering
+  error?: boolean;
 };
+
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+];
+const MAX_FILE_BYTES_CLIENT = 5 * 1024 * 1024;
+const MAX_FILES_CLIENT = 3;
 
 const SUGGESTIONS = [
   "anything urgent today?",
@@ -37,7 +68,7 @@ interface Props {
   input: string;
   setInput: (v: string) => void;
   loading: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string, attachments?: AttachmentPreview[]) => void;
   onClear: () => void;
   actionCtx: CardActionContext;
   recentThreads?: RecentThread[];
@@ -61,6 +92,8 @@ export function AskSpotlight({
 }: Props) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<AttachmentPreview[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
   const hasMessages = messages.length > 0;
   // Derived directly from message presence — when the user sends a question,
   // the input moves to a slim bar at the bottom and the conversation fills the body.
@@ -84,8 +117,54 @@ export function AskSpotlight({
   }, [messages.length, loading]);
 
   const submit = () => {
-    if (!input.trim() || loading) return;
-    onSend(input);
+    if ((!input.trim() && pendingFiles.length === 0) || loading) return;
+    onSend(input || "(see attachment)", pendingFiles.length > 0 ? pendingFiles : undefined);
+    setPendingFiles([]);
+    setFileError(null);
+  };
+
+  const addFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setFileError(null);
+
+    const room = MAX_FILES_CLIENT - pendingFiles.length;
+    if (room <= 0) {
+      setFileError(`Max ${MAX_FILES_CLIENT} files per message.`);
+      return;
+    }
+
+    const incoming = Array.from(files).slice(0, room);
+    const newFiles: AttachmentPreview[] = [];
+
+    for (const f of incoming) {
+      if (!ALLOWED_MIME_TYPES.includes(f.type)) {
+        setFileError(`"${f.name}" — only PDFs and images supported.`);
+        continue;
+      }
+      if (f.size > MAX_FILE_BYTES_CLIENT) {
+        setFileError(`"${f.name}" — file is over 5MB.`);
+        continue;
+      }
+      try {
+        const data_base64 = await fileToBase64(f);
+        newFiles.push({
+          filename: f.name,
+          mime_type: f.type,
+          size_bytes: f.size,
+          data_base64,
+        });
+      } catch {
+        setFileError(`"${f.name}" — couldn't read the file.`);
+      }
+    }
+
+    if (newFiles.length > 0) {
+      setPendingFiles((prev) => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeFile = (idx: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
   // Auto-resize textarea
@@ -123,15 +202,19 @@ export function AskSpotlight({
             <div className="rounded-2xl bg-[#FFFCF3]/95 backdrop-blur-xl border border-[#E6DCC4] shadow-[0_24px_80px_-12px_rgba(42,37,32,0.35),_0_0_0_1px_rgba(94,143,191,0.04)] overflow-hidden flex flex-col max-h-[80vh]">
               {/* Top input bar (empty state only) */}
               {!showInputAtBottom && (
-                <SpotlightInput
-                  inputRef={inputRef}
-                  input={input}
-                  setInput={setInput}
-                  loading={loading}
-                  onSubmit={submit}
-                  onEscape={onClose}
-                  variant="top"
-                />
+                <>
+                  <AttachmentPills files={pendingFiles} onRemove={removeFile} error={fileError} variant="top" />
+                  <SpotlightInput
+                    inputRef={inputRef}
+                    input={input}
+                    setInput={setInput}
+                    loading={loading}
+                    onSubmit={submit}
+                    onEscape={onClose}
+                    onAddFiles={addFiles}
+                    variant="top"
+                  />
+                </>
               )}
 
               {/* Results / chat history */}
@@ -173,6 +256,7 @@ export function AskSpotlight({
                     </button>
                     <p className="text-[10.5px] text-[#A89F92]">Enter to send · Esc to close</p>
                   </div>
+                  <AttachmentPills files={pendingFiles} onRemove={removeFile} error={fileError} variant="bottom" />
                   <SpotlightInput
                     inputRef={inputRef}
                     input={input}
@@ -180,6 +264,7 @@ export function AskSpotlight({
                     loading={loading}
                     onSubmit={submit}
                     onEscape={onClose}
+                    onAddFiles={addFiles}
                     variant="bottom"
                   />
                 </div>
@@ -199,6 +284,7 @@ function SpotlightInput({
   loading,
   onSubmit,
   onEscape,
+  onAddFiles,
   variant,
 }: {
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -207,11 +293,13 @@ function SpotlightInput({
   loading: boolean;
   onSubmit: () => void;
   onEscape: () => void;
+  onAddFiles: (files: FileList | null) => void;
   variant: "top" | "bottom";
 }) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   return (
     <div
-      className={`flex items-center gap-3 px-4 ${
+      className={`flex items-center gap-2.5 px-4 ${
         variant === "top" ? "py-3.5 border-b border-[#E6DCC4]/60" : "py-3"
       }`}
     >
@@ -230,9 +318,32 @@ function SpotlightInput({
             onEscape();
           }
         }}
-        placeholder="Ask Oushi anything about your inbox…"
+        placeholder={variant === "top" ? "Ask Oushi anything — or drop a PDF…" : "Ask anything, attach files…"}
         className="flex-1 resize-none bg-transparent text-[15px] text-[#2A2520] outline-none placeholder:text-[#A89F92] leading-[1.45] py-0.5 max-h-[120px]"
       />
+
+      {/* Paperclip — files (PDF / image) */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/pdf,image/jpeg,image/jpg,image/png,image/webp"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          onAddFiles(e.target.files);
+          // Reset so the same file can be picked again later
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }}
+      />
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        disabled={loading}
+        title="Attach a PDF or image"
+        className="p-1.5 rounded-md text-[#766E63] hover:text-[#3D6A95] hover:bg-[#FAF6EB] disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+      >
+        <Paperclip className="w-3.5 h-3.5" />
+      </button>
+
       {variant === "top" ? (
         <kbd className="text-[10.5px] font-mono text-[#A89F92] bg-[#FAF6EB] rounded px-1.5 py-0.5 border border-[#E6DCC4]">
           esc
@@ -240,7 +351,7 @@ function SpotlightInput({
       ) : (
         <button
           onClick={onSubmit}
-          disabled={!input.trim() || loading}
+          disabled={(!input.trim() && true) || loading}
           className="p-1.5 rounded-md bg-[#5E8FBF] hover:bg-[#3D6A95] disabled:bg-[#D6CDB8] disabled:cursor-not-allowed text-white transition-colors shrink-0"
         >
           {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUp className="w-3.5 h-3.5" />}
@@ -248,6 +359,81 @@ function SpotlightInput({
       )}
     </div>
   );
+}
+
+function AttachmentPills({
+  files,
+  onRemove,
+  error,
+  variant,
+}: {
+  files: AttachmentPreview[];
+  onRemove: (idx: number) => void;
+  error: string | null;
+  variant: "top" | "bottom";
+}) {
+  if (files.length === 0 && !error) return null;
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-1.5 px-4 ${
+        variant === "top" ? "pt-3" : "pt-2"
+      } ${files.length > 0 || error ? "pb-1" : ""}`}
+    >
+      {files.map((f, i) => {
+        const isPdf = f.mime_type === "application/pdf";
+        const Icon = isPdf ? FileText : ImageIcon;
+        return (
+          <span
+            key={i}
+            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-[#D0E1F0] bg-[#D0E1F0]/30 text-[11.5px] text-[#3D6A95] max-w-[200px]"
+          >
+            <Icon className="w-3 h-3 shrink-0" />
+            <span className="truncate font-medium">{f.filename}</span>
+            <span className="text-[10px] text-[#5E8FBF]/70 font-mono shrink-0">
+              {formatBytes(f.size_bytes)}
+            </span>
+            <button
+              onClick={() => onRemove(i)}
+              className="ml-0.5 text-[#5E8FBF] hover:text-[#B86B4A] shrink-0"
+              title="Remove"
+            >
+              <X className="w-2.5 h-2.5" strokeWidth={3} />
+            </button>
+          </span>
+        );
+      })}
+      {error && (
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-[#B86B4A]">
+          <AlertCircle className="w-3 h-3" />
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function formatBytes(b: number): string {
+  if (b < 1024) return `${b}B`;
+  if (b < 1024 * 1024) return `${Math.round(b / 1024)}KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("FileReader returned non-string"));
+        return;
+      }
+      // result is "data:<mime>;base64,<...>" — strip the prefix
+      const comma = result.indexOf(",");
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error || new Error("read failed"));
+    reader.readAsDataURL(file);
+  });
 }
 
 function EmptyState({
@@ -346,8 +532,26 @@ function Message({
   actionCtx: CardActionContext;
 }) {
   if (message.role === "user") {
+    const atts = message.attachments || [];
     return (
-      <div className="flex justify-end">
+      <div className="flex flex-col items-end gap-1.5">
+        {atts.length > 0 && (
+          <div className="flex flex-wrap justify-end gap-1.5 max-w-[85%]">
+            {atts.map((a, i) => {
+              const isPdf = a.mime_type === "application/pdf";
+              const Icon = isPdf ? FileText : ImageIcon;
+              return (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-[#5E8FBF]/30 bg-[#D0E1F0]/40 text-[11.5px] text-[#3D6A95] max-w-[200px]"
+                >
+                  <Icon className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{a.filename}</span>
+                </span>
+              );
+            })}
+          </div>
+        )}
         <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-[#5E8FBF] text-white px-3.5 py-2 text-[13.5px] leading-[1.5] whitespace-pre-wrap shadow-sm">
           {message.content}
         </div>
