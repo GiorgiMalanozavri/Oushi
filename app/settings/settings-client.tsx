@@ -1077,6 +1077,7 @@ function NotificationsSection() {
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [testStatus, setTestStatus] = useState<null | { ok: boolean; message: string }>(null);
+  const [enableError, setEnableError] = useState<null | { reason: string; detail?: string }>(null);
 
   // Load support + current state on mount
   useEffect(() => {
@@ -1092,15 +1093,19 @@ function NotificationsSection() {
   const handleEnable = async () => {
     setBusy(true);
     setTestStatus(null);
+    setEnableError(null);
     try {
       const { enablePush } = await import("@/lib/push-client");
-      const sub = await enablePush();
-      if (sub) {
+      const result = await enablePush();
+      if (result.ok) {
         setSubscribed(true);
         setPermission("granted");
       } else {
-        // Permission may have been denied
-        setPermission(Notification.permission as "default" | "granted" | "denied");
+        setEnableError({ reason: result.reason, detail: result.detail });
+        // Sync permission state in case it changed
+        if (typeof Notification !== "undefined") {
+          setPermission(Notification.permission as "default" | "granted" | "denied");
+        }
       }
     } finally {
       setBusy(false);
@@ -1161,6 +1166,14 @@ function NotificationsSection() {
 
       {permission !== "unsupported" && permission !== "denied" && (
         <div className="space-y-3">
+          {enableError && (
+            <div className="rounded-lg border border-[#B86B4A]/30 bg-[#F5E8E0]/40 px-4 py-3 text-[12.5px] text-[#B86B4A]">
+              <p className="font-medium">{enableError.reason}</p>
+              {enableError.detail && (
+                <p className="mt-1 text-[11.5px] opacity-80 break-words">{enableError.detail}</p>
+              )}
+            </div>
+          )}
           <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] px-4 py-3.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div

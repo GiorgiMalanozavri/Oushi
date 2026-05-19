@@ -49,31 +49,70 @@ function urlBase64ToUint8Array(base64String: string): BufferSource {
   return view;
 }
 
+export type EnablePushResult =
+  | { ok: true; subscription: PushSubscription }
+  | { ok: false; reason: string; detail?: string };
+
 /**
  * Request permission, subscribe, and POST the subscription to the server.
- * Returns the subscription on success, null on failure / denied.
+ * Returns a structured result so the UI can show *why* it failed.
  */
-export async function enablePush(): Promise<PushSubscription | null> {
-  if (getPushSupport() === "unsupported") return null;
+export async function enablePush(): Promise<EnablePushResult> {
+  if (getPushSupport() === "unsupported") {
+    return { ok: false, reason: "This browser doesn't support web push." };
+  }
 
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") return null;
+  let permission: NotificationPermission;
+  try {
+    permission = await Notification.requestPermission();
+  } catch (e) {
+    return { ok: false, reason: "Permission prompt failed.", detail: errMsg(e) };
+  }
+  if (permission === "denied") {
+    return {
+      ok: false,
+      reason: "Notifications are blocked for this site. Allow them in your browser settings and reload.",
+    };
+  }
+  if (permission !== "granted") {
+    return { ok: false, reason: "Permission wasn't granted." };
+  }
 
   const reg = await registerServiceWorker();
-  if (!reg) return null;
+  if (!reg) {
+    return {
+      ok: false,
+      reason: "Couldn't register the service worker. Try a hard reload (Cmd+Shift+R).",
+    };
+  }
 
   // Get VAPID public key from the server
-  const keyRes = await fetch("/api/push/subscribe");
-  const keyJson = await keyRes.json();
-  const publicKey: string | null = keyJson?.publicKey;
+  let keyJson: { publicKey?: string | null } | null = null;
+  try {
+    const keyRes = await fetch("/api/push/subscribe");
+    if (!keyRes.ok) {
+      return {
+        ok: false,
+        reason: "Couldn't reach the server.",
+        detail: `HTTP ${keyRes.status}`,
+      };
+    }
+    keyJson = await keyRes.json();
+  } catch (e) {
+    return { ok: false, reason: "Network error fetching VAPID key.", detail: errMsg(e) };
+  }
+  const publicKey = keyJson?.publicKey;
   if (!publicKey) {
-    console.error("[push] no VAPID public key from server");
-    return null;
+    return {
+      ok: false,
+      reason: "Server is missing VAPID keys.",
+      detail:
+        "Add VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT to your Vercel env vars and redeploy.",
+    };
   }
 
   let sub: PushSubscription | null = null;
   try {
-    // Check for existing subscription (could be from an earlier session)
     sub = await reg.pushManager.getSubscription();
     if (!sub) {
       sub = await reg.pushManager.subscribe({
@@ -82,19 +121,48 @@ export async function enablePush(): Promise<PushSubscription | null> {
       });
     }
   } catch (e) {
-    console.error("[push] subscribe failed", e);
-    return null;
+    return {
+      ok: false,
+      reason: "Browser rejected the subscription.",
+      detail: errMsg(e),
+    };
   }
 
   // Send the subscription to the server
-  const payload = sub.toJSON();
-  await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  try {
+    const payload = sub.toJSON();
+    const saveRes = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!saveRes.ok) {
+      const errJson = await saveRes.json().catch(() => null);
+      return {
+        ok: false,
+        reason: "Couldn't save subscription to the server.",
+        detail: errJson?.error || `HTTP ${saveRes.status}`,
+      };
+    }
+  } catch (e) {
+    return {
+      ok: false,
+      reason: "Network error saving subscription.",
+      detail: errMsg(e),
+    };
+  }
 
-  return sub;
+  return { ok: true, subscription: sub };
+}
+
+function errMsg(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return "Unknown error";
+  }
 }
 
 export async function disablePush(): Promise<void> {
