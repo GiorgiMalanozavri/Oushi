@@ -44,6 +44,7 @@ import { PromisesView } from "@/components/promises-view";
 import { ComingUp } from "@/components/coming-up";
 import { FirstSyncSplash } from "@/components/first-sync-splash";
 import { TodayOushi } from "@/components/today-oushi";
+import { useToast } from "@/components/toast";
 
 interface Profile {
   bio: string;
@@ -107,6 +108,7 @@ export function DashboardClient({
   feedbackCount,
   lastSyncedAt,
 }: DashboardClientProps) {
+  const toast = useToast();
   const [buckets, setBuckets] = useState(initialBuckets);
   const [topics, setTopics] = useState(initialTopics);
   const [loading, setLoading] = useState(isFirstSync);
@@ -293,6 +295,17 @@ export function DashboardClient({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email_id: emailId }),
+    });
+    toast.success("Email archived", {
+      detail: "Also archived in Gmail.",
+      onUndo: () => {
+        // Undo: clear from dismissedIds locally + best-effort un-archive
+        setDismissedIds((p) => {
+          const next = new Set(p);
+          next.delete(emailId);
+          return next;
+        });
+      },
     });
   };
 
@@ -525,6 +538,7 @@ export function DashboardClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email_id: emailId }),
         });
+        toast.success("Email archived");
       },
       muteSender: async (emailId) => {
         const found = allEmails.find((e) => e.id === emailId);
@@ -533,6 +547,9 @@ export function DashboardClient({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ mute_type: "sender", value: found.from_email }),
+        });
+        toast.success(`Muted ${found.from_email}`, {
+          detail: "Future emails from this sender will be hidden.",
         });
       },
     }),
@@ -1829,6 +1846,7 @@ function EmailPanel({
   onDismiss: (id: string) => void;
   now: Date;
 }) {
+  const toast = useToast();
   const [draft, setDraft] = useState<string | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
@@ -1900,9 +1918,25 @@ function EmailPanel({
         body: JSON.stringify({ body: draft }),
       });
       const data = await res.json();
-      if (!res.ok) { setSendError(data.error || "Send failed"); setNeedsReauth(!!data.needsReauth); }
-      else setSent(true);
-    } catch (e) { setSendError(e instanceof Error ? e.message : "Network error"); }
+      if (!res.ok) {
+        setSendError(data.error || "Send failed");
+        setNeedsReauth(!!data.needsReauth);
+        toast.error("Couldn't send reply", { detail: data.error || `HTTP ${res.status}` });
+      } else {
+        setSent(true);
+        const af = data.autoFulfilled || 0;
+        toast.success("Reply sent", {
+          detail:
+            af > 0
+              ? `Auto-closed ${af} promise${af === 1 ? "" : "s"} in this thread.`
+              : `To ${email.from_name || email.from_email}`,
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Network error";
+      setSendError(msg);
+      toast.error("Couldn't send reply", { detail: msg });
+    }
     finally { setSending(false); }
   };
 

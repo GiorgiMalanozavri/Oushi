@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { NavigationProgress } from "@/components/navigation-progress";
+import { ToastProvider } from "@/components/toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -71,8 +72,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${sourceSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <NavigationProgress />
-        {children}
+        <ToastProvider>
+          <NavigationProgress />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

@@ -13,6 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { SkeletonList, ErrorPanel } from "@/components/feedback";
+import { useToast } from "@/components/toast";
 
 export interface Commitment {
   id: string;
@@ -44,6 +45,7 @@ const URGENCY_STYLE: Record<
 };
 
 export function PromisesView() {
+  const toast = useToast();
   const [items, setItems] = useState<Commitment[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
@@ -78,15 +80,32 @@ export function PromisesView() {
     setScanResult(null);
     try {
       const res = await fetch("/api/commitments/scan", { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        setScanResult({
-          extracted: data.extracted || 0,
-          scanned: data.scanned || 0,
-          autoFulfilled: data.autoFulfilled || 0,
-        });
-        await load();
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        toast.error("Scan failed", { detail: j?.error || `HTTP ${res.status}` });
+        return;
       }
+      const data = await res.json();
+      setScanResult({
+        extracted: data.extracted || 0,
+        scanned: data.scanned || 0,
+        autoFulfilled: data.autoFulfilled || 0,
+      });
+      await load();
+      const e = data.extracted || 0;
+      const a = data.autoFulfilled || 0;
+      if (e === 0 && a === 0) {
+        toast.info("Scan complete", { detail: "No new promises found." });
+      } else {
+        const parts: string[] = [];
+        if (e > 0) parts.push(`${e} new`);
+        if (a > 0) parts.push(`${a} auto-closed`);
+        toast.success("Scan complete", { detail: parts.join(" · ") });
+      }
+    } catch (e) {
+      toast.error("Scan failed", {
+        detail: e instanceof Error ? e.message : "Network error",
+      });
     } finally {
       setScanning(false);
     }
@@ -97,6 +116,8 @@ export function PromisesView() {
     action: "fulfill" | "dismiss" | "snooze",
     days?: number
   ) => {
+    // Capture the row for undo before removing it from view
+    const removed = items.find((c) => c.id === id);
     // Optimistic
     setItems((p) => p.filter((c) => c.id !== id));
     try {
@@ -105,8 +126,32 @@ export function PromisesView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, days }),
       });
+      const message =
+        action === "fulfill" ? "Promise done" :
+        action === "dismiss" ? "Promise dismissed" :
+        `Snoozed ${days || 3}d`;
+      const detail =
+        action === "fulfill" ? "Nice work."
+          : action === "snooze" ? `Back in ${days || 3} days`
+          : undefined;
+      toast.success(message, {
+        detail,
+        onUndo: async () => {
+          // Re-open + restore row
+          try {
+            await fetch(`/api/commitments/${id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "reopen" }),
+            });
+            if (removed) setItems((p) => [...p, removed]);
+          } catch {
+            load();
+          }
+        },
+      });
     } catch {
-      // Reload on failure
+      toast.error("Couldn't update the promise. Reloading…");
       load();
     }
   };
