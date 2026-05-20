@@ -11,6 +11,7 @@ import {
   Mail,
   ExternalLink,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Plus,
   Trash2,
@@ -998,81 +999,15 @@ function Sidebar({
         </button>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3">
-        <SectionLabel>Views</SectionLabel>
-        <NavItem
-          icon={<Sparkles className="w-3.5 h-3.5" />}
-          label="Today"
-          active={view.type === "today"}
-          onClick={() => setView({ type: "today" })}
-        />
-        <NavItem
-          icon={<CircleDot className="w-3.5 h-3.5 text-[#B86B4A]" />}
-          label="Urgent"
-          count={counts.urgent}
-          countColor="terracotta"
-          active={view.type === "urgent"}
-          onClick={() => setView({ type: "urgent" })}
-        />
-        <NavItem
-          icon={<CornerDownLeft className="w-3.5 h-3.5" />}
-          label="Awaiting reply"
-          count={counts.awaiting}
-          countColor="sky"
-          active={view.type === "awaiting"}
-          onClick={() => setView({ type: "awaiting" })}
-        />
-        <NavItem
-          icon={<Clock className="w-3.5 h-3.5" />}
-          label="Following up"
-          count={counts.following}
-          countColor="ink"
-          active={view.type === "following"}
-          onClick={() => setView({ type: "following" })}
-        />
-        <NavItem
-          icon={<Handshake className="w-3.5 h-3.5 text-[#5E8FBF]" />}
-          label="Promises"
-          count={counts.promises}
-          countColor="sky"
-          active={view.type === "promises"}
-          onClick={() => setView({ type: "promises" })}
-        />
-        <NavItem
-          icon={<Archive className="w-3.5 h-3.5" />}
-          label="Worth keeping"
-          count={counts.reference}
-          active={view.type === "reference"}
-          onClick={() => setView({ type: "reference" })}
-        />
-
-        <SectionLabel className="mt-5">Boards</SectionLabel>
-        {topics.length === 0 ? (
-          <p className="px-2.5 py-2 text-[12px] text-[#A89F92] italic">No boards yet.</p>
-        ) : (
-          topics.map((t) => (
-            <NavItem
-              key={t.id}
-              icon={<Hash className="w-3.5 h-3.5" />}
-              label={t.name}
-              count={(boardCounts.get(t.name) || []).length}
-              active={view.type === "board" && view.id === t.id}
-              onClick={() => setView({ type: "board", id: t.id })}
-            />
-          ))
-        )}
-
-        {counts.untagged > 0 && (
-          <NavItem
-            icon={<Inbox className="w-3.5 h-3.5" />}
-            label="Untagged"
-            count={counts.untagged}
-            active={view.type === "untagged"}
-            onClick={() => setView({ type: "untagged" })}
-          />
-        )}
-      </nav>
+      {/* Nav — minimal AI-first layout. Bucket views are tucked behind
+          a "More views" toggle so they don't compete with the dashboard. */}
+      <SidebarNav
+        view={view}
+        setView={setView}
+        counts={counts}
+        topics={topics}
+        boardCounts={boardCounts}
+      />
 
       {/* Bottom */}
       <div className="border-t border-[#E6DCC4] px-3 py-3 flex items-center gap-2">
@@ -1093,6 +1028,133 @@ function Sidebar({
         </Link>
       </div>
     </div>
+  );
+}
+
+function SidebarNav({
+  view,
+  setView,
+  counts,
+  topics,
+  boardCounts,
+}: {
+  view: ViewKey;
+  setView: (v: ViewKey) => void;
+  counts: { urgent: number; awaiting: number; following: number; reference: number; untagged: number; promises: number; total: number };
+  topics: Topic[];
+  boardCounts: Map<string, Classified[]>;
+}) {
+  // Auto-expand if the user is already on a non-Today view so they're not
+  // confused about where their current page disappeared to.
+  const onNonPrimaryView =
+    view.type !== "today" && view.type !== "promises";
+  const [expanded, setExpanded] = useState(onNonPrimaryView);
+
+  return (
+    <nav className="flex-1 overflow-y-auto px-3 py-3">
+      {/* Primary — the two views every user uses constantly */}
+      <NavItem
+        icon={<Sparkles className="w-3.5 h-3.5" />}
+        label="Today"
+        active={view.type === "today"}
+        onClick={() => setView({ type: "today" })}
+      />
+      <NavItem
+        icon={<Handshake className="w-3.5 h-3.5 text-[#5E8FBF]" />}
+        label="Promises"
+        count={counts.promises}
+        countColor="sky"
+        active={view.type === "promises"}
+        onClick={() => setView({ type: "promises" })}
+      />
+
+      {/* More views — bucket nav tucked away */}
+      <button
+        onClick={() => setExpanded((p) => !p)}
+        className="mt-4 w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11.5px] text-[#A89F92] hover:text-[#766E63] transition-colors"
+      >
+        <ChevronRight
+          className={`w-3 h-3 transition-transform ${expanded ? "rotate-90" : ""}`}
+        />
+        <span className="font-medium uppercase tracking-[0.12em] text-[10px]">
+          {expanded ? "Fewer views" : "More views"}
+        </span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="more"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="pt-1">
+              <NavItem
+                icon={<CircleDot className="w-3.5 h-3.5 text-[#B86B4A]" />}
+                label="Urgent"
+                count={counts.urgent}
+                countColor="terracotta"
+                active={view.type === "urgent"}
+                onClick={() => setView({ type: "urgent" })}
+              />
+              <NavItem
+                icon={<CornerDownLeft className="w-3.5 h-3.5" />}
+                label="Awaiting reply"
+                count={counts.awaiting}
+                countColor="sky"
+                active={view.type === "awaiting"}
+                onClick={() => setView({ type: "awaiting" })}
+              />
+              <NavItem
+                icon={<Clock className="w-3.5 h-3.5" />}
+                label="Following up"
+                count={counts.following}
+                countColor="ink"
+                active={view.type === "following"}
+                onClick={() => setView({ type: "following" })}
+              />
+              <NavItem
+                icon={<Archive className="w-3.5 h-3.5" />}
+                label="Worth keeping"
+                count={counts.reference}
+                active={view.type === "reference"}
+                onClick={() => setView({ type: "reference" })}
+              />
+
+              {/* Boards — also semi-hidden */}
+              {topics.length > 0 && (
+                <>
+                  <SectionLabel className="mt-4">Boards</SectionLabel>
+                  {topics.map((t) => (
+                    <NavItem
+                      key={t.id}
+                      icon={<Hash className="w-3.5 h-3.5" />}
+                      label={t.name}
+                      count={(boardCounts.get(t.name) || []).length}
+                      active={view.type === "board" && view.id === t.id}
+                      onClick={() => setView({ type: "board", id: t.id })}
+                    />
+                  ))}
+                </>
+              )}
+
+              {counts.untagged > 0 && (
+                <NavItem
+                  icon={<Inbox className="w-3.5 h-3.5" />}
+                  label="Untagged"
+                  count={counts.untagged}
+                  active={view.type === "untagged"}
+                  onClick={() => setView({ type: "untagged" })}
+                />
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </nav>
   );
 }
 
