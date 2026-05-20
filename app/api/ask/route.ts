@@ -10,8 +10,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const ASK_MAX = 60;
-const ASK_WINDOW_MS = 60 * 60 * 1000; // 60 asks / hour / user
+// Two-layer rate limit: an hourly burst guard AND a daily soft cap.
+// Daily cap protects against a single user blowing $50 of Anthropic credits.
+const ASK_HOURLY_MAX = 60;
+const ASK_HOURLY_WINDOW_MS = 60 * 60 * 1000;
+const ASK_DAILY_MAX = 150;
+const ASK_DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // File upload limits — keep per-request well under model + Vercel limits
 const MAX_FILE_BYTES = 5 * 1024 * 1024;   // 5MB per file
@@ -112,11 +116,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const limit = rateLimit(`ask:${user.id}`, ASK_MAX, ASK_WINDOW_MS);
-  if (!limit.ok) {
+  // Hourly burst guard
+  const hourly = rateLimit(`ask:${user.id}`, ASK_HOURLY_MAX, ASK_HOURLY_WINDOW_MS);
+  if (!hourly.ok) {
     return NextResponse.json(
-      { error: `Too many questions. Try again in ${limit.retryAfterSeconds}s.` },
-      { status: 429, headers: rateLimitHeaders(limit, ASK_MAX) }
+      { error: `Too many questions. Try again in ${hourly.retryAfterSeconds}s.` },
+      { status: 429, headers: rateLimitHeaders(hourly, ASK_HOURLY_MAX) }
+    );
+  }
+  // Daily soft cap — protects from a single user accidentally burning a
+  // ton of API credits. Configurable per user later via pricing tiers.
+  const daily = rateLimit(`ask-daily:${user.id}`, ASK_DAILY_MAX, ASK_DAILY_WINDOW_MS);
+  if (!daily.ok) {
+    const hours = Math.ceil((daily.retryAfterSeconds || 3600) / 3600);
+    return NextResponse.json(
+      {
+        error: `You've hit your daily chat limit (${ASK_DAILY_MAX} questions). Resets in ~${hours}h. Pro tier removes the cap.`,
+      },
+      { status: 429, headers: rateLimitHeaders(daily, ASK_DAILY_MAX) }
     );
   }
 

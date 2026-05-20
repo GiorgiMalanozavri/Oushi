@@ -7,6 +7,7 @@ import {
   autoFulfillByFollowup,
   type ExtractedCommitment,
 } from "@/lib/commitments";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 300;
 
@@ -26,6 +27,18 @@ export async function POST() {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // 3 scans per 10 minutes — scans hit Claude per sent email so abuse can
+  // burn through API credits fast.
+  const limit = rateLimit(`commitment-scan:${user.id}`, 3, 10 * 60 * 1000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      {
+        error: `Scan is rate-limited. Try again in ${limit.retryAfterSeconds}s.`,
+      },
+      { status: 429 }
+    );
   }
 
   const service = await createServiceClient();

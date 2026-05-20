@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOAuth2Client } from "@/lib/gmail";
 import { createServiceClient } from "@/lib/supabase/server";
+import { encrypt } from "@/lib/crypto";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -18,8 +19,8 @@ export async function GET(request: Request) {
   await supabase.from("user_tokens").upsert(
     {
       user_id: state,
-      refresh_token: tokens.refresh_token!,
-      access_token: tokens.access_token,
+      refresh_token: encrypt(tokens.refresh_token!),
+      access_token: tokens.access_token ? encrypt(tokens.access_token) : null,
       expires_at: tokens.expiry_date
         ? new Date(tokens.expiry_date).toISOString()
         : null,
