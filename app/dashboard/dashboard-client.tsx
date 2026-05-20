@@ -58,6 +58,7 @@ import {
   fxComplete,
 } from "@/lib/feedback-fx";
 import { TodayOushi } from "@/components/today-oushi";
+import { NarrativeToday } from "@/components/narrative-today";
 import { useToast } from "@/components/toast";
 import { EmptyState as FeedbackEmptyState } from "@/components/feedback";
 import { SnoozePopover } from "@/components/snooze-popover";
@@ -188,6 +189,30 @@ export function DashboardClient({
   // Keyboard-driven focus + help overlay state
   const [focusedEmailId, setFocusedEmailId] = useState<string | null>(null);
   const [kbdHelpOpen, setKbdHelpOpen] = useState(false);
+
+  // Today view mode — Narrative (default, Direction A) or Classic cards.
+  // Persisted in localStorage so the choice survives reloads. SSR-safe via
+  // an effect-driven initial sync (default to narrative on first paint).
+  const [todayMode, setTodayMode] = useState<"narrative" | "classic">("narrative");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem("oushi.todayMode");
+      if (stored === "classic" || stored === "narrative") {
+        setTodayMode(stored);
+      }
+    } catch {
+      // ignore — default "narrative" stands
+    }
+  }, []);
+  const updateTodayMode = (mode: "narrative" | "classic") => {
+    setTodayMode(mode);
+    try {
+      window.localStorage.setItem("oushi.todayMode", mode);
+    } catch {
+      // ignore
+    }
+  };
 
   // Unlock audio FX on the first real user interaction. Safari/iOS require
   // a synchronous user gesture before AudioContext can resume; calling
@@ -1022,8 +1047,8 @@ export function DashboardClient({
         />
         {/* View content */}
         <ErrorBoundary label="View content">
-          {view.type === "today" && (
-            <TodayOushi
+          {view.type === "today" && todayMode === "narrative" && (
+            <NarrativeToday
               onOpenSpotlight={(initialPrompt) => {
                 if (initialPrompt) setAskInput(initialPrompt);
                 setAskOpen(true);
@@ -1033,7 +1058,31 @@ export function DashboardClient({
                 if (found) setSelectedEmail(found);
               }}
               onOpenCommitments={() => setView({ type: "promises" })}
+              onDismissEmail={(id) => actionCtx.dismiss && actionCtx.dismiss(id)}
+              rightAdornment={
+                <TodayModeToggle mode={todayMode} onChange={updateTodayMode} />
+              }
             />
+          )}
+          {view.type === "today" && todayMode === "classic" && (
+            <div className="relative">
+              {/* Toggle floats top-left in classic mode so it doesn't
+                  collide with the global ⌘K pill on the right */}
+              <div className="absolute top-4 left-4 z-10">
+                <TodayModeToggle mode={todayMode} onChange={updateTodayMode} />
+              </div>
+              <TodayOushi
+                onOpenSpotlight={(initialPrompt) => {
+                  if (initialPrompt) setAskInput(initialPrompt);
+                  setAskOpen(true);
+                }}
+                onOpenEmail={(id) => {
+                  const found = allEmails.find((e) => e.id === id);
+                  if (found) setSelectedEmail(found);
+                }}
+                onOpenCommitments={() => setView({ type: "promises" })}
+              />
+            </div>
           )}
           {view.type === "urgent" && (
             <ListView
@@ -2153,6 +2202,55 @@ function SuggestedActionButton({
  * Inline score chip with a tone label — "87 · Critical", "62 · Useful", etc.
  * Replaces the orphaned floating score badge in the email modal header.
  */
+/**
+ * Segmented control to flip the Today view between Narrative (Direction A)
+ * and Classic (TodayOushi cards). Lives in the top-right corner of the
+ * Today view. Designed to feel like part of the page furniture, not a
+ * heavy chrome control.
+ */
+function TodayModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: "narrative" | "classic";
+  onChange: (m: "narrative" | "classic") => void;
+}) {
+  return (
+    <div
+      className="inline-flex items-center rounded-full border border-[#E6DCC4] bg-[#FFFCF3]/90 backdrop-blur-sm p-0.5 shadow-[0_2px_12px_-4px_rgba(106,76,38,0.10)]"
+      role="tablist"
+      aria-label="Today view mode"
+    >
+      <button
+        onClick={() => onChange("narrative")}
+        className={`text-[11px] font-medium px-2.5 py-1 rounded-full transition-all ${
+          mode === "narrative"
+            ? "bg-[#3F362C] text-[#FBF4DF] shadow-sm"
+            : "text-[#766E63] hover:text-[#3F362C]"
+        }`}
+        role="tab"
+        aria-selected={mode === "narrative"}
+        title="Narrative — Oushi writes you a brief"
+      >
+        Narrative
+      </button>
+      <button
+        onClick={() => onChange("classic")}
+        className={`text-[11px] font-medium px-2.5 py-1 rounded-full transition-all ${
+          mode === "classic"
+            ? "bg-[#3F362C] text-[#FBF4DF] shadow-sm"
+            : "text-[#766E63] hover:text-[#3F362C]"
+        }`}
+        role="tab"
+        aria-selected={mode === "classic"}
+        title="Classic — Card list"
+      >
+        Classic
+      </button>
+    </div>
+  );
+}
+
 function ScorePill({ score }: { score: number }) {
   const shade = scoreShade(score);
   const label =
