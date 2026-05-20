@@ -393,10 +393,15 @@ export async function rankUnrankedEmails(userId: string) {
   }
 
   // Auto-apply Gmail labels for users who've opted in. Best-effort —
-  // never blocks the rank from returning. We re-fetch the freshly ranked
-  // rows because we need user_replied / is_unread / is_read / score for
-  // the classifier, and the prefiltered + Claude-ranked sets have only
-  // partial views.
+  // never blocks the rank from returning. Two passes:
+  //   (a) Newly-ranked emails: re-fetch fresh rows (we need user_replied /
+  //       is_unread / is_read / score for the classifier, and the prefiltered
+  //       + Claude-ranked sets have only partial views).
+  //   (b) Stale already-labeled emails: any email in the 14-day window whose
+  //       state has moved since gmail_label_applied_at gets re-classified
+  //       and re-applied. This is the self-heal that keeps Gmail in sync
+  //       when the user replies, dismisses, snoozes, or a new thread message
+  //       arrives — without us, those labels stay wrong forever.
   try {
     const { data: optIn } = await supabase
       .from("user_sync_state")
@@ -404,27 +409,79 @@ export async function rankUnrankedEmails(userId: string) {
       .eq("user_id", userId)
       .maybeSingle();
     if (optIn?.gmail_labels_enabled) {
-      const allRankedIds = [
+      // ── (a) Newly-ranked emails ──────────────────────────────────────
+      const newlyRankedIds = [
         ...prefiltered.map((r) => r.id),
         ...needsClaude.map((e) => e.id),
       ];
-      if (allRankedIds.length > 0) {
+      const decisions: Array<{
+        emailId: string;
+        gmailMessageId: string;
+        labelKey: OushiLabelKey | null;
+      }> = [];
+      const seenIds = new Set<string>();
+
+      if (newlyRankedIds.length > 0) {
         const { data: freshRows } = await supabase
           .from("emails")
           .select("*")
-          .in("id", allRankedIds);
-        if (freshRows && freshRows.length > 0) {
-          const decisions: Array<{ gmailMessageId: string; labelKey: OushiLabelKey | null }> = [];
+          .in("id", newlyRankedIds);
+        if (freshRows) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           for (const row of freshRows as any[]) {
-            if (!row.gmail_message_id) continue;
+            if (!row.gmail_message_id || seenIds.has(row.id)) continue;
+            seenIds.add(row.id);
             decisions.push({
+              emailId: row.id,
               gmailMessageId: row.gmail_message_id,
               labelKey: computeLabelForEmail(row),
             });
           }
-          await applyLabelsBatch(userId, decisions);
         }
+      }
+
+      // ── (b) Stale-label self-heal ────────────────────────────────────
+      // Pull every previously-labeled email in the 14-day window, then in JS
+      // find ones whose any state timestamp moved AFTER gmail_label_applied_at.
+      // The 14-day cap matches what `apply` covers; older emails get re-labeled
+      // only if the user re-runs apply.
+      const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: maybeStale } = await supabase
+        .from("emails")
+        .select("*")
+        .eq("user_id", userId)
+        .not("gmail_label_applied_at", "is", null)
+        .gte("received_at", since)
+        .limit(2000);
+
+      if (maybeStale) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const row of maybeStale as any[]) {
+          if (!row.gmail_message_id || seenIds.has(row.id)) continue;
+          const appliedAt = new Date(row.gmail_label_applied_at).getTime();
+          // Any state timestamp newer than appliedAt means the label
+          // *might* now be wrong — re-classify to be safe.
+          const stateMaxMs = Math.max(
+            row.last_thread_message_at ? new Date(row.last_thread_message_at).getTime() : 0,
+            row.dismissed_at ? new Date(row.dismissed_at).getTime() : 0,
+            row.followup_dismissed_at ? new Date(row.followup_dismissed_at).getTime() : 0,
+            row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0,
+            row.user_last_sent_at ? new Date(row.user_last_sent_at).getTime() : 0,
+            row.snooze_until ? new Date(row.snooze_until).getTime() : 0
+          );
+          if (stateMaxMs > appliedAt) {
+            seenIds.add(row.id);
+            decisions.push({
+              emailId: row.id,
+              gmailMessageId: row.gmail_message_id,
+              labelKey: computeLabelForEmail(row),
+            });
+          }
+        }
+      }
+
+      if (decisions.length > 0) {
+        await applyLabelsBatch(userId, decisions);
       }
     }
   } catch (e) {

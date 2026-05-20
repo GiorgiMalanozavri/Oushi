@@ -19,6 +19,7 @@ import {
   isLowValueNotification,
   type EmailRow,
 } from "@/lib/outstanding";
+import { createServiceClient } from "@/lib/supabase/server";
 
 // Google Gmail's color API only accepts colors from its restricted palette.
 // These values are exact picks from Google's allowed list.
@@ -245,10 +246,19 @@ export async function ensureOushiLabels(
  *
  * Uses Gmail's batchModify endpoint — one API call per (add-id, remove-ids)
  * combination. Groups emails by their target label for maximum batching.
+ *
+ * When `emailId` is provided in a decision, the email's `gmail_label_applied_at`
+ * column is stamped to NOW() after a successful batch — that's how we detect
+ * stale labels later (any state-change timestamp newer than this column
+ * means the label might no longer be correct).
  */
 export async function applyLabelsBatch(
   userId: string,
-  decisions: Array<{ gmailMessageId: string; labelKey: OushiLabelKey | null }>
+  decisions: Array<{
+    emailId?: string;
+    gmailMessageId: string;
+    labelKey: OushiLabelKey | null;
+  }>
 ): Promise<{ applied: number; cleared: number }> {
   if (decisions.length === 0) return { applied: 0, cleared: 0 };
 
@@ -261,6 +271,12 @@ export async function applyLabelsBatch(
   const oauth2Client = await getAuthenticatedClient(userId);
   const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
+  // gmail_message_id -> emailId so we can stamp the DB after success
+  const gmailToEmailId = new Map<string, string>();
+  for (const d of decisions) {
+    if (d.emailId) gmailToEmailId.set(d.gmailMessageId, d.emailId);
+  }
+
   // Group by the target labelKey (null group = clear only)
   const byLabel = new Map<OushiLabelKey | "__none__", string[]>();
   for (const d of decisions) {
@@ -272,6 +288,7 @@ export async function applyLabelsBatch(
 
   let applied = 0;
   let cleared = 0;
+  const succeededEmailIds: string[] = [];
 
   for (const [key, ids] of byLabel) {
     // Gmail's batchModify accepts up to 1000 message ids per call
@@ -295,6 +312,11 @@ export async function applyLabelsBatch(
         });
         if (key === "__none__") cleared += slice.length;
         else applied += slice.length;
+        // Collect emailIds for the gmail_label_applied_at stamp
+        for (const gmailId of slice) {
+          const eid = gmailToEmailId.get(gmailId);
+          if (eid) succeededEmailIds.push(eid);
+        }
       } catch (e) {
         console.error(
           "[gmail-labels] batchModify failed",
@@ -302,6 +324,30 @@ export async function applyLabelsBatch(
           e instanceof Error ? e.message : e
         );
       }
+    }
+  }
+
+  // Stamp gmail_label_applied_at for everything that succeeded so future
+  // rank runs know the current Gmail state is in sync with the row's state
+  // at this moment. Best-effort — don't fail the apply if the DB hiccups.
+  if (succeededEmailIds.length > 0) {
+    try {
+      const service = await createServiceClient();
+      // Chunk to keep the IN clause sane on very large updates
+      const CHUNK = 500;
+      const now = new Date().toISOString();
+      for (let i = 0; i < succeededEmailIds.length; i += CHUNK) {
+        const chunk = succeededEmailIds.slice(i, i + CHUNK);
+        await service
+          .from("emails")
+          .update({ gmail_label_applied_at: now })
+          .in("id", chunk);
+      }
+    } catch (e) {
+      console.error(
+        "[gmail-labels] gmail_label_applied_at stamp failed",
+        e instanceof Error ? e.message : e
+      );
     }
   }
 

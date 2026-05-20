@@ -75,14 +75,19 @@ export async function POST(request: Request) {
   }
 
   // 3. Classify each email
-  const decisions: Array<{ gmailMessageId: string; labelKey: OushiLabelKey | null }> = [];
+  const decisions: Array<{
+    emailId: string;
+    gmailMessageId: string;
+    labelKey: OushiLabelKey | null;
+  }> = [];
   const counts: Record<string, number> = {};
 
-  for (const e of emails as EmailRow[] & { gmail_message_id: string }[]) {
-    const row = e as EmailRow & { gmail_message_id: string };
+  for (const e of emails as EmailRow[] & { id: string; gmail_message_id: string }[]) {
+    const row = e as EmailRow & { id: string; gmail_message_id: string };
     if (!row.gmail_message_id) continue;
     const labelKey = computeLabelForEmail(row);
     decisions.push({
+      emailId: row.id,
       gmailMessageId: row.gmail_message_id,
       labelKey,
     });
