@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { isWorthSurfacing, type EmailRow } from "@/lib/outstanding";
 
 export const dynamic = "force-dynamic";
 
@@ -162,8 +163,10 @@ export async function GET() {
   });
 
   // ---- 3. High-score unreplied emails waiting on the user ----
+  // Pull a wider slice so post-filtering for non-replyable senders /
+  // transactional subjects still leaves us with real items.
   const emailLookback = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { data: emails } = await service
+  const { data: rawEmails } = await service
     .from("emails")
     .select("id, from_name, from_email, subject, snippet, body_preview, received_at, score, is_unread, user_replied")
     .eq("user_id", user.id)
@@ -172,7 +175,21 @@ export async function GET() {
     .gte("score", 50)
     .gte("received_at", emailLookback)
     .order("score", { ascending: false })
-    .limit(8);
+    .limit(30);
+
+  // Filter out receipts, verification codes, login alerts, automated
+  // senders — anything where "5d waiting" would be a lie.
+  const emails = (rawEmails || []).filter((e) => {
+    // Build a minimal EmailRow for isWorthSurfacing
+    const row = {
+      from_name: e.from_name || "",
+      from_email: e.from_email || "",
+      subject: e.subject || "",
+      snippet: e.snippet || "",
+      body_preview: e.body_preview || "",
+    } as Partial<EmailRow> as EmailRow;
+    return isWorthSurfacing(row);
+  }).slice(0, 8);
 
   const emailItems: TodayItem[] = (emails || []).map((e) => {
     const ageDays = Math.floor((now.getTime() - new Date(e.received_at).getTime()) / (24 * 60 * 60 * 1000));

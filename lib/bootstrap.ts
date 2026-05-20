@@ -37,9 +37,27 @@ const LOOKBACK_DAYS = 180;
 
 const SELF_EMAIL_PATTERNS = [
   /^noreply@/i,
-  /^no-reply@/i,
+  /^no[-_.]?reply@/i,
   /^donotreply@/i,
+  /^do[-_.]?not[-_.]?reply@/i,
   /^mailer-daemon@/i,
+  /^postmaster@/i,
+  /^bounce@/i,
+  // Transactional / role-account inboxes. The user may have replied to one of
+  // these once long ago, but their automated outgoing receipts should not
+  // earn ongoing reputation boosts.
+  /^billing@/i,
+  /^receipts?@/i,
+  /^invoice[s]?@/i,
+  /^notifications?@/i,
+  /^alerts?@/i,
+  /^updates?@/i,
+  /^newsletter@/i,
+  /^marketing@/i,
+  /^promotions?@/i,
+  /^announcements?@/i,
+  /^reply\+/i, // tracking-token reply addresses
+  /^[a-z0-9]{20,}@/i, // hex auto-gen IDs
 ];
 
 function parseAddressList(raw: string): Array<{ email: string; name: string }> {

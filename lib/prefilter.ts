@@ -125,7 +125,8 @@ const LOW_VALUE_NOTIFICATION_PATTERNS = [
   /sign[-\s]?in\s*(alert|detected|notification)/i,
   /security\s*alert/i,
   /verification\s*code/i,
-  /verify\s*your\s*(email|account|identity)/i,
+  /your\s+\w+\s+verification\s*code/i,
+  /verify\s*your\s*(email|account|identity|address)/i,
   /confirm\s*your\s*email/i,
   /one[-\s]?time\s*(passcode|password|code)/i,
   /your\s*account\s*was\s*accessed/i,
@@ -133,6 +134,14 @@ const LOW_VALUE_NOTIFICATION_PATTERNS = [
   /password\s*(reset|changed|was\s*changed)/i,
   /two[-\s]?factor/i,
   /welcome\s*to/i,
+  // Receipt / transactional confirmation patterns — these are reference
+  // material, never something the user replies to.
+  /^your\s+receipt/i,
+  /receipt\s+from/i,
+  /^your\s+(order|invoice|booking|reservation|subscription|statement)/i,
+  /thanks?\s+for\s+(your\s+order|signing\s*up|subscribing|your\s+purchase)/i,
+  /order\s+confirmation/i,
+  /payment\s+(received|confirmation|successful)/i,
 ];
 
 interface PrefilterInput {

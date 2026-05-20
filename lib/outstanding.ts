@@ -73,7 +73,7 @@ const LOW_VALUE_NOTIFICATION_HINTS = [
   "two-factor", "welcome to",
 ];
 
-function isAutomatedEmail(email: EmailRow): boolean {
+export function isAutomatedEmail(email: EmailRow): boolean {
   const from = (email.from_email || "").toLowerCase();
   if (AUTOMATED_SENDER_HINTS.some((hint) => from.includes(hint))) return true;
   const subject = (email.subject || "").toLowerCase();
@@ -81,7 +81,7 @@ function isAutomatedEmail(email: EmailRow): boolean {
   return false;
 }
 
-function isLowValueNotification(email: EmailRow): boolean {
+export function isLowValueNotification(email: EmailRow): boolean {
   const subject = (email.subject || "").toLowerCase();
   const snippet = (email.snippet || "").toLowerCase();
   const body = (email.body_preview || "").toLowerCase();
@@ -89,7 +89,7 @@ function isLowValueNotification(email: EmailRow): boolean {
   return LOW_VALUE_NOTIFICATION_HINTS.some((hint) => hay.includes(hint));
 }
 
-function isTrueTransactional(email: EmailRow): boolean {
+export function isTrueTransactional(email: EmailRow): boolean {
   const subject = (email.subject || "").toLowerCase();
   if (TRANSACTIONAL_SUBJECT_HINTS.some((hint) => subject.includes(hint))) return true;
   const body = (email.body_preview || "").toLowerCase();
@@ -154,6 +154,42 @@ export function classifyEmail(email: EmailRow, now: Date = new Date()): Classifi
 
 export function classifyAll(emails: EmailRow[], now: Date = new Date()): Classified[] {
   return emails.map((e) => classifyEmail(e, now));
+}
+
+/**
+ * Is this email plausibly something the user owes a reply to?
+ *
+ * The /api/today endpoint uses this to filter out receipts, verification
+ * codes, login alerts, and other noise even when prefilter / ranking gave
+ * them a high score. Saying "5d waiting" on a receipt would make the
+ * dashboard look broken.
+ */
+export function isWorthSurfacing(email: EmailRow): boolean {
+  if (isAutomatedEmail(email)) return false;
+  if (isTrueTransactional(email)) return false;
+  if (isLowValueNotification(email)) return false;
+  // Even without subject/sender hints, anything explicitly tagged as a
+  // receipt, invoice, or verification request in the subject is excluded
+  // — broader than TRANSACTIONAL_SUBJECT_HINTS to catch edge cases.
+  const subj = (email.subject || "").toLowerCase();
+  const extraNonReplyPatterns = [
+    /^your receipt\b/,
+    /receipt from/,
+    /^your (order|invoice|statement|booking|reservation|subscription)/,
+    /verification code/,
+    /your\s+\w+\s+verification code/,
+    /verify your (email|account|identity|address)/,
+    /one[-\s]?time (passcode|password|code)/,
+    /confirm your email/,
+    /password (reset|changed)/,
+    /new (login|sign[-\s]?in)/,
+    /signed?\s*in\s*(to|from)/,
+    /security alert/,
+    /^welcome to/,
+    /thanks for (your order|signing up|subscribing)/,
+  ];
+  if (extraNonReplyPatterns.some((re) => re.test(subj))) return false;
+  return true;
 }
 
 export function bucketize(classified: Classified[]) {
