@@ -1854,6 +1854,15 @@ function EmailPanel({
     return () => document.removeEventListener("keydown", onKey);
   }, [email, onClose]);
 
+  // Mark-read in both Oushi AND Gmail when an unread email is opened.
+  // Fire-and-forget — the read state propagates within a few hundred ms.
+  useEffect(() => {
+    if (!email || email.is_read) return;
+    fetch(`/api/email/${email.id}/mark-read`, { method: "POST" }).catch(() => {
+      // Non-fatal — next sync will reconcile
+    });
+  }, [email]);
+
   if (!email) return null;
 
   const date = new Date(email.received_at);

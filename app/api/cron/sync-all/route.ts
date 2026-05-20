@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { syncRecentEmails } from "@/lib/gmail";
+import { syncIncremental } from "@/lib/gmail";
 import { rankUnrankedEmails } from "@/lib/ranking";
 import { syncCalendarForUser } from "@/lib/calendar";
 
@@ -34,7 +34,10 @@ export async function GET(request: Request) {
 
   for (const { user_id } of tokens) {
     try {
-      const synced = await syncRecentEmails(user_id, 30);
+      // Incremental sync via Gmail history API — only fetches changes since
+      // last call. Also reconciles read/star/archive state both ways.
+      const incremental = await syncIncremental(user_id);
+      const synced = incremental.added;
       let ranked = 0;
       try {
         ranked = await rankUnrankedEmails(user_id);

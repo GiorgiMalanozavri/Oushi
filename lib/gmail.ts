@@ -227,6 +227,277 @@ export function parseGmailMessage(message: any): ParsedEmail {
   };
 }
 
+/**
+ * Add / remove labels on a single Gmail message. Used by Oushi -> Gmail
+ * state sync (dismiss = remove INBOX, mark read = remove UNREAD, etc.).
+ */
+export async function modifyMessageLabels(
+  userId: string,
+  gmailMessageId: string,
+  opts: { add?: string[]; remove?: string[] } = {}
+) {
+  const oauth2Client = await getAuthenticatedClient(userId);
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+  await gmail.users.messages.modify({
+    userId: "me",
+    id: gmailMessageId,
+    requestBody: {
+      addLabelIds: opts.add || [],
+      removeLabelIds: opts.remove || [],
+    },
+  });
+}
+
+export async function markGmailRead(userId: string, gmailMessageId: string) {
+  await modifyMessageLabels(userId, gmailMessageId, { remove: ["UNREAD"] });
+}
+
+export async function markGmailUnread(userId: string, gmailMessageId: string) {
+  await modifyMessageLabels(userId, gmailMessageId, { add: ["UNREAD"] });
+}
+
+export async function archiveGmailMessage(userId: string, gmailMessageId: string) {
+  await modifyMessageLabels(userId, gmailMessageId, { remove: ["INBOX"] });
+}
+
+/**
+ * Incremental sync via Gmail's history.list API. Processes only changes
+ * since the last known historyId — orders of magnitude cheaper than
+ * re-fetching the latest N messages every time.
+ *
+ * Returns the count of new messages added. If history.list returns a 404
+ * (historyId expired — Gmail keeps them ~1 week), falls back to a fresh
+ * full sync and captures a new historyId.
+ */
+export async function syncIncremental(userId: string): Promise<{
+  added: number;
+  read: number;
+  archived: number;
+  starred: number;
+  unstarred: number;
+  fellback: boolean;
+}> {
+  const supabase = await createServiceClient();
+  const oauth2Client = await getAuthenticatedClient(userId);
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+  const { data: state } = await supabase
+    .from("user_sync_state")
+    .select("last_history_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  // No historyId means this is the first run — do a regular sync and
+  // capture the current historyId for next time.
+  if (!state?.last_history_id) {
+    const added = await syncRecentEmails(userId, 30);
+    const profile = await gmail.users.getProfile({ userId: "me" });
+    const currentHistoryId = profile.data.historyId;
+    if (currentHistoryId) {
+      await supabase
+        .from("user_sync_state")
+        .upsert(
+          {
+            user_id: userId,
+            last_history_id: currentHistoryId,
+            last_synced_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        );
+    }
+    return { added, read: 0, archived: 0, starred: 0, unstarred: 0, fellback: true };
+  }
+
+  // Incremental path
+  let added = 0;
+  let read = 0;
+  let archived = 0;
+  let starred = 0;
+  let unstarred = 0;
+  const newMessageIds = new Set<string>();
+  const labelChanges = new Map<
+    string,
+    { addedLabels: Set<string>; removedLabels: Set<string> }
+  >();
+
+  let pageToken: string | undefined;
+  let latestHistoryId: string | undefined;
+
+  do {
+    try {
+      const res = await gmail.users.history.list({
+        userId: "me",
+        startHistoryId: state.last_history_id,
+        pageToken,
+        maxResults: 100,
+      });
+
+      latestHistoryId = res.data.historyId || latestHistoryId;
+
+      for (const record of res.data.history || []) {
+        for (const m of record.messagesAdded || []) {
+          if (m.message?.id) newMessageIds.add(m.message.id);
+        }
+        for (const m of record.labelsAdded || []) {
+          if (!m.message?.id) continue;
+          const entry =
+            labelChanges.get(m.message.id) ||
+            { addedLabels: new Set<string>(), removedLabels: new Set<string>() };
+          for (const l of m.labelIds || []) entry.addedLabels.add(l);
+          labelChanges.set(m.message.id, entry);
+        }
+        for (const m of record.labelsRemoved || []) {
+          if (!m.message?.id) continue;
+          const entry =
+            labelChanges.get(m.message.id) ||
+            { addedLabels: new Set<string>(), removedLabels: new Set<string>() };
+          for (const l of m.labelIds || []) entry.removedLabels.add(l);
+          labelChanges.set(m.message.id, entry);
+        }
+        for (const m of record.messagesDeleted || []) {
+          // Hard-delete from our DB too (rare — usually trash, not delete)
+          if (m.message?.id) {
+            await supabase
+              .from("emails")
+              .delete()
+              .eq("user_id", userId)
+              .eq("gmail_message_id", m.message.id);
+          }
+        }
+      }
+
+      pageToken = res.data.nextPageToken || undefined;
+    } catch (e) {
+      const status = (e as { code?: number; status?: number }).code ||
+        (e as { code?: number; status?: number }).status;
+      if (status === 404) {
+        // History expired — fall back to full sync
+        const refresh = await syncRecentEmails(userId, 30);
+        const profile = await gmail.users.getProfile({ userId: "me" });
+        if (profile.data.historyId) {
+          await supabase
+            .from("user_sync_state")
+            .upsert(
+              {
+                user_id: userId,
+                last_history_id: profile.data.historyId,
+                last_synced_at: new Date().toISOString(),
+              },
+              { onConflict: "user_id" }
+            );
+        }
+        return { added: refresh, read: 0, archived: 0, starred: 0, unstarred: 0, fellback: true };
+      }
+      throw e;
+    }
+  } while (pageToken);
+
+  // Fetch + upsert new messages (full sync only the ones in newMessageIds)
+  if (newMessageIds.size > 0) {
+    await syncSpecificMessages(userId, Array.from(newMessageIds));
+    added = newMessageIds.size;
+  }
+
+  // Apply label changes to our DB
+  for (const [gmailMessageId, changes] of labelChanges) {
+    const updates: Record<string, unknown> = {};
+
+    // UNREAD added => is_unread=true, is_read=false
+    if (changes.addedLabels.has("UNREAD")) {
+      updates.is_unread = true;
+      updates.is_read = false;
+    }
+    // UNREAD removed => is_unread=false, is_read=true
+    if (changes.removedLabels.has("UNREAD")) {
+      updates.is_unread = false;
+      updates.is_read = true;
+      read++;
+    }
+
+    // INBOX removed (without TRASH added) => archived. Treat as dismissed.
+    if (
+      changes.removedLabels.has("INBOX") &&
+      !changes.addedLabels.has("TRASH")
+    ) {
+      updates.dismissed_at = new Date().toISOString();
+      archived++;
+    }
+    // TRASH added => also dismiss
+    if (changes.addedLabels.has("TRASH")) {
+      updates.dismissed_at = new Date().toISOString();
+    }
+
+    // STARRED toggle
+    if (changes.addedLabels.has("STARRED")) {
+      updates.is_starred = true;
+      starred++;
+    }
+    if (changes.removedLabels.has("STARRED")) {
+      updates.is_starred = false;
+      unstarred++;
+    }
+
+    if (Object.keys(updates).length === 0) continue;
+    await supabase
+      .from("emails")
+      .update(updates)
+      .eq("user_id", userId)
+      .eq("gmail_message_id", gmailMessageId);
+  }
+
+  // Persist new historyId so next call picks up where we left off
+  if (latestHistoryId) {
+    await supabase
+      .from("user_sync_state")
+      .upsert(
+        {
+          user_id: userId,
+          last_history_id: latestHistoryId,
+          last_synced_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+  }
+
+  return { added, read, archived, starred, unstarred, fellback: false };
+}
+
+/**
+ * Fetch + upsert a specific list of message ids. Used by the incremental
+ * sync to handle newly-added messages.
+ */
+async function syncSpecificMessages(userId: string, gmailIds: string[]) {
+  if (gmailIds.length === 0) return;
+  const oauth2Client = await getAuthenticatedClient(userId);
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+  const supabase = await createServiceClient();
+
+  const batchSize = 10;
+  for (let i = 0; i < gmailIds.length; i += batchSize) {
+    const batch = gmailIds.slice(i, i + batchSize);
+    const results = await Promise.allSettled(
+      batch.map((id) =>
+        gmail.users.messages.get({ userId: "me", id, format: "full" })
+      )
+    );
+    for (const r of results) {
+      if (r.status !== "fulfilled") continue;
+      const parsed = parseGmailMessage(r.value.data);
+      if (!parsed.gmail_message_id) continue;
+      await supabase
+        .from("emails")
+        .upsert(
+          {
+            user_id: userId,
+            ...parsed,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,gmail_message_id" }
+        );
+    }
+  }
+}
+
 export async function syncRecentEmails(userId: string, count = 100) {
   const supabase = await createServiceClient();
   const oauth2Client = await getAuthenticatedClient(userId);
