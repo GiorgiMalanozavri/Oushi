@@ -497,7 +497,7 @@ export async function rankUnrankedEmails(userId: string) {
       // fresh map into the in-memory rows so computeLabelForEmail below
       // sees the new gmail_label_llm_key without a re-fetch.
       try {
-        const llmMap = await classifyAmbiguousEmails(candidateRows);
+        const llmMap = await classifyAmbiguousEmails(candidateRows, userId);
         if (llmMap.size > 0) mergeLlmLabels(candidateRows, llmMap);
       } catch (e) {
         // Best-effort — heuristic fallback covers all rows on failure.

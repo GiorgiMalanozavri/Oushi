@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { removeAllOushiLabelsFromAllMessages } from "@/lib/gmail-labels";
+import { stopGmailWatch } from "@/lib/gmail-watch";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
@@ -29,6 +30,17 @@ export async function POST() {
 
   try {
     const result = await removeAllOushiLabelsFromAllMessages(user.id);
+
+    // Stop the Gmail Push watch — otherwise we'd keep paying for and
+    // processing pushes for a user who's turned the feature off.
+    try {
+      await stopGmailWatch(user.id);
+    } catch (e) {
+      console.error(
+        "[labels/reset] stopGmailWatch failed",
+        e instanceof Error ? e.message : e
+      );
+    }
 
     const service = await createServiceClient();
     await service

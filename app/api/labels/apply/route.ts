@@ -10,6 +10,7 @@ import {
   classifyAmbiguousEmails,
   mergeLlmLabels,
 } from "@/lib/gmail-labels-llm";
+import { registerGmailWatch } from "@/lib/gmail-watch";
 import type { EmailRow } from "@/lib/outstanding";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
         if (llmCandidates.length > 0) {
           send({ phase: "llm_classifying", count: llmCandidates.length });
           try {
-            const llmMap = await classifyAmbiguousEmails(llmCandidates);
+            const llmMap = await classifyAmbiguousEmails(llmCandidates, userId);
             if (llmMap.size > 0) mergeLlmLabels(emails as EmailRow[], llmMap);
           } catch (e) {
             // Best-effort. Fall through to heuristic default.
@@ -198,6 +199,18 @@ export async function POST(request: Request) {
             },
             { onConflict: "user_id" }
           );
+
+        // 7. Register Gmail Push watch so new emails get labeled in
+        //    seconds, not on next rank. No-op + harmless if
+        //    GMAIL_PUSH_TOPIC isn't configured.
+        try {
+          await registerGmailWatch(userId);
+        } catch (e) {
+          console.error(
+            "[labels/apply] watch register failed",
+            e instanceof Error ? e.message : e
+          );
+        }
 
         send({
           phase: "done",
