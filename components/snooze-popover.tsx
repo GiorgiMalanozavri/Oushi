@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Clock,
@@ -90,19 +91,60 @@ export function SnoozePopover({ onSnooze, className = "", label = "Snooze" }: Pr
   const [showCustom, setShowCustom] = useState(false);
   const [customDate, setCustomDate] = useState("");
   const [customTime, setCustomTime] = useState("09:00");
-  const rootRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ top: number; right: number; openAbove: boolean } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
+  // SSR-safe portal mount flag — document.body only exists client-side.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Compute portal position from the trigger's bounding rect. Re-runs on
+  // scroll / resize so the popover follows the trigger button. Decides
+  // open-above vs open-below based on viewport space.
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const POPOVER_HEIGHT_ESTIMATE = 380;
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openAbove = spaceAbove >= POPOVER_HEIGHT_ESTIMATE || spaceAbove > spaceBelow;
+    setPosition({
+      top: openAbove ? rect.top - 8 : rect.bottom + 8,
+      right: window.innerWidth - rect.right,
+      openAbove,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updatePosition();
+    const handler = () => updatePosition();
+    window.addEventListener("scroll", handler, true);
+    window.addEventListener("resize", handler);
+    return () => {
+      window.removeEventListener("scroll", handler, true);
+      window.removeEventListener("resize", handler);
+    };
+  }, [open, updatePosition]);
+
+  // Close on outside click — check both trigger AND portal popover (since
+  // the popover is rendered outside the trigger's DOM subtree).
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-        setShowCustom(false);
-      }
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (popoverRef.current?.contains(target)) return;
+      setOpen(false);
+      setShowCustom(false);
     };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    // Use 'click' (bubbling) instead of 'mousedown' so onClick handlers
+    // inside the popover fire first.
+    document.addEventListener("click", onDoc);
+    return () => document.removeEventListener("click", onDoc);
   }, [open]);
 
   // Default the custom date to tomorrow
@@ -125,26 +167,24 @@ export function SnoozePopover({ onSnooze, className = "", label = "Snooze" }: Pr
     }
   };
 
-  return (
-    <div ref={rootRef} className={`relative inline-block ${className}`}>
-      <button
-        onClick={() => setOpen((p) => !p)}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] hover:border-[#5E8FBF]/40 hover:text-[#3D6A95] text-[12px] font-medium text-[#766E63] transition-all"
-      >
-        <Clock className="w-3 h-3" />
-        {label}
-        <ChevronDown className={`w-2.5 h-2.5 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.97 }}
-            transition={{ duration: 0.15 }}
-            className="absolute bottom-full mb-2 right-0 w-[280px] rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] shadow-[0_12px_32px_-8px_rgba(42,37,32,0.18)] overflow-hidden z-50"
-          >
+  const popoverContent = position && (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          ref={popoverRef}
+          initial={{ opacity: 0, y: position.openAbove ? -4 : 4, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: position.openAbove ? -4 : 4, scale: 0.97 }}
+          transition={{ duration: 0.15 }}
+          style={{
+            position: "fixed",
+            top: position.top,
+            right: position.right,
+            transform: position.openAbove ? "translateY(-100%)" : undefined,
+            zIndex: 100,
+          }}
+          className="w-[280px] rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] shadow-[0_12px_32px_-8px_rgba(42,37,32,0.18)] overflow-hidden"
+        >
             {!showCustom ? (
               <>
                 <div className="px-3.5 pt-3 pb-2 flex items-center justify-between">
@@ -260,9 +300,25 @@ export function SnoozePopover({ onSnooze, className = "", label = "Snooze" }: Pr
                 </button>
               </div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        onClick={() => setOpen((p) => !p)}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] hover:border-[#5E8FBF]/40 hover:text-[#3D6A95] text-[12px] font-medium text-[#766E63] transition-all ${className}`}
+        title="Snooze this email"
+      >
+        <Clock className="w-3 h-3" />
+        {label}
+        <ChevronDown className={`w-2.5 h-2.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {mounted && popoverContent && createPortal(popoverContent, document.body)}
+    </>
   );
 }
