@@ -957,25 +957,114 @@ function scoreShade(score: number): { bg: string; text: string; ring: string } {
   return { bg: "bg-[#F0E9D6]/60", text: "text-[#A89F92]", ring: "ring-[#E6DCC4]/50" };
 }
 
-function linkify(text: string): React.ReactNode[] {
+/**
+ * Reading-mode body. Source-Serif typography, generous line-height,
+ * collapsible after a few paragraphs if the email is long.
+ */
+function ReadableBody({ body }: { body: string }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!body || !body.trim()) {
+    return (
+      <p className="text-[13px] italic text-[#A89F92]">
+        No preview available — open in Gmail to see the original.
+      </p>
+    );
+  }
+  const cleaned = cleanEmailBody(body);
+  const isLong = cleaned.length > 1200;
+  const visible = expanded ? cleaned : cleaned.slice(0, 1200);
+
+  return (
+    <div>
+      <div
+        className="text-[14.5px] leading-[1.7] text-[#2A2520] whitespace-pre-wrap break-words"
+        style={{ fontFamily: "var(--font-source-serif), Georgia, serif", maxWidth: "62ch" }}
+      >
+        {cleanAndRender(visible)}
+        {isLong && !expanded && (
+          <span className="text-[#A89F92]">… </span>
+        )}
+      </div>
+      {isLong && (
+        <button
+          onClick={() => setExpanded((p) => !p)}
+          className="mt-3 text-[12px] font-medium text-[#3D6A95] hover:text-[#5E8FBF] transition-colors"
+        >
+          {expanded ? "Show less" : "Show full email"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Clean up plain-text email body for readable rendering:
+ * - Strip bracket-style image refs like [https://...png]
+ * - Collapse 3+ newlines into 2
+ * - Trim Unicode invisibles + zero-width chars that show as boxes
+ * - Drop very long no-space "token" strings (Stripe/Mailchimp tracking blobs)
+ */
+function cleanEmailBody(raw: string): string {
+  if (!raw) return "";
+  let s = raw;
+  // Strip [https://...png] / [https://...jpg] image refs entirely
+  s = s.replace(/\[https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)\S*\]/gi, "");
+  // Strip zero-width / invisible Unicode that renders as boxes (͏, ‌, ‍, etc)
+  s = s.replace(/[​-‏‪- ⁠-⁯﻿͏͙͡็‎‏]/g, "");
+  // Collapse runs of repeated whitespace except newlines
+  s = s.replace(/[ \t]+/g, " ");
+  // Collapse 3+ newlines into exactly 2
+  s = s.replace(/\n{3,}/g, "\n\n");
+  // Drop "no-space" tokens longer than 40 chars that aren't a URL (tracking blobs)
+  s = s.replace(/(?<![\w\-.])([A-Za-z0-9\-_]{60,})(?![\w\-.])/g, (token) =>
+    token.length > 80 ? "" : token
+  );
+  return s.trim();
+}
+
+/**
+ * Render text with URLs converted to compact pill-style links.
+ * Long URLs are shown as their domain + "↗" rather than the full URL,
+ * so a Stripe invoice link doesn't take 3 lines on screen.
+ */
+function cleanAndRender(text: string): React.ReactNode[] {
   if (!text) return [];
+  const cleaned = cleanEmailBody(text);
+  // Capture URL and the parenthetical wrapping if present
   const urlRegex = /(https?:\/\/[^\s)<>"']+|www\.[^\s)<>"']+)/g;
   const parts: React.ReactNode[] = [];
   let lastIdx = 0;
   let m: RegExpExecArray | null;
   let key = 0;
-  while ((m = urlRegex.exec(text)) !== null) {
-    if (m.index > lastIdx) parts.push(text.slice(lastIdx, m.index));
+  while ((m = urlRegex.exec(cleaned)) !== null) {
+    if (m.index > lastIdx) parts.push(cleaned.slice(lastIdx, m.index));
     const url = m[0];
     const href = url.startsWith("http") ? url : `https://${url}`;
+    let label = url;
+    // For URLs longer than 40 chars, show just the domain as the label
+    if (url.length > 40) {
+      try {
+        const parsed = new URL(href);
+        label = parsed.hostname.replace(/^www\./, "");
+      } catch {
+        label = url.slice(0, 32) + "…";
+      }
+    }
     parts.push(
-      <a key={`l${key++}`} href={href} target="_blank" rel="noopener noreferrer" className="text-[#3D6A95] underline underline-offset-2 hover:text-[#5E8FBF] break-all">
-        {url}
+      <a
+        key={`l${key++}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-0.5 text-[#3D6A95] underline underline-offset-2 hover:text-[#5E8FBF] decoration-[#5E8FBF]/30 break-all"
+      >
+        {label}
+        {url.length > 40 && <ExternalLink className="w-2.5 h-2.5 shrink-0" />}
       </a>
     );
     lastIdx = m.index + url.length;
   }
-  if (lastIdx < text.length) parts.push(text.slice(lastIdx));
+  if (lastIdx < cleaned.length) parts.push(cleaned.slice(lastIdx));
   return parts;
 }
 
@@ -1834,6 +1923,81 @@ function AddTopicModal({
 
 // ====== EMAIL PANEL (side panel desktop, modal mobile) ======
 
+function FeedbackButtons({
+  emailId,
+  onFeedback,
+}: {
+  emailId: string;
+  onFeedback: (id: string, signal: "upvote" | "downvote") => void;
+}) {
+  const [voted, setVoted] = useState<"up" | "down" | null>(null);
+  const toast = useToast();
+
+  // Reset when email changes (new modal opens)
+  useEffect(() => {
+    setVoted(null);
+  }, [emailId]);
+
+  const handle = (signal: "upvote" | "downvote") => {
+    if (voted) return;
+    setVoted(signal === "upvote" ? "up" : "down");
+    onFeedback(emailId, signal);
+    toast.success(
+      signal === "upvote" ? "Boosted" : "Marked less relevant",
+      {
+        detail:
+          signal === "upvote"
+            ? "Oushi will surface more like this."
+            : "Oushi will quietly hide similar emails.",
+      }
+    );
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t border-[#E6DCC4] flex items-center gap-2">
+      <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#A89F92] mr-1">
+        Train Oushi
+      </p>
+      <button
+        onClick={() => handle("upvote")}
+        disabled={voted !== null}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11.5px] font-medium border transition-all ${
+          voted === "up"
+            ? "border-[#6B8E68]/40 bg-[#E8EFE5] text-[#4F6B4D] cursor-default"
+            : voted === "down"
+              ? "border-[#E6DCC4] bg-[#FFFCF3] text-[#D6CDB8] cursor-not-allowed"
+              : "border-[#E6DCC4] bg-[#FFFCF3] text-[#766E63] hover:border-[#6B8E68] hover:text-[#6B8E68] hover:bg-[#E8EFE5]/40"
+        }`}
+      >
+        {voted === "up" ? (
+          <Check className="w-3 h-3" strokeWidth={3} />
+        ) : (
+          <ThumbsUp className="w-3 h-3" />
+        )}
+        {voted === "up" ? "Boosted" : "More like this"}
+      </button>
+      <button
+        onClick={() => handle("downvote")}
+        disabled={voted !== null}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11.5px] font-medium border transition-all ${
+          voted === "down"
+            ? "border-[#B86B4A]/40 bg-[#F5E8E0] text-[#B86B4A] cursor-default"
+            : voted === "up"
+              ? "border-[#E6DCC4] bg-[#FFFCF3] text-[#D6CDB8] cursor-not-allowed"
+              : "border-[#E6DCC4] bg-[#FFFCF3] text-[#766E63] hover:border-[#B86B4A] hover:text-[#B86B4A] hover:bg-[#F5E8E0]/40"
+        }`}
+      >
+        {voted === "down" ? (
+          <Check className="w-3 h-3" strokeWidth={3} />
+        ) : (
+          <ThumbsDown className="w-3 h-3" />
+        )}
+        {voted === "down" ? "Muted similar" : "Not relevant"}
+      </button>
+    </div>
+  );
+}
+
 function EmailPanel({
   email,
   onClose,
@@ -2017,48 +2181,34 @@ function EmailPanel({
               {email.subject}
             </h1>
 
-            {/* Oushi callout */}
-            {(email.highlight || email.suggested_action?.detail) && (
-              <div className="mb-5 rounded-lg border border-[#5E8FBF]/20 bg-[#D0E1F0]/15 px-4 py-3">
-                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-1.5 inline-flex items-center gap-1">
+            {/* Oushi summary — only if there's a highlight */}
+            {email.highlight && (
+              <div className="mb-6 rounded-xl border border-[#5E8FBF]/25 bg-[#D0E1F0]/20 px-4 py-3.5">
+                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-2 inline-flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3" /> Oushi
                 </p>
-                {email.highlight && (
-                  <p className="text-[13px] text-[#2A2520] leading-[1.55] mb-1.5">
-                    {email.highlight}
-                  </p>
-                )}
-                {email.suggested_action?.detail && (
-                  <p className="text-[12px] text-[#3D6A95]">
-                    <span className="font-medium">Try: </span>{email.suggested_action.detail}
-                  </p>
-                )}
-                {(email.matched_interests || []).length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {(email.matched_interests || []).map((tag) => (
-                      <span key={tag} className="text-[10px] text-[#5E8FBF] bg-white/60 px-1.5 py-0.5 rounded">{tag}</span>
-                    ))}
-                  </div>
-                )}
+                <p className="text-[13.5px] text-[#2A2520] leading-[1.55]">
+                  {email.highlight}
+                </p>
               </div>
             )}
 
-            {/* Body */}
-            <div className="text-[14px] leading-[1.65] text-[#2A2520] whitespace-pre-wrap break-words">
-              {body ? linkify(body) : <span className="italic text-[#A89F92]">No preview available.</span>}
-            </div>
-
-            {/* Attachments — extracted text */}
+            {/* Attachments — extracted text. For transactional emails this is
+                usually the actually-useful content, so it goes ABOVE the noisy
+                body. */}
             {email.attachments_text && (
-              <div className="mt-5 rounded-lg border border-[#E6DCC4] bg-[#FAF6EB]/40 p-4">
-                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-2 inline-flex items-center gap-1">
+              <div className="mb-6 rounded-xl border border-[#E6DCC4] bg-[#FAF6EB]/40 p-4">
+                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-2 inline-flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3" /> From the attachment
                 </p>
-                <pre className="text-[12px] leading-[1.6] text-[#2A2520] whitespace-pre-wrap break-words font-sans">
+                <pre className="text-[12.5px] leading-[1.6] text-[#2A2520] whitespace-pre-wrap break-words font-sans">
                   {email.attachments_text}
                 </pre>
               </div>
             )}
+
+            {/* Body — Source Serif for readable email content */}
+            <ReadableBody body={body} />
 
             {/* Calendar */}
             <div className="mt-6">
@@ -2205,15 +2355,8 @@ function EmailPanel({
             </button>
           </div>
 
-          {/* Feedback */}
-          <div className="mt-3 pt-3 border-t border-[#E6DCC4] flex items-center gap-3 text-[10px] uppercase tracking-[0.14em] font-medium">
-            <button onClick={() => onFeedback(email.id, "upvote")} className="text-[#A89F92] hover:text-[#6B8E68] transition-colors">
-              Good
-            </button>
-            <button onClick={() => onFeedback(email.id, "downvote")} className="text-[#A89F92] hover:text-[#B86B4A] transition-colors">
-              Not relevant
-            </button>
-          </div>
+          {/* Feedback — visual confirmation on click */}
+          <FeedbackButtons emailId={email.id} onFeedback={onFeedback} />
         </div>
       </motion.div>
     </AnimatePresence>
