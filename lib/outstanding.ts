@@ -30,6 +30,8 @@ export interface EmailRow {
     type: "reply" | "calendar" | "save" | "open" | "ignore";
     detail: string | null;
   } | null;
+  snooze_until?: string | null;
+  snooze_reason?: string | null;
 }
 
 export type Bucket =
@@ -111,7 +113,12 @@ export function classifyEmail(email: EmailRow, now: Date = new Date()): Classifi
 
   let bucket: Bucket;
 
-  if (email.dismissed_at) {
+  // Snoozed emails are hidden from active buckets until they resurface.
+  // The cron clears snooze_until when time passes; until then, treat as handled.
+  const isSnoozed =
+    !!email.snooze_until && new Date(email.snooze_until).getTime() > now.getTime();
+
+  if (email.dismissed_at || isSnoozed) {
     bucket = "handled";
   } else if (
     // Follow-up: you sent the last message, no one has replied for 5+ days,

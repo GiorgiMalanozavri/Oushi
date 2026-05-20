@@ -45,6 +45,7 @@ import { ComingUp } from "@/components/coming-up";
 import { FirstSyncSplash } from "@/components/first-sync-splash";
 import { TodayOushi } from "@/components/today-oushi";
 import { useToast } from "@/components/toast";
+import { SnoozePopover } from "@/components/snooze-popover";
 
 interface Profile {
   bio: string;
@@ -2165,18 +2166,52 @@ function EmailPanel({
             </motion.div>
           )}
 
-          {/* Feedback */}
-          <div className="mt-3 pt-3 border-t border-[#E6DCC4] flex items-center justify-between text-[10px] uppercase tracking-[0.14em] font-medium">
-            <div className="flex items-center gap-3">
-              <button onClick={() => onFeedback(email.id, "upvote")} className="text-[#A89F92] hover:text-[#6B8E68] transition-colors">
-                Good
-              </button>
-              <button onClick={() => onFeedback(email.id, "downvote")} className="text-[#A89F92] hover:text-[#B86B4A] transition-colors">
-                Not relevant
-              </button>
-            </div>
-            <button onClick={() => { onDismiss(email.id); onClose(); }} className="text-[#3D6A95] hover:text-[#5E8FBF] transition-colors">
+          {/* Snooze + dismiss row */}
+          <div className="mt-4 pt-3 border-t border-[#E6DCC4] flex items-center justify-between gap-2">
+            <SnoozePopover
+              onSnooze={async (preset, customUntil) => {
+                try {
+                  const res = await fetch(`/api/email/${email.id}/snooze`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ preset, custom_until: customUntil }),
+                  });
+                  if (!res.ok) {
+                    toast.error("Couldn't snooze this email");
+                    return null;
+                  }
+                  const data = await res.json();
+                  toast.success("Snoozed", {
+                    detail: data.reason,
+                    onUndo: async () => {
+                      await fetch(`/api/email/${email.id}/snooze`, { method: "DELETE" });
+                    },
+                  });
+                  // Visually treat as dismissed so it leaves the list
+                  onDismiss(email.id);
+                  onClose();
+                  return data.reason;
+                } catch {
+                  toast.error("Couldn't snooze this email");
+                  return null;
+                }
+              }}
+            />
+            <button
+              onClick={() => { onDismiss(email.id); onClose(); }}
+              className="text-[11px] uppercase tracking-[0.14em] font-medium text-[#3D6A95] hover:text-[#5E8FBF] transition-colors"
+            >
               Mark done →
+            </button>
+          </div>
+
+          {/* Feedback */}
+          <div className="mt-3 pt-3 border-t border-[#E6DCC4] flex items-center gap-3 text-[10px] uppercase tracking-[0.14em] font-medium">
+            <button onClick={() => onFeedback(email.id, "upvote")} className="text-[#A89F92] hover:text-[#6B8E68] transition-colors">
+              Good
+            </button>
+            <button onClick={() => onFeedback(email.id, "downvote")} className="text-[#A89F92] hover:text-[#B86B4A] transition-colors">
+              Not relevant
             </button>
           </div>
         </div>

@@ -106,10 +106,11 @@ export async function GET() {
       .limit(8),
     service
       .from("emails")
-      .select("id, from_name, from_email, subject, snippet, body_preview, received_at, score, is_unread, user_replied")
+      .select("id, from_name, from_email, subject, snippet, body_preview, received_at, score, is_unread, user_replied, snooze_until")
       .eq("user_id", user.id)
       .eq("user_replied", false)
       .is("dismissed_at", null)
+      .or(`snooze_until.is.null,snooze_until.lte.${now.toISOString()}`)
       .gte("score", 50)
       .gte("received_at", emailLookback)
       .order("score", { ascending: false })
