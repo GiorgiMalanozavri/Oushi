@@ -276,17 +276,25 @@ export async function rankUnrankedEmails(userId: string) {
   }
 
   let ranked = 0;
-  for (const result of prefiltered) {
-    await supabase
-      .from("emails")
-      .update({
-        score: result.score,
-        category: result.category,
-        reasoning: result.reasoning,
-        requires_action: result.requires_action,
+
+  // Run prefilter UPDATEs in parallel. Was a sequential await loop —
+  // N round-trips serialized for purely-noise emails that share no
+  // ordering constraint.
+  if (prefiltered.length > 0) {
+    await Promise.all(
+      prefiltered.map(async (result) => {
+        await supabase
+          .from("emails")
+          .update({
+            score: result.score,
+            category: result.category,
+            reasoning: result.reasoning,
+            requires_action: result.requires_action,
+          })
+          .eq("id", result.id);
       })
-      .eq("id", result.id);
-    ranked++;
+    );
+    ranked += prefiltered.length;
   }
 
   const batchSize = 10;
@@ -344,31 +352,39 @@ export async function rankUnrankedEmails(userId: string) {
       })
     );
 
+    // Parallelize all the DB writes for this Claude batch — UPDATEs are
+    // independent, memory saves are independent, no ordering required.
+    const writeOps: Array<Promise<unknown>> = [];
     for (const result of results) {
-      await supabase
-        .from("emails")
-        .update({
-          score: result.score,
-          category: result.category,
-          reasoning: result.reasoning,
-          requires_action: result.requires_action,
-          highlight: result.highlight,
-          matched_interests: result.matched_interests,
-          matched_topics: result.matched_topics,
-          suggested_action: result.suggested_action,
-        })
-        .eq("id", result.id);
+      writeOps.push(
+        (async () => {
+          await supabase
+            .from("emails")
+            .update({
+              score: result.score,
+              category: result.category,
+              reasoning: result.reasoning,
+              requires_action: result.requires_action,
+              highlight: result.highlight,
+              matched_interests: result.matched_interests,
+              matched_topics: result.matched_topics,
+              suggested_action: result.suggested_action,
+            })
+            .eq("id", result.id);
+        })()
+      );
       ranked++;
 
       // Save extracted memories (skip noise/low-priority — usually nothing useful)
       if (result.memories && result.memories.length > 0 && result.score >= 30) {
-        try {
-          await saveExtractedMemories(supabase, userId, result.id, result.memories);
-        } catch (e) {
-          console.error("[ranking] memory save failed", e);
-        }
+        writeOps.push(
+          saveExtractedMemories(supabase, userId, result.id, result.memories).catch((e) => {
+            console.error("[ranking] memory save failed", e);
+          })
+        );
       }
     }
+    await Promise.all(writeOps);
   }
 
   return ranked;
