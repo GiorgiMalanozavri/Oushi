@@ -4,7 +4,9 @@ import { applyLabelsBatch } from "@/lib/gmail-labels";
 import {
   type OushiLabelKey,
   OUSHI_LABELS,
+  computeLabelForEmail,
 } from "@/lib/gmail-labels-shared";
+import type { EmailRow } from "@/lib/outstanding";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
@@ -95,9 +97,11 @@ export async function POST(request: Request) {
   const service = await createServiceClient();
 
   // Verify the email belongs to the user and pull what we need to label it.
+  // gmail_label_llm_key is included so the accuracy log can tell us whether
+  // the LLM saw this email or only the heuristic ran.
   const { data: email, error: emailError } = await service
     .from("emails")
-    .select("id, user_id, gmail_message_id, category, score, is_read, is_unread, user_replied, from_email, subject, snippet, body_preview, user_was_last_sender, user_last_sent_at, followup_dismissed_at, dismissed_at, received_at, last_seen_at, snooze_until, last_thread_message_at")
+    .select("id, user_id, gmail_message_id, category, score, is_read, is_unread, user_replied, from_email, subject, snippet, body_preview, user_was_last_sender, user_last_sent_at, followup_dismissed_at, dismissed_at, received_at, last_seen_at, snooze_until, last_thread_message_at, gmail_label_llm_key")
     .eq("id", emailId)
     .maybeSingle();
 
@@ -108,11 +112,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not your email" }, { status: 403 });
   }
 
+  // Compute what our pipeline currently picks (with no override) so the
+  // accuracy log knows what we got wrong. Cast to EmailRow — the select
+  // above pulls the columns computeLabelForEmail reads.
+  const computedLabel = computeLabelForEmail(email as unknown as EmailRow);
+  const wasLlm = !!email.gmail_label_llm_key;
+  const llmContentLabel = email.gmail_label_llm_key ?? null;
+
   // Determine the target label and write/clear the override row.
   let targetLabel: OushiLabelKey | null;
   if (labelKey === "auto") {
     // Drop the override; classifier takes over again. We DON'T re-apply
     // here because the next rank pass will catch it via the stale-scan.
+    // We also DON'T log this — "auto" is reverting a previous correction,
+    // not making one.
     await service
       .from("email_label_overrides")
       .delete()
@@ -135,6 +148,35 @@ export async function POST(request: Request) {
         { user_id: user.id, email_id: emailId, override_label_key: targetLabel, set_at: new Date().toISOString() },
         { onConflict: "user_id,email_id" }
       );
+  }
+
+  // Log the correction to the accuracy table — but only if the user's
+  // pick actually differs from what we computed. If they picked the same
+  // label we had (e.g., to "lock it in" against future state changes),
+  // that's not an error, it's a confirmation, and shouldn't pollute the
+  // signal. Best-effort — never fail the override on a log write.
+  const userOverrideForLog = labelKey === "none" ? "none" : labelKey;
+  const isCorrection =
+    (labelKey === "none" && computedLabel !== null) ||
+    (labelKey !== "none" && computedLabel !== labelKey);
+  if (isCorrection) {
+    try {
+      await service.from("label_classification_errors").insert({
+        user_id: user.id,
+        email_id: email.id,
+        computed_label: computedLabel,
+        user_override: userOverrideForLog,
+        was_llm: wasLlm,
+        llm_content_label: llmContentLabel,
+        sender_email: (email.from_email || "").toLowerCase() || null,
+        subject: (email.subject || "").slice(0, 200) || null,
+      });
+    } catch (e) {
+      console.error(
+        "[labels/override] accuracy log insert failed",
+        e instanceof Error ? e.message : e
+      );
+    }
   }
 
   // Apply to Gmail immediately so the user sees the change.
