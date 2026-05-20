@@ -59,6 +59,11 @@ import {
 } from "@/lib/feedback-fx";
 import { TodayOushi } from "@/components/today-oushi";
 import { NarrativeToday } from "@/components/narrative-today";
+import {
+  readStoredTodayMode,
+  writeStoredTodayMode,
+  type TodayMode,
+} from "@/components/today-mode-toggle";
 import { useToast } from "@/components/toast";
 import { EmptyState as FeedbackEmptyState } from "@/components/feedback";
 import { SnoozePopover } from "@/components/snooze-popover";
@@ -191,28 +196,35 @@ export function DashboardClient({
   const [kbdHelpOpen, setKbdHelpOpen] = useState(false);
 
   // Today view mode — Narrative (default, Direction A) or Classic cards.
-  // Persisted in localStorage so the choice survives reloads. SSR-safe via
-  // an effect-driven initial sync (default to narrative on first paint).
-  const [todayMode, setTodayMode] = useState<"narrative" | "classic">("narrative");
+  // The user changes it from Settings → Appearance; we just read on mount
+  // and listen for the storage event so a change in Settings reflects
+  // here without a full reload.
+  const [todayMode, setTodayMode] = useState<TodayMode>("narrative");
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const stored = window.localStorage.getItem("oushi.todayMode");
-      if (stored === "classic" || stored === "narrative") {
-        setTodayMode(stored);
+    setTodayMode(readStoredTodayMode());
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "oushi.todayMode") {
+        const v = e.newValue;
+        if (v === "classic" || v === "narrative") setTodayMode(v);
       }
-    } catch {
-      // ignore — default "narrative" stands
-    }
+    };
+    window.addEventListener("storage", onStorage);
+    // Also listen for a custom in-tab event since `storage` only fires
+    // across tabs. Settings dispatches "oushi:todayMode" when the toggle
+    // is flipped in the same tab.
+    const onCustom = (e: Event) => {
+      const detail = (e as CustomEvent<{ mode: TodayMode }>).detail;
+      if (detail?.mode) setTodayMode(detail.mode);
+    };
+    window.addEventListener("oushi:todayMode", onCustom);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("oushi:todayMode", onCustom);
+    };
   }, []);
-  const updateTodayMode = (mode: "narrative" | "classic") => {
-    setTodayMode(mode);
-    try {
-      window.localStorage.setItem("oushi.todayMode", mode);
-    } catch {
-      // ignore
-    }
-  };
+  // writeStoredTodayMode is now only used inside Settings; keep the
+  // helper available so the in-dashboard updater is intentionally absent.
+  void writeStoredTodayMode;
 
   // Unlock audio FX on the first real user interaction. Safari/iOS require
   // a synchronous user gesture before AudioContext can resume; calling
@@ -955,7 +967,7 @@ export function DashboardClient({
             animate={isMobile ? { x: 0, opacity: 1 } : { width: 260, opacity: 1 }}
             exit={isMobile ? { x: -260, opacity: 1 } : { width: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-            className={`shrink-0 h-full flex flex-col border-r border-[#E6DCC4] bg-[#FFFCF3] overflow-hidden relative z-10 ${
+            className={`shrink-0 h-full flex flex-col border-r border-[#E6DCC4] overflow-hidden relative z-10 ${
               isMobile ? "fixed z-40 w-[260px] shadow-2xl" : ""
             }`}
             style={isMobile ? {} : { width: 260 }}
@@ -1059,30 +1071,20 @@ export function DashboardClient({
               }}
               onOpenCommitments={() => setView({ type: "promises" })}
               onDismissEmail={(id) => actionCtx.dismiss && actionCtx.dismiss(id)}
-              rightAdornment={
-                <TodayModeToggle mode={todayMode} onChange={updateTodayMode} />
-              }
             />
           )}
           {view.type === "today" && todayMode === "classic" && (
-            <div className="relative">
-              {/* Toggle floats top-left in classic mode so it doesn't
-                  collide with the global ⌘K pill on the right */}
-              <div className="absolute top-4 left-4 z-10">
-                <TodayModeToggle mode={todayMode} onChange={updateTodayMode} />
-              </div>
-              <TodayOushi
-                onOpenSpotlight={(initialPrompt) => {
-                  if (initialPrompt) setAskInput(initialPrompt);
-                  setAskOpen(true);
-                }}
-                onOpenEmail={(id) => {
-                  const found = allEmails.find((e) => e.id === id);
-                  if (found) setSelectedEmail(found);
-                }}
-                onOpenCommitments={() => setView({ type: "promises" })}
-              />
-            </div>
+            <TodayOushi
+              onOpenSpotlight={(initialPrompt) => {
+                if (initialPrompt) setAskInput(initialPrompt);
+                setAskOpen(true);
+              }}
+              onOpenEmail={(id) => {
+                const found = allEmails.find((e) => e.id === id);
+                if (found) setSelectedEmail(found);
+              }}
+              onOpenCommitments={() => setView({ type: "promises" })}
+            />
           )}
           {view.type === "urgent" && (
             <ListView
@@ -1396,17 +1398,36 @@ function Sidebar({
   const syncFresh = lastSyncedAt && (now.getTime() - new Date(lastSyncedAt).getTime()) / 60000 < 10;
 
   return (
-    <div className="h-full flex flex-col" style={{ width: 260 }}>
-      {/* Top: logo + collapse */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-[#E6DCC4]">
+    <div
+      className="h-full flex flex-col relative"
+      style={{
+        width: 260,
+        background:
+          "linear-gradient(180deg, #FFFCF3 0%, #FBF6E9 100%)",
+      }}
+    >
+      {/* Top: logo + collapse — serif wordmark, more breathing room */}
+      <div className="flex items-center justify-between px-5 pt-5 pb-4">
         <Link href="/dashboard" className="flex items-center gap-2.5 group">
-          <OushiMark size={28} />
-          <span className="text-[17px] font-semibold tracking-[-0.02em] text-[#2A2520] group-hover:text-[#3D6A95] transition-colors">Oushi</span>
+          <OushiMark size={26} />
+          <span
+            className="text-[19px] tracking-[-0.012em] text-[#2A2520] group-hover:text-[#B86B4A] transition-colors font-medium"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
+            Oushi
+          </span>
         </Link>
-        <button onClick={onCollapse} className="text-[#A89F92] hover:text-[#2A2520] p-1 rounded transition-colors">
+        <button
+          onClick={onCollapse}
+          className="text-[#A89F92] hover:text-[#3F362C] p-1.5 rounded-md hover:bg-[#FAF6EB] transition-colors"
+          aria-label="Collapse sidebar"
+        >
           <PanelLeftClose className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Subtle gradient divider — softer than a hard border */}
+      <div className="mx-5 h-px bg-gradient-to-r from-transparent via-[#E6DCC4] to-transparent" />
 
       {/* Nav — minimal AI-first layout. Bucket views are tucked behind
           a "More views" toggle so they don't compete with the dashboard. */}
@@ -1478,46 +1499,66 @@ function SidebarFooter({
     : "pending";
 
   return (
-    <div className="border-t border-[#E6DCC4] px-3 py-3 flex items-center gap-2">
-      <div className="w-7 h-7 rounded-full bg-[#D0E1F0] flex items-center justify-center shrink-0 overflow-hidden">
-        {showImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={userAvatar!}
-            alt={displayName}
-            className="w-full h-full object-cover"
-            onError={() => setImgFailed(true)}
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <span className="text-[11px] font-semibold text-[#3D6A95]">{initial}</span>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-medium text-[#2A2520] truncate" title={userEmail}>
-          {displayName}
-        </p>
-        <button
-          onClick={triggerSync}
-          disabled={syncing}
-          title={syncing ? "Syncing…" : "Click to sync now"}
-          className="inline-flex items-center gap-1 text-[10px] text-[#A89F92] hover:text-[#3D6A95] transition-colors disabled:cursor-wait"
-        >
-          {syncing ? (
-            <Loader2 className="w-2.5 h-2.5 animate-spin text-[#5E8FBF]" />
-          ) : (
-            <span className={`h-1 w-1 rounded-full ${syncFresh ? "bg-[#6B8E68] animate-pulse" : "bg-[#A89F92]"}`} />
-          )}
-          <span>{syncing ? "syncing…" : syncFresh ? "live" : ageLabel}</span>
-        </button>
-      </div>
-      <Link
-        href="/settings"
-        title="Settings"
-        className="text-[#A89F92] hover:text-[#2A2520] p-1 rounded transition-colors"
+    <div className="p-3">
+      {/* Soft gradient divider above the footer */}
+      <div className="mx-2 h-px bg-gradient-to-r from-transparent via-[#E6DCC4] to-transparent mb-3" />
+
+      <div
+        className="flex items-center gap-2.5 px-2 py-2 rounded-xl bg-[#FFFCF3]/60"
+        style={{
+          boxShadow:
+            "0 1px 0 rgba(255,255,255,0.7) inset, 0 1px 3px rgba(106,76,38,0.05)",
+        }}
       >
-        <Settings className="w-4 h-4" />
-      </Link>
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F2DDD0] to-[#E8DDC9] flex items-center justify-center shrink-0 overflow-hidden ring-1 ring-white/60">
+          {showImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={userAvatar!}
+              alt={displayName}
+              className="w-full h-full object-cover"
+              onError={() => setImgFailed(true)}
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <span className="text-[12px] font-semibold text-[#7A5A36]">
+              {initial}
+            </span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p
+            className="text-[12.5px] font-medium text-[#2A2520] truncate leading-tight"
+            title={userEmail}
+          >
+            {displayName}
+          </p>
+          <button
+            onClick={triggerSync}
+            disabled={syncing}
+            title={syncing ? "Syncing…" : "Click to sync now"}
+            className="mt-0.5 inline-flex items-center gap-1.5 text-[10.5px] text-[#A89F92] hover:text-[#B86B4A] transition-colors disabled:cursor-wait"
+          >
+            {syncing ? (
+              <Loader2 className="w-2.5 h-2.5 animate-spin text-[#B86B4A]" />
+            ) : (
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  syncFresh ? "bg-[#6B8E68] animate-pulse" : "bg-[#C9BFAA]"
+                }`}
+              />
+            )}
+            <span>{syncing ? "syncing…" : syncFresh ? "live" : ageLabel}</span>
+          </button>
+        </div>
+        <Link
+          href="/settings"
+          title="Settings"
+          className="text-[#A89F92] hover:text-[#3F362C] p-1.5 rounded-md hover:bg-[#FAF6EB] transition-colors"
+        >
+          <Settings className="w-4 h-4" />
+        </Link>
+      </div>
     </div>
   );
 }
@@ -1542,7 +1583,7 @@ function SidebarNav({
   const [expanded, setExpanded] = useState(onNonPrimaryView);
 
   return (
-    <nav className="flex-1 overflow-y-auto px-3 py-3">
+    <nav className="flex-1 overflow-y-auto px-3 py-4">
       {/* Primary — the two views every user uses constantly */}
       <NavItem
         icon={<Sparkles className="w-3.5 h-3.5" />}
@@ -1551,7 +1592,7 @@ function SidebarNav({
         onClick={() => setView({ type: "today" })}
       />
       <NavItem
-        icon={<Handshake className="w-3.5 h-3.5 text-[#5E8FBF]" />}
+        icon={<Handshake className="w-3.5 h-3.5" />}
         label="Promises"
         count={counts.promises}
         countColor="sky"
@@ -1562,12 +1603,15 @@ function SidebarNav({
       {/* More views — bucket nav tucked away */}
       <button
         onClick={() => setExpanded((p) => !p)}
-        className="mt-4 w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11.5px] text-[#A89F92] hover:text-[#766E63] transition-colors"
+        className="mt-5 w-full flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10.5px] text-[#A89F92] hover:text-[#766E63] transition-colors group"
       >
         <ChevronRight
-          className={`w-3 h-3 transition-transform ${expanded ? "rotate-90" : ""}`}
+          className={`w-2.5 h-2.5 transition-transform ${expanded ? "rotate-90" : ""}`}
         />
-        <span className="font-medium uppercase tracking-[0.12em] text-[10px]">
+        <span
+          className="italic text-[#A89F92] group-hover:text-[#766E63] transition-colors"
+          style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+        >
           {expanded ? "Fewer views" : "More views"}
         </span>
       </button>
@@ -1618,7 +1662,7 @@ function SidebarNav({
               {/* Boards — also semi-hidden */}
               {topics.length > 0 && (
                 <>
-                  <SectionLabel className="mt-4">Boards</SectionLabel>
+                  <SectionLabel className="mt-5">Boards</SectionLabel>
                   {topics.map((t) => (
                     <NavItem
                       key={t.id}
@@ -1627,6 +1671,7 @@ function SidebarNav({
                       count={(boardCounts.get(t.name) || []).length}
                       active={view.type === "board" && view.id === t.id}
                       onClick={() => setView({ type: "board", id: t.id })}
+                      dot={t.color || "#A89F92"}
                     />
                   ))}
                 </>
@@ -1651,7 +1696,9 @@ function SidebarNav({
 
 function SectionLabel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className={`px-2.5 mb-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[#A89F92] ${className}`}>
+    <p
+      className={`px-3 mb-1.5 text-[10.5px] font-medium uppercase tracking-[0.18em] text-[#A89F92] ${className}`}
+    >
       {children}
     </p>
   );
@@ -1664,6 +1711,7 @@ function NavItem({
   countColor,
   active,
   onClick,
+  dot,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -1671,21 +1719,66 @@ function NavItem({
   countColor?: "terracotta" | "sky" | "ink";
   active: boolean;
   onClick: () => void;
+  /** Optional CSS color for a small leading dot — used by Boards */
+  dot?: string;
 }) {
-  const countClass = countColor === "terracotta" ? "text-[#B86B4A]" : countColor === "ink" ? "text-[#3D6A95]" : "text-[#5E8FBF]";
+  const countClass =
+    countColor === "terracotta"
+      ? "text-[#B86B4A]"
+      : countColor === "ink"
+        ? "text-[#3D6A95]"
+        : "text-[#766E63]";
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[13px] mb-0.5 transition-colors ${
+      className={`group relative w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] mb-0.5 transition-all ${
         active
-          ? "bg-[#D0E1F0]/40 text-[#2A2520] font-medium"
-          : "text-[#766E63] hover:bg-[#FAF6EB] hover:text-[#2A2520]"
+          ? "text-[#2A2520] font-medium"
+          : "text-[#766E63] hover:text-[#3F362C]"
       }`}
     >
-      <span className={active ? "text-[#3D6A95]" : "text-[#A89F92]"}>{icon}</span>
-      <span className="flex-1 text-left truncate">{label}</span>
+      {/* Sliding active pill — framer-motion layoutId animates it between
+          NavItems for that Linear-style fluid feel. */}
+      {active && (
+        <motion.div
+          layoutId="sidebar-active-pill"
+          className="absolute inset-0 rounded-lg bg-[#FBF4DF]"
+          style={{
+            boxShadow:
+              "0 1px 0 rgba(255,255,255,0.7) inset, 0 1px 3px rgba(106,76,38,0.06)",
+          }}
+          transition={{ type: "spring", stiffness: 480, damping: 36 }}
+        />
+      )}
+      {/* Subtle hover wash — sits below the active pill */}
+      {!active && (
+        <span className="absolute inset-0 rounded-lg bg-[#FAF6EB]/0 group-hover:bg-[#FAF6EB] transition-colors" />
+      )}
+
+      {/* Content (above the pill) */}
+      <span
+        className={`relative shrink-0 ${
+          active ? "text-[#B86B4A]" : "text-[#A89F92] group-hover:text-[#766E63]"
+        } transition-colors`}
+      >
+        {dot ? (
+          <span
+            className="block w-2 h-2 rounded-full"
+            style={{ backgroundColor: dot }}
+          />
+        ) : (
+          icon
+        )}
+      </span>
+      <span className="relative flex-1 text-left truncate">{label}</span>
       {count !== undefined && count > 0 && (
-        <span className={`text-[11px] font-mono font-medium ${countClass}`}>{count}</span>
+        <span
+          className={`relative text-[11px] font-mono font-medium tabular-nums ${
+            active ? "text-[#3F362C]" : countClass
+          }`}
+        >
+          {count}
+        </span>
       )}
     </button>
   );
@@ -2202,55 +2295,6 @@ function SuggestedActionButton({
  * Inline score chip with a tone label — "87 · Critical", "62 · Useful", etc.
  * Replaces the orphaned floating score badge in the email modal header.
  */
-/**
- * Segmented control to flip the Today view between Narrative (Direction A)
- * and Classic (TodayOushi cards). Lives in the top-right corner of the
- * Today view. Designed to feel like part of the page furniture, not a
- * heavy chrome control.
- */
-function TodayModeToggle({
-  mode,
-  onChange,
-}: {
-  mode: "narrative" | "classic";
-  onChange: (m: "narrative" | "classic") => void;
-}) {
-  return (
-    <div
-      className="inline-flex items-center rounded-full border border-[#E6DCC4] bg-[#FFFCF3]/90 backdrop-blur-sm p-0.5 shadow-[0_2px_12px_-4px_rgba(106,76,38,0.10)]"
-      role="tablist"
-      aria-label="Today view mode"
-    >
-      <button
-        onClick={() => onChange("narrative")}
-        className={`text-[11px] font-medium px-2.5 py-1 rounded-full transition-all ${
-          mode === "narrative"
-            ? "bg-[#3F362C] text-[#FBF4DF] shadow-sm"
-            : "text-[#766E63] hover:text-[#3F362C]"
-        }`}
-        role="tab"
-        aria-selected={mode === "narrative"}
-        title="Narrative — Oushi writes you a brief"
-      >
-        Narrative
-      </button>
-      <button
-        onClick={() => onChange("classic")}
-        className={`text-[11px] font-medium px-2.5 py-1 rounded-full transition-all ${
-          mode === "classic"
-            ? "bg-[#3F362C] text-[#FBF4DF] shadow-sm"
-            : "text-[#766E63] hover:text-[#3F362C]"
-        }`}
-        role="tab"
-        aria-selected={mode === "classic"}
-        title="Classic — Card list"
-      >
-        Classic
-      </button>
-    </div>
-  );
-}
-
 function ScorePill({ score }: { score: number }) {
   const shade = scoreShade(score);
   const label =

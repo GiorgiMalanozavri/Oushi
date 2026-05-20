@@ -29,10 +29,17 @@ import {
   Send,
   Menu,
   Loader2,
+  Palette,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { OushiMark } from "@/components/oushi-mark";
 import { AmbientBackground } from "@/components/ambient-bg";
+import {
+  TodayModeToggle,
+  readStoredTodayMode,
+  writeStoredTodayMode,
+  type TodayMode,
+} from "@/components/today-mode-toggle";
 
 interface Profile {
   bio: string;
@@ -80,7 +87,7 @@ interface SettingsClientProps {
   memories: Memory[];
 }
 
-type SettingsSection = "profile" | "voice" | "memory" | "briefing" | "notifications" | "labels" | "filters" | "account";
+type SettingsSection = "profile" | "appearance" | "voice" | "memory" | "briefing" | "notifications" | "labels" | "filters" | "account";
 
 const KIND_LABELS: Record<MemoryKind, string> = {
   person: "People",
@@ -316,6 +323,7 @@ export function SettingsClient({
 
   const sections: Array<{ key: SettingsSection; label: string; icon: React.ReactNode; description: string }> = [
     { key: "profile", label: "Profile", icon: <User className="w-3.5 h-3.5" />, description: "Who you are and what you care about" },
+    { key: "appearance", label: "Appearance", icon: <Palette className="w-3.5 h-3.5" />, description: "How Oushi looks and reads" },
     { key: "voice", label: "Voice", icon: <Sparkles className="w-3.5 h-3.5" />, description: "How Oushi writes as you" },
     { key: "memory", label: "Memory", icon: <BrainCircuit className="w-3.5 h-3.5" />, description: "What Oushi remembers" },
     { key: "briefing", label: "Daily briefing", icon: <Bell className="w-3.5 h-3.5" />, description: "Morning digest settings" },
@@ -328,7 +336,16 @@ export function SettingsClient({
   const currentSection = sections.find((s) => s.key === section);
 
   return (
-    <div className="h-screen bg-[#FAF6EB] text-[#2A2520] overflow-hidden flex relative">
+    <div
+      className="h-screen text-[#2A2520] overflow-hidden flex relative"
+      style={{
+        background: `
+          radial-gradient(ellipse at 20% -10%, #FBF4DF 0%, transparent 55%),
+          radial-gradient(ellipse at 90% 100%, #F5E8D2 0%, transparent 60%),
+          #FAF6EB
+        `,
+      }}
+    >
       <AmbientBackground variant="subtle" />
       {/* Mobile backdrop */}
       <AnimatePresence>
@@ -353,47 +370,82 @@ export function SettingsClient({
             animate={isMobile ? { x: 0 } : { width: 260, opacity: 1 }}
             exit={isMobile ? { x: -260 } : { width: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-            className={`shrink-0 h-full flex flex-col border-r border-[#E6DCC4] bg-[#FFFCF3] overflow-hidden relative z-10 ${
+            className={`shrink-0 h-full flex flex-col border-r border-[#E6DCC4] overflow-hidden relative z-10 ${
               isMobile ? "fixed z-40 w-[260px] shadow-2xl" : ""
             }`}
-            style={isMobile ? {} : { width: 260 }}
+            style={
+              isMobile
+                ? {
+                    background:
+                      "linear-gradient(180deg, #FFFCF3 0%, #FBF6E9 100%)",
+                  }
+                : {
+                    width: 260,
+                    background:
+                      "linear-gradient(180deg, #FFFCF3 0%, #FBF6E9 100%)",
+                  }
+            }
           >
-            <div className="flex items-center justify-between px-4 py-4 border-b border-[#E6DCC4]">
-              <Link href="/dashboard" className="flex items-center gap-2.5 group">
-                <OushiMark size={28} />
-                <span className="text-[17px] font-semibold tracking-[-0.02em] text-[#2A2520] group-hover:text-[#3D6A95] transition-colors">Oushi</span>
+            {/* Brand block — serif wordmark to match dashboard */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-4">
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2.5 group"
+              >
+                <OushiMark size={26} />
+                <span
+                  className="text-[19px] tracking-[-0.012em] text-[#2A2520] group-hover:text-[#B86B4A] transition-colors font-medium"
+                  style={{
+                    fontFamily: "var(--font-source-serif), Georgia, serif",
+                  }}
+                >
+                  Oushi
+                </span>
               </Link>
             </div>
 
-            <div className="px-4 py-4 border-b border-[#E6DCC4]">
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#A89F92] mb-1">Settings</p>
-              <p className="text-[14px] font-medium text-[#2A2520] truncate">{userEmail}</p>
+            {/* Soft gradient divider */}
+            <div className="mx-5 h-px bg-gradient-to-r from-transparent via-[#E6DCC4] to-transparent" />
+
+            {/* Settings header + back link */}
+            <div className="px-5 py-4">
+              <p
+                className="text-[11px] italic text-[#A89F92] mb-1"
+                style={{
+                  fontFamily: "var(--font-source-serif), Georgia, serif",
+                }}
+              >
+                Settings
+              </p>
+              <p
+                className="text-[14.5px] text-[#2A2520] truncate"
+                style={{
+                  fontFamily: "var(--font-source-serif), Georgia, serif",
+                }}
+              >
+                {userEmail}
+              </p>
               <Link
                 href="/dashboard"
-                className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-[#766E63] hover:text-[#3D6A95] transition-colors"
+                className="mt-2 inline-flex items-center gap-1.5 text-[11.5px] font-medium text-[#766E63] hover:text-[#B86B4A] transition-colors"
               >
                 <ChevronLeft className="w-3 h-3" />
                 Back to inbox
               </Link>
             </div>
 
-            <nav className="flex-1 overflow-y-auto px-3 pb-3">
+            <div className="mx-5 h-px bg-gradient-to-r from-transparent via-[#E6DCC4] to-transparent" />
+
+            <nav className="flex-1 overflow-y-auto px-3 py-3">
               {sections.map((s) => (
-                <button
+                <SettingsNavItem
                   key={s.key}
+                  icon={s.icon}
+                  label={s.label}
+                  description={s.description}
+                  active={section === s.key}
                   onClick={() => pickSection(s.key)}
-                  className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-md mb-0.5 text-left transition-colors ${
-                    section === s.key
-                      ? "bg-[#D0E1F0]/40 text-[#2A2520]"
-                      : "text-[#766E63] hover:bg-[#FAF6EB] hover:text-[#2A2520]"
-                  }`}
-                >
-                  <span className={`mt-0.5 ${section === s.key ? "text-[#3D6A95]" : "text-[#A89F92]"}`}>{s.icon}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-[13px] ${section === s.key ? "font-medium" : ""}`}>{s.label}</p>
-                    <p className="text-[11px] text-[#A89F92] mt-0.5 leading-tight">{s.description}</p>
-                  </div>
-                </button>
+                />
               ))}
             </nav>
           </motion.aside>
@@ -414,7 +466,7 @@ export function SettingsClient({
             <p className="text-[14px] font-semibold text-[#2A2520]">{currentSection?.label || "Settings"}</p>
           </div>
         )}
-        <div className="max-w-2xl mx-auto px-5 sm:px-8 lg:px-12 py-6 sm:py-10">
+        <div className="max-w-[680px] mx-auto px-5 sm:px-10 lg:px-14 py-10 sm:py-16">
           {section === "profile" && (
             <ProfileSection
               bio={bio} setBio={setBio}
@@ -424,6 +476,8 @@ export function SettingsClient({
               saveState={profileSaveState}
             />
           )}
+
+          {section === "appearance" && <AppearanceSection />}
 
           {section === "voice" && (
             <VoiceSection
@@ -499,16 +553,92 @@ export function SettingsClient({
 
 function SectionHeader({ title, description }: { title: string; description: string }) {
   return (
-    <div className="mb-8">
-      <h1 className="text-[26px] font-semibold tracking-tight text-[#2A2520]">{title}</h1>
-      <p className="mt-1 text-[14px] text-[#766E63]">{description}</p>
+    <div className="mb-9">
+      <h1
+        className="text-[32px] tracking-[-0.018em] text-[#2A2520] leading-[1.1]"
+        style={{
+          fontFamily: "var(--font-source-serif), Georgia, serif",
+        }}
+      >
+        {title}
+      </h1>
+      <p className="mt-2.5 text-[14.5px] text-[#766E63] leading-relaxed max-w-[480px]">
+        {description}
+      </p>
     </div>
+  );
+}
+
+/**
+ * Settings sidebar nav item with a sliding active pill (shared layoutId
+ * "settings-active-pill" makes it slide between rows via framer-motion).
+ */
+function SettingsNavItem({
+  icon,
+  label,
+  description,
+  active,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`group relative w-full flex items-start gap-2.5 px-3 py-2 rounded-lg mb-0.5 text-left transition-colors ${
+        active
+          ? "text-[#2A2520]"
+          : "text-[#766E63] hover:text-[#3F362C]"
+      }`}
+    >
+      {active && (
+        <motion.div
+          layoutId="settings-active-pill"
+          className="absolute inset-0 rounded-lg bg-[#FBF4DF]"
+          style={{
+            boxShadow:
+              "0 1px 0 rgba(255,255,255,0.7) inset, 0 1px 3px rgba(106,76,38,0.06)",
+          }}
+          transition={{ type: "spring", stiffness: 480, damping: 36 }}
+        />
+      )}
+      {!active && (
+        <span className="absolute inset-0 rounded-lg bg-[#FAF6EB]/0 group-hover:bg-[#FAF6EB] transition-colors" />
+      )}
+      <span
+        className={`relative mt-0.5 transition-colors ${
+          active ? "text-[#B86B4A]" : "text-[#A89F92] group-hover:text-[#766E63]"
+        }`}
+      >
+        {icon}
+      </span>
+      <div className="relative min-w-0 flex-1">
+        <p
+          className={`text-[13.5px] leading-tight ${active ? "font-medium text-[#2A2520]" : ""}`}
+        >
+          {label}
+        </p>
+        <p className="text-[11px] text-[#A89F92] mt-0.5 leading-snug truncate">
+          {description}
+        </p>
+      </div>
+    </button>
   );
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg border border-[#E6DCC4] bg-[#FFFCF3] overflow-hidden ${className}`}>
+    <div
+      className={`rounded-2xl border border-[#E6DCC4]/80 bg-[#FFFCF3] overflow-hidden ${className}`}
+      style={{
+        boxShadow:
+          "0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 24px -10px rgba(106,76,38,0.08), 0 1px 3px rgba(106,76,38,0.04)",
+      }}
+    >
       {children}
     </div>
   );
@@ -717,6 +847,143 @@ function ProfileSection({
         </StackedField>
       </Card>
     </div>
+  );
+}
+
+// ===== APPEARANCE SECTION =====
+
+function AppearanceSection() {
+  const [mode, setMode] = useState<TodayMode>("narrative");
+
+  useEffect(() => {
+    setMode(readStoredTodayMode());
+  }, []);
+
+  const changeMode = (m: TodayMode) => {
+    setMode(m);
+    writeStoredTodayMode(m);
+    // Custom in-tab event so the dashboard reflects the change without
+    // a page reload. Storage events only fire across tabs.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("oushi:todayMode", { detail: { mode: m } })
+      );
+    }
+  };
+
+  return (
+    <div>
+      <SectionHeader
+        title="Appearance"
+        description="Choose how the Today view reads — a morning brief in prose, or the classic card list."
+      />
+
+      <Card>
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-6 mb-5">
+            <div className="flex-1 min-w-0">
+              <p className="text-[13.5px] font-medium text-[#2A2520] mb-1">
+                Today view
+              </p>
+              <p className="text-[12px] text-[#766E63] leading-relaxed">
+                Narrative is the new default — Oushi writes you a short brief
+                with email cards woven in. Classic is the original card list
+                if you prefer the denser triage layout.
+              </p>
+            </div>
+            <TodayModeToggle mode={mode} onChange={changeMode} size="md" />
+          </div>
+
+          {/* Preview tiles — quick glance at what each mode feels like */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <AppearancePreview
+              label="Narrative"
+              active={mode === "narrative"}
+              onClick={() => changeMode("narrative")}
+              accent="#B86B4A"
+            >
+              <p
+                className="font-serif text-[14px] italic text-[#3F362C] leading-snug mb-1.5"
+                style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+              >
+                Three things matter today.
+              </p>
+              <div className="h-1.5 rounded-full bg-[#E6DCC4] mb-1.5 w-3/4" />
+              <div className="h-7 rounded-md bg-[#FAF6EB] border border-[#E6DCC4]" />
+              <div className="h-7 rounded-md bg-[#FAF6EB] border border-[#E6DCC4] mt-1.5" />
+            </AppearancePreview>
+
+            <AppearancePreview
+              label="Classic"
+              active={mode === "classic"}
+              onClick={() => changeMode("classic")}
+              accent="#5E8FBF"
+            >
+              <p className="text-[12.5px] font-semibold text-[#2A2520] mb-1.5">
+                Today
+              </p>
+              <div className="space-y-1">
+                <div className="h-4 rounded bg-[#FAF6EB] border border-[#E6DCC4]" />
+                <div className="h-4 rounded bg-[#FAF6EB] border border-[#E6DCC4]" />
+                <div className="h-4 rounded bg-[#FAF6EB] border border-[#E6DCC4]" />
+                <div className="h-4 rounded bg-[#FAF6EB] border border-[#E6DCC4]" />
+              </div>
+            </AppearancePreview>
+          </div>
+        </div>
+      </Card>
+
+      <p className="mt-3 text-[11.5px] text-[#A89F92] italic leading-relaxed">
+        More appearance options — dark mode, density, time-aware warmth shift —
+        coming soon.
+      </p>
+    </div>
+  );
+}
+
+function AppearancePreview({
+  label,
+  active,
+  onClick,
+  accent,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  accent: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-left rounded-xl p-3 border transition-all ${
+        active
+          ? "bg-[#FFFCF3] border-transparent"
+          : "bg-[#FFFCF3]/50 border-[#E6DCC4]/80 hover:bg-[#FFFCF3]"
+      }`}
+      style={{
+        boxShadow: active
+          ? `0 1px 0 rgba(255,255,255,0.7) inset, 0 8px 28px -10px rgba(106,76,38,0.14), 0 0 0 1.5px ${accent}`
+          : "0 1px 0 rgba(255,255,255,0.5) inset, 0 2px 8px -4px rgba(106,76,38,0.06)",
+      }}
+    >
+      <div className="mb-2 flex items-center gap-1.5">
+        <span
+          className="w-2 h-2 rounded-full"
+          style={{ backgroundColor: accent }}
+        />
+        <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#766E63]">
+          {label}
+        </p>
+        {active && (
+          <span className="ml-auto text-[9.5px] font-mono uppercase tracking-wider text-[#6B8E68]">
+            Active
+          </span>
+        )}
+      </div>
+      <div>{children}</div>
+    </button>
   );
 }
 
