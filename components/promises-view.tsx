@@ -12,6 +12,7 @@ import {
   Mail,
   Loader2,
 } from "lucide-react";
+import { SkeletonList, ErrorPanel } from "@/components/feedback";
 
 export interface Commitment {
   id: string;
@@ -48,12 +49,21 @@ export function PromisesView() {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ extracted: number; scanned: number; autoFulfilled?: number } | null>(null);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const load = async () => {
+    setLoadError(null);
     try {
       const res = await fetch("/api/commitments?status=open");
-      if (!res.ok) return;
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        setLoadError(j?.error || `Couldn't load promises (HTTP ${res.status})`);
+        return;
+      }
       const data = await res.json();
       setItems(data.commitments || []);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Network error");
     } finally {
       setLoading(false);
     }
@@ -159,10 +169,16 @@ export function PromisesView() {
       {/* Body */}
       <div className="mt-8">
         {loading ? (
-          <div className="flex items-center gap-2 text-[#A89F92] text-[13px]">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            Loading…
-          </div>
+          <SkeletonList count={3} />
+        ) : loadError ? (
+          <ErrorPanel
+            title="Couldn't load your promises."
+            detail={loadError}
+            onRetry={() => {
+              setLoading(true);
+              load();
+            }}
+          />
         ) : items.length === 0 ? (
           <EmptyState onScan={scan} hasScannedBefore={!!scanResult} scanning={scanning} />
         ) : (

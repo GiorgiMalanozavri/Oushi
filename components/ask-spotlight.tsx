@@ -18,6 +18,7 @@ import {
 import { CardStack } from "@/components/oushi-cards/card-renderer";
 import type { OushiCard } from "@/components/oushi-cards/types";
 import type { CardActionContext } from "@/components/oushi-cards/card-actions";
+import { LoadingDots } from "@/components/feedback";
 
 export interface AttachmentPreview {
   filename: string;
@@ -587,15 +588,7 @@ function LoadingBubble() {
         <Sparkles className="w-3.5 h-3.5 text-white" />
       </div>
       <div className="rounded-2xl rounded-tl-sm bg-[#FAF6EB] border border-[#E6DCC4] px-3.5 py-2.5 flex items-center gap-2 text-[#766E63]">
-        <span className="inline-flex items-center gap-1">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="w-1.5 h-1.5 rounded-full bg-[#5E8FBF] oushi-loading-dot"
-              style={{ animationDelay: `${i * 0.15}s` }}
-            />
-          ))}
-        </span>
+        <LoadingDots size="md" />
         <span className="text-[12.5px]">Reading your inbox…</span>
       </div>
     </div>

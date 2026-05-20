@@ -10,8 +10,10 @@ import {
   AlertCircle,
   Plus,
   ArrowRight,
+  Inbox,
   type LucideIcon,
 } from "lucide-react";
+import { SkeletonList, EmptyState, ErrorPanel } from "@/components/feedback";
 
 interface TodayItem {
   id: string;
@@ -75,15 +77,43 @@ interface Props {
 export function TodayOushi({ onOpenSpotlight, onOpenEmail, onOpenCommitments }: Props) {
   const [data, setData] = useState<TodayResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/today");
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        setError(j?.error || `Couldn't load your day (HTTP ${res.status})`);
+        return;
+      }
+      const json = await res.json();
+      setData(json);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch("/api/today");
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (!cancelled) {
+            const j = await res.json().catch(() => null);
+            setError(j?.error || `Couldn't load your day (HTTP ${res.status})`);
+          }
+          return;
+        }
         const json = await res.json();
         if (!cancelled) setData(json);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Network error");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -115,47 +145,71 @@ export function TodayOushi({ onOpenSpotlight, onOpenEmail, onOpenCommitments }: 
           </motion.div>
         </div>
 
-        {/* Hero card — the actual list of things that need you */}
-        <AnimatePresence mode="wait">
-          {data && data.items.length > 0 && (
-            <motion.div
-              key="items"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-              className="mb-8"
-            >
-              <div className="rounded-2xl bg-[#FFFCF3] border border-[#E6DCC4]/80 shadow-[0_1px_3px_rgba(42,37,32,0.04)] overflow-hidden">
-                {data.items.map((item, i) => (
-                  <ItemRow
-                    key={item.id}
-                    item={item}
-                    isLast={i === data.items.length - 1}
-                    onClick={() => handleItemClick(item)}
-                  />
-                ))}
-              </div>
-            </motion.div>
-          )}
-          {data && data.items.length === 0 && (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="mb-8 rounded-2xl bg-[#FFFCF3] border border-[#E6DCC4]/80 px-6 py-10 text-center"
-            >
-              <div className="inline-flex w-12 h-12 rounded-2xl bg-[#E8EFE5] items-center justify-center mb-3">
-                <Sparkles className="w-5 h-5 text-[#6B8E68]" />
-              </div>
-              <p className="text-[14.5px] text-[#2A2520] font-medium">
-                Nothing pressing.
-              </p>
-              <p className="text-[12.5px] text-[#766E63] mt-1">
-                Oushi is watching the inbox. I&apos;ll ping you if something needs you.
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Hero card — loading / error / items / empty */}
+        <div className="mb-8">
+          <AnimatePresence mode="wait">
+            {loading && (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SkeletonList count={3} />
+              </motion.div>
+            )}
+
+            {!loading && error && (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <ErrorPanel
+                  title="Couldn't load your day."
+                  detail={error}
+                  onRetry={load}
+                />
+              </motion.div>
+            )}
+
+            {!loading && !error && data && data.items.length > 0 && (
+              <motion.div
+                key="items"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className="rounded-2xl bg-[#FFFCF3] border border-[#E6DCC4]/80 shadow-[0_1px_3px_rgba(42,37,32,0.04)] overflow-hidden">
+                  {data.items.map((item, i) => (
+                    <ItemRow
+                      key={item.id}
+                      item={item}
+                      isLast={i === data.items.length - 1}
+                      onClick={() => handleItemClick(item)}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {!loading && !error && data && data.items.length === 0 && (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <EmptyState
+                  icon={Inbox}
+                  tone="sage"
+                  title="Nothing pressing."
+                  body="Oushi is watching the inbox. I'll ping you if something needs you."
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Chat input — primary affordance, opens Spotlight */}
         <motion.div
