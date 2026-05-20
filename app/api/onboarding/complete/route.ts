@@ -9,6 +9,11 @@ interface CategoryPreference {
   example_from: string;
 }
 
+interface ImportantPerson {
+  email: string;
+  name: string;
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -19,8 +24,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { preferences }: { preferences: CategoryPreference[] } =
-    await request.json();
+  const {
+    preferences,
+    important_people,
+  }: {
+    preferences: CategoryPreference[];
+    important_people?: ImportantPerson[];
+  } = await request.json();
 
   const liked = preferences
     .filter((p) => p.preference === "yes")
@@ -44,6 +54,52 @@ export async function POST(request: Request) {
     },
     { onConflict: "user_id" }
   );
+
+  // Persist explicit "important people" as high-priority memory entries +
+  // a sender_reputation bump so the ranker boosts their emails immediately.
+  if (important_people && important_people.length > 0) {
+    for (const p of important_people) {
+      if (!p.email) continue;
+      const email = p.email.toLowerCase();
+      const name = p.name || email.split("@")[0];
+
+      // Memory entry — pinned so it persists across context windows
+      try {
+        await service.from("memory_entries").upsert(
+          {
+            user_id: user.id,
+            kind: "person",
+            subject: name,
+            content: `${name} (${email}) — marked important during onboarding. Their emails should always be surfaced.`,
+            pinned: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,kind,subject" }
+        );
+      } catch {
+        // Try insert if upsert fails (older schema)
+        await service.from("memory_entries").insert({
+          user_id: user.id,
+          kind: "person",
+          subject: name,
+          content: `${name} (${email}) — marked important during onboarding.`,
+        });
+      }
+
+      // Reputation bump
+      await service.from("sender_reputation").upsert(
+        {
+          user_id: user.id,
+          sender_email: email,
+          reputation: 50, // strong positive — explicit user choice
+          source: "onboarding_important",
+          signal_count: 1,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,sender_email" }
+      );
+    }
+  }
 
   // Rank all emails with the new profile
   try {
