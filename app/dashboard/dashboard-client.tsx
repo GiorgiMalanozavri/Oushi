@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -10,9 +10,7 @@ import {
   X,
   Mail,
   ExternalLink,
-  ChevronDown,
   ChevronRight,
-  ChevronUp,
   Plus,
   Trash2,
   Pencil,
@@ -31,6 +29,8 @@ import {
   Handshake,
   ThumbsUp,
   ThumbsDown,
+  Loader2,
+  ArrowRight,
 } from "lucide-react";
 import type { Classified } from "@/lib/outstanding";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -41,10 +41,10 @@ import type { CardActionContext } from "@/components/oushi-cards/card-actions";
 import { AskSpotlight, type ChatMessage, type AttachmentPreview } from "@/components/ask-spotlight";
 import { parsePartialAsk } from "@/lib/partial-json";
 import { PromisesView } from "@/components/promises-view";
-import { ComingUp } from "@/components/coming-up";
 import { FirstSyncSplash } from "@/components/first-sync-splash";
 import { TodayOushi } from "@/components/today-oushi";
 import { useToast } from "@/components/toast";
+import { EmptyState as FeedbackEmptyState } from "@/components/feedback";
 import { SnoozePopover } from "@/components/snooze-popover";
 
 interface Profile {
@@ -80,6 +80,8 @@ interface DashboardClientProps {
   hasGmail: boolean;
   isFirstSync: boolean;
   userEmail: string;
+  userAvatar?: string | null;
+  userName?: string | null;
   profile: Profile;
   feedbackCount: number;
   lastSyncedAt: string | null;
@@ -105,6 +107,8 @@ export function DashboardClient({
   hasGmail,
   isFirstSync,
   userEmail,
+  userAvatar = null,
+  userName = null,
   profile,
   feedbackCount,
   lastSyncedAt,
@@ -131,8 +135,8 @@ export function DashboardClient({
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
-  const [briefing, setBriefing] = useState<string | null>(null);
-  const [briefingLoading, setBriefingLoading] = useState(true);
+  // briefing state was for the old TodayView's briefing card —
+  // TodayOushi pulls its own summary from /api/today now.
   const [askMessages, setAskMessages] = useState<ChatMessage[]>([]);
   const [askInput, setAskInput] = useState("");
   const [askLoading, setAskLoading] = useState(false);
@@ -198,24 +202,7 @@ export function DashboardClient({
     })();
   }, [isFirstSync, hasGmail]);
 
-  useEffect(() => {
-    if (loading || !hasGmail) return;
-    let cancelled = false;
-    (async () => {
-      setBriefingLoading(true);
-      try {
-        const res = await fetch("/api/briefing");
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        if (!cancelled) setBriefing(data.briefing || null);
-      } catch {
-        if (!cancelled) setBriefing(null);
-      } finally {
-        if (!cancelled) setBriefingLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [loading, hasGmail]);
+  // (briefing useEffect removed — was only used by the old TodayView)
 
   useEffect(() => {
     if (loading || !hasGmail || topics.length >= 10) return;
@@ -241,7 +228,7 @@ export function DashboardClient({
     };
   }, [buckets, dismissedIds]);
 
-  const totalNeedsAttention = visible.urgent.length + visible.awaiting.length + visible.following.length;
+  // const totalNeedsAttention = visible.urgent.length + visible.awaiting.length + visible.following.length;
 
   // Emails by board (topic)
   const emailsByTopic = useMemo(() => {
@@ -709,6 +696,8 @@ export function DashboardClient({
           >
             <Sidebar
               userEmail={userEmail}
+              userAvatar={userAvatar}
+              userName={userName}
               topics={topics}
               counts={{
                 urgent: visible.urgent.length,
@@ -1072,6 +1061,8 @@ function cleanAndRender(text: string): React.ReactNode[] {
 
 function Sidebar({
   userEmail,
+  userAvatar,
+  userName,
   topics,
   counts,
   boardCounts,
@@ -1082,6 +1073,8 @@ function Sidebar({
   now,
 }: {
   userEmail: string;
+  userAvatar?: string | null;
+  userName?: string | null;
   topics: Topic[];
   counts: { urgent: number; awaiting: number; following: number; reference: number; untagged: number; promises: number; total: number };
   boardCounts: Map<string, Classified[]>;
@@ -1116,24 +1109,106 @@ function Sidebar({
         boardCounts={boardCounts}
       />
 
-      {/* Bottom */}
-      <div className="border-t border-[#E6DCC4] px-3 py-3 flex items-center gap-2">
-        <div className="w-7 h-7 rounded-full bg-[#D0E1F0] flex items-center justify-center shrink-0">
-          <span className="text-[11px] font-semibold text-[#3D6A95]">{userEmail[0]?.toUpperCase() || "?"}</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[12px] font-medium text-[#2A2520] truncate">{userEmail}</p>
-          <div className="flex items-center gap-1 text-[10px] text-[#A89F92]">
-            <span className={`h-1 w-1 rounded-full ${syncFresh ? "bg-[#6B8E68] animate-pulse" : "bg-[#A89F92]"}`} />
-            <span>
-              {syncFresh ? "live" : lastSyncedAt ? `${formatAgoShort((now.getTime() - new Date(lastSyncedAt).getTime()) / 60000)} ago` : "pending"}
-            </span>
-          </div>
-        </div>
-        <Link href="/settings" className="text-[#A89F92] hover:text-[#2A2520] p-1 rounded transition-colors">
-          <Settings className="w-4 h-4" />
-        </Link>
+      {/* Bottom: avatar + tappable sync indicator + settings */}
+      <SidebarFooter
+        userEmail={userEmail}
+        userAvatar={userAvatar}
+        userName={userName}
+        syncFresh={!!syncFresh}
+        lastSyncedAt={lastSyncedAt}
+        now={now}
+      />
+    </div>
+  );
+}
+
+function SidebarFooter({
+  userEmail,
+  userAvatar,
+  userName,
+  syncFresh,
+  lastSyncedAt,
+  now,
+}: {
+  userEmail: string;
+  userAvatar?: string | null;
+  userName?: string | null;
+  syncFresh: boolean;
+  lastSyncedAt: string | null;
+  now: Date;
+}) {
+  const toast = useToast();
+  const [syncing, setSyncing] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
+
+  const displayName = userName || userEmail;
+  const initial = (userName?.[0] || userEmail[0] || "?").toUpperCase();
+  const showImage = !!userAvatar && !imgFailed;
+
+  const triggerSync = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/gmail/sync", { method: "POST" });
+      if (res.ok) {
+        toast.success("Inbox synced", { detail: "Pulling latest emails…" });
+        // Refresh state so any new emails surface
+        setTimeout(() => window.location.reload(), 800);
+      } else {
+        toast.error("Sync failed");
+      }
+    } catch {
+      toast.error("Couldn't reach the sync");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const ageLabel = lastSyncedAt
+    ? `${formatAgoShort((now.getTime() - new Date(lastSyncedAt).getTime()) / 60000)} ago`
+    : "pending";
+
+  return (
+    <div className="border-t border-[#E6DCC4] px-3 py-3 flex items-center gap-2">
+      <div className="w-7 h-7 rounded-full bg-[#D0E1F0] flex items-center justify-center shrink-0 overflow-hidden">
+        {showImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={userAvatar!}
+            alt={displayName}
+            className="w-full h-full object-cover"
+            onError={() => setImgFailed(true)}
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <span className="text-[11px] font-semibold text-[#3D6A95]">{initial}</span>
+        )}
       </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12px] font-medium text-[#2A2520] truncate" title={userEmail}>
+          {displayName}
+        </p>
+        <button
+          onClick={triggerSync}
+          disabled={syncing}
+          title={syncing ? "Syncing…" : "Click to sync now"}
+          className="inline-flex items-center gap-1 text-[10px] text-[#A89F92] hover:text-[#3D6A95] transition-colors disabled:cursor-wait"
+        >
+          {syncing ? (
+            <Loader2 className="w-2.5 h-2.5 animate-spin text-[#5E8FBF]" />
+          ) : (
+            <span className={`h-1 w-1 rounded-full ${syncFresh ? "bg-[#6B8E68] animate-pulse" : "bg-[#A89F92]"}`} />
+          )}
+          <span>{syncing ? "syncing…" : syncFresh ? "live" : ageLabel}</span>
+        </button>
+      </div>
+      <Link
+        href="/settings"
+        title="Settings"
+        className="text-[#A89F92] hover:text-[#2A2520] p-1 rounded transition-colors"
+      >
+        <Settings className="w-4 h-4" />
+      </Link>
     </div>
   );
 }
@@ -1307,212 +1382,6 @@ function NavItem({
   );
 }
 
-// ====== TODAY VIEW ======
-
-function TodayView({
-  briefing,
-  briefingLoading,
-  urgent,
-  awaiting,
-  following,
-  totalNeedsAttention,
-  onOpen,
-  onSetView,
-  now,
-  userEmail,
-  onOpenEmailById,
-}: {
-  briefing: string | null;
-  briefingLoading: boolean;
-  urgent: Classified[];
-  awaiting: Classified[];
-  following: Classified[];
-  totalNeedsAttention: number;
-  onOpen: (e: Classified) => void;
-  onSetView: (v: ViewKey) => void;
-  now: Date;
-  userEmail: string;
-  onOpenEmailById: (id: string) => void;
-}) {
-  const greeting = (() => {
-    const h = now.getHours();
-    const name = userEmail.split("@")[0].split(".")[0];
-    const cap = name ? name[0].toUpperCase() + name.slice(1) : "you";
-    if (h < 5) return `Up late, ${cap}.`;
-    if (h < 12) return `Good morning, ${cap}.`;
-    if (h < 17) return `Good afternoon, ${cap}.`;
-    if (h < 21) return `Good evening, ${cap}.`;
-    return `Late night, ${cap}.`;
-  })();
-
-  const dateLine = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-
-  return (
-    <div className="px-5 sm:px-8 lg:px-12 py-6 sm:py-8 max-w-4xl">
-      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#A89F92] mb-2">
-        {dateLine}
-      </p>
-      <h1 className="text-[32px] font-semibold tracking-tight text-[#2A2520]">{greeting}</h1>
-      <p className="mt-1 text-[14px] text-[#766E63]">
-        {totalNeedsAttention === 0
-          ? "Inbox is calm. Nothing needs you right now."
-          : totalNeedsAttention === 1
-            ? "One thing needs your attention."
-            : `${totalNeedsAttention} things need your attention.`}
-      </p>
-
-      {/* Coming up — calendar awareness */}
-      <div className="mt-6">
-        <ComingUp onOpenEmail={onOpenEmailById} />
-      </div>
-
-      {/* Briefing card */}
-      <Card className="mt-6">
-        <div className="flex items-start gap-3 p-5">
-          <div className="w-7 h-7 rounded-md bg-[#D0E1F0] flex items-center justify-center shrink-0">
-            <Sparkles className="w-3.5 h-3.5 text-[#3D6A95]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-1.5">
-              Oushi briefing
-            </p>
-            {briefingLoading ? (
-              <div className="space-y-1.5">
-                <div className="h-3 w-full rounded bg-[#F0E9D6] animate-pulse" />
-                <div className="h-3 w-5/6 rounded bg-[#F0E9D6] animate-pulse" />
-                <div className="h-3 w-2/3 rounded bg-[#F0E9D6] animate-pulse" />
-              </div>
-            ) : (
-              <p className="text-[14px] leading-[1.6] text-[#2A2520]">
-                {briefing || <span className="italic text-[#A89F92]">Briefing unavailable.</span>}
-              </p>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      {/* Stat strip */}
-      {totalNeedsAttention > 0 && (
-        <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
-          <StatTile
-            label="Urgent"
-            count={urgent.length}
-            tone="terracotta"
-            icon={<AlertCircle className="w-3.5 h-3.5" />}
-            onClick={() => onSetView({ type: "urgent" })}
-          />
-          <StatTile
-            label="Awaiting reply"
-            count={awaiting.length}
-            tone="sky"
-            icon={<CornerDownLeft className="w-3.5 h-3.5" />}
-            onClick={() => onSetView({ type: "awaiting" })}
-          />
-          <StatTile
-            label="Following up"
-            count={following.length}
-            tone="ink"
-            icon={<Clock className="w-3.5 h-3.5" />}
-            onClick={() => onSetView({ type: "following" })}
-          />
-        </div>
-      )}
-
-      {/* Quick triage */}
-      {urgent.length > 0 && (
-        <PreviewBlock title="Urgent" emails={urgent.slice(0, 4)} onOpen={onOpen} onSeeAll={() => onSetView({ type: "urgent" })} fullCount={urgent.length} now={now} />
-      )}
-      {awaiting.length > 0 && (
-        <PreviewBlock title="Awaiting your reply" emails={awaiting.slice(0, 4)} onOpen={onOpen} onSeeAll={() => onSetView({ type: "awaiting" })} fullCount={awaiting.length} now={now} />
-      )}
-      {following.length > 0 && (
-        <PreviewBlock title="Following up" emails={following.slice(0, 4)} onOpen={onOpen} onSeeAll={() => onSetView({ type: "following" })} fullCount={following.length} now={now} />
-      )}
-
-      {totalNeedsAttention === 0 && (
-        <Card className="mt-6">
-          <div className="px-5 py-10 text-center">
-            <div className="w-10 h-10 mx-auto rounded-full bg-[#E8EFE5] flex items-center justify-center mb-3">
-              <Check className="w-4 h-4 text-[#6B8E68]" />
-            </div>
-            <p className="text-[14px] font-medium text-[#2A2520]">All clear</p>
-            <p className="mt-1 text-[13px] text-[#766E63]">Nothing urgent. Oushi is watching the inbox.</p>
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-function StatTile({
-  label,
-  count,
-  tone,
-  icon,
-  onClick,
-}: {
-  label: string;
-  count: number;
-  tone: "terracotta" | "sky" | "ink";
-  icon: React.ReactNode;
-  onClick: () => void;
-}) {
-  const toneStyle = tone === "terracotta"
-    ? { text: "text-[#B86B4A]", bg: "bg-[#F5E8E0]/40", border: "border-[#B86B4A]/15", iconBg: "bg-[#F5E8E0]" }
-    : tone === "ink"
-      ? { text: "text-[#3D6A95]", bg: "bg-[#D0E1F0]/30", border: "border-[#3D6A95]/15", iconBg: "bg-[#D0E1F0]" }
-      : { text: "text-[#5E8FBF]", bg: "bg-[#D0E1F0]/30", border: "border-[#5E8FBF]/15", iconBg: "bg-[#D0E1F0]" };
-  return (
-    <button
-      onClick={onClick}
-      className={`text-left rounded-lg border ${toneStyle.border} ${toneStyle.bg} px-3 sm:px-4 py-2.5 sm:py-3 transition-all hover:shadow-sm hover:scale-[1.01]`}
-    >
-      <div className="flex items-center justify-between mb-1">
-        <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md ${toneStyle.iconBg} flex items-center justify-center ${toneStyle.text}`}>
-          {icon}
-        </div>
-        <span className={`text-[18px] sm:text-[22px] font-semibold tabular-nums ${toneStyle.text}`}>{count}</span>
-      </div>
-      <p className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.1em] text-[#766E63]">{label}</p>
-    </button>
-  );
-}
-
-function PreviewBlock({
-  title,
-  emails,
-  onOpen,
-  onSeeAll,
-  fullCount,
-  now,
-}: {
-  title: string;
-  emails: Classified[];
-  onOpen: (e: Classified) => void;
-  onSeeAll: () => void;
-  fullCount: number;
-  now: Date;
-}) {
-  return (
-    <div className="mt-8">
-      <div className="flex items-baseline justify-between mb-3 px-1">
-        <h2 className="text-[13px] font-semibold text-[#2A2520]">{title}</h2>
-        {fullCount > emails.length && (
-          <button onClick={onSeeAll} className="text-[11px] font-medium text-[#5E8FBF] hover:text-[#3D6A95] transition-colors">
-            View all {fullCount} →
-          </button>
-        )}
-      </div>
-      <Card>
-        <div className="divide-y divide-[#E6DCC4]/60">
-          {emails.map((e) => (
-            <EmailRow key={e.id} email={e} now={now} onOpen={onOpen} />
-          ))}
-        </div>
-      </Card>
-    </div>
-  );
-}
 
 // ====== LIST VIEW ======
 
@@ -1550,9 +1419,12 @@ function ListView({
       <p className="text-[13px] text-[#766E63] mb-6 ml-10">{subtitle}</p>
 
       {emails.length === 0 ? (
-        <Card>
-          <div className="px-5 py-12 text-center text-[#A89F92] text-[13px]">{emptyMessage}</div>
-        </Card>
+        <FeedbackEmptyState
+          icon={Inbox}
+          tone="sage"
+          title={emptyMessage}
+          body="Oushi is watching the inbox. I'll surface anything new in this view as it comes."
+        />
       ) : (
         <Card>
           <div className="divide-y divide-[#E6DCC4]/60">
@@ -1923,6 +1795,97 @@ function AddTopicModal({
 
 // ====== EMAIL PANEL (side panel desktop, modal mobile) ======
 
+/**
+ * Renders the email's ai-suggested next action as an actual button.
+ * The model marks each email with a `suggested_action` of a known type;
+ * we map that type to a real handler.
+ */
+function SuggestedActionButton({
+  action,
+  onOpenDraft,
+  onSaveToCal,
+  onDismiss,
+  gmailUrl,
+}: {
+  action: {
+    label: string;
+    type: "reply" | "calendar" | "save" | "open" | "ignore";
+    detail: string | null;
+  };
+  onOpenDraft: () => void;
+  onSaveToCal: () => void;
+  onDismiss: () => void;
+  gmailUrl: string | null;
+}) {
+  const handle = () => {
+    switch (action.type) {
+      case "reply":
+        onOpenDraft();
+        break;
+      case "calendar":
+        onSaveToCal();
+        break;
+      case "open":
+        if (gmailUrl) window.open(gmailUrl, "_blank", "noopener,noreferrer");
+        break;
+      case "ignore":
+        onDismiss();
+        break;
+      case "save":
+      default:
+        // No-op for now — save isn't implemented as a separate action yet
+        break;
+    }
+  };
+
+  // Pick icon based on type
+  const Icon =
+    action.type === "reply" ? Sparkles :
+    action.type === "calendar" ? Calendar :
+    action.type === "ignore" ? Archive :
+    action.type === "open" ? ExternalLink :
+    Sparkles;
+
+  return (
+    <button
+      onClick={handle}
+      className="w-full mb-5 group flex items-center gap-3 rounded-xl border border-[#5E8FBF]/30 bg-[#FFFCF3] hover:bg-[#D0E1F0]/20 hover:border-[#5E8FBF]/60 px-3.5 py-2.5 text-left transition-all"
+    >
+      <div className="w-8 h-8 rounded-lg bg-[#D0E1F0] flex items-center justify-center shrink-0 group-hover:bg-[#5E8FBF] group-hover:text-white transition-colors">
+        <Icon className="w-3.5 h-3.5 text-[#3D6A95] group-hover:text-white" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-semibold text-[#2A2520]">{action.label}</p>
+        {action.detail && (
+          <p className="text-[11.5px] text-[#766E63] truncate">{action.detail}</p>
+        )}
+      </div>
+      <ArrowRight className="w-3.5 h-3.5 text-[#A89F92] group-hover:text-[#3D6A95] transition-colors shrink-0" />
+    </button>
+  );
+}
+
+/**
+ * Inline score chip with a tone label — "87 · Critical", "62 · Useful", etc.
+ * Replaces the orphaned floating score badge in the email modal header.
+ */
+function ScorePill({ score }: { score: number }) {
+  const shade = scoreShade(score);
+  const label =
+    score >= 75 ? "Critical" : score >= 40 ? "Useful" : score >= 20 ? "Low" : "Noise";
+  return (
+    <span
+      className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md ${shade.bg} ${shade.text} text-[10.5px] font-semibold ring-1 ${shade.ring}`}
+      title={`Oushi score · ${score} of 100`}
+    >
+      <span className="font-mono tabular-nums">{score}</span>
+      <span className="text-[9px] font-medium uppercase tracking-wider opacity-70">
+        {label}
+      </span>
+    </span>
+  );
+}
+
 function FeedbackButtons({
   emailId,
   onFeedback,
@@ -2161,7 +2124,7 @@ function EmailPanel({
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto">
           <div className="px-6 py-5">
-            {/* Sender */}
+            {/* Sender + score */}
             <div className="flex items-center gap-3 mb-4">
               <div className="w-9 h-9 rounded-full bg-[#D0E1F0] flex items-center justify-center shrink-0">
                 <span className="text-[14px] font-semibold text-[#3D6A95]">
@@ -2169,11 +2132,15 @@ function EmailPanel({
                 </span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold text-[#2A2520] truncate">{email.from_name || email.from_email}</p>
-                <p className="text-[12px] text-[#766E63] truncate font-mono">{email.from_email}</p>
-              </div>
-              <div className={`px-2 py-1 rounded-md ${scoreShade(email.score).bg} ${scoreShade(email.score).text} text-[11px] font-semibold`}>
-                {email.score}
+                <div className="flex items-center gap-2">
+                  <p className="text-[14px] font-semibold text-[#2A2520] truncate">
+                    {email.from_name || email.from_email}
+                  </p>
+                  <ScorePill score={email.score} />
+                </div>
+                <p className="text-[12px] text-[#766E63] truncate font-mono" title={email.from_email}>
+                  {email.from_email}
+                </p>
               </div>
             </div>
 
@@ -2183,7 +2150,7 @@ function EmailPanel({
 
             {/* Oushi summary — only if there's a highlight */}
             {email.highlight && (
-              <div className="mb-6 rounded-xl border border-[#5E8FBF]/25 bg-[#D0E1F0]/20 px-4 py-3.5">
+              <div className="mb-4 rounded-xl border border-[#5E8FBF]/25 bg-[#D0E1F0]/20 px-4 py-3.5">
                 <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-2 inline-flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3" /> Oushi
                 </p>
@@ -2191,6 +2158,17 @@ function EmailPanel({
                   {email.highlight}
                 </p>
               </div>
+            )}
+
+            {/* Suggested action — turns the AI's "Try X" hint into a real button */}
+            {email.suggested_action && email.suggested_action.label && (
+              <SuggestedActionButton
+                action={email.suggested_action}
+                onOpenDraft={requestDraft}
+                onSaveToCal={saveToCal}
+                onDismiss={() => { onDismiss(email.id); onClose(); }}
+                gmailUrl={gmailUrl}
+              />
             )}
 
             {/* Attachments — extracted text. For transactional emails this is

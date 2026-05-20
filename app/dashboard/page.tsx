@@ -79,6 +79,8 @@ export default async function DashboardPage({
       hasGmail={!!tokens}
       isFirstSync={isFirstSync}
       userEmail={user.email || ""}
+      userAvatar={(user.user_metadata?.avatar_url as string | undefined) || null}
+      userName={(user.user_metadata?.full_name as string | undefined) || (user.user_metadata?.name as string | undefined) || null}
       profile={{
         bio: profile.bio || "",
         interests: profile.interests || [],

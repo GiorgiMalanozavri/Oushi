@@ -14,6 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SkeletonList, EmptyState, ErrorPanel } from "@/components/feedback";
+import { useToast } from "@/components/toast";
 
 interface TodayItem {
   id: string;
@@ -361,10 +362,20 @@ function SourceChip({ label, connected }: { label: string; connected: boolean })
 
 function ComingSoonChip({ label }: { label: string }) {
   return (
+    <ComingSoonChipInteractive label={label} />
+  );
+}
+
+function ComingSoonChipInteractive({ label }: { label: string }) {
+  const toast = useToast();
+  return (
     <button
-      onClick={() => {
-        /* TODO: open integrations modal */
-      }}
+      onClick={() =>
+        toast.info(`${label} coming soon`, {
+          detail: "I'll let you know the moment it lands. Promise.",
+        })
+      }
+      title={`${label} integration — coming soon`}
       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-dashed border-[#E6DCC4] bg-[#FFFCF3]/40 text-[11.5px] text-[#A89F92] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-all"
     >
       <Plus className="w-2.5 h-2.5" strokeWidth={2.5} />
