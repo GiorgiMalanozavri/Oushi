@@ -11,6 +11,7 @@ import {
   Mail,
   Bell,
   BellRing,
+  Tag,
   User,
   VolumeX,
   LogOut,
@@ -27,6 +28,7 @@ import {
   ShieldAlert,
   Send,
   Menu,
+  Loader2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { OushiMark } from "@/components/oushi-mark";
@@ -78,7 +80,7 @@ interface SettingsClientProps {
   memories: Memory[];
 }
 
-type SettingsSection = "profile" | "voice" | "memory" | "briefing" | "notifications" | "filters" | "account";
+type SettingsSection = "profile" | "voice" | "memory" | "briefing" | "notifications" | "labels" | "filters" | "account";
 
 const KIND_LABELS: Record<MemoryKind, string> = {
   person: "People",
@@ -318,6 +320,7 @@ export function SettingsClient({
     { key: "memory", label: "Memory", icon: <BrainCircuit className="w-3.5 h-3.5" />, description: "What Oushi remembers" },
     { key: "briefing", label: "Daily briefing", icon: <Bell className="w-3.5 h-3.5" />, description: "Morning digest settings" },
     { key: "notifications", label: "Push notifications", icon: <BellRing className="w-3.5 h-3.5" />, description: "Nudges so you don't forget" },
+    { key: "labels", label: "Gmail labels", icon: <Tag className="w-3.5 h-3.5" />, description: "Auto-organize your Gmail" },
     { key: "filters", label: "Filters", icon: <VolumeX className="w-3.5 h-3.5" />, description: "Muted senders & domains" },
     { key: "account", label: "Account & data", icon: <Mail className="w-3.5 h-3.5" />, description: "Gmail, exports, delete" },
   ];
@@ -463,6 +466,8 @@ export function SettingsClient({
           )}
 
           {section === "notifications" && <NotificationsSection />}
+
+          {section === "labels" && <LabelsSection />}
 
           {section === "filters" && (
             <FiltersSection mutes={mutes} onRemove={handleRemoveMute} />
@@ -1244,6 +1249,173 @@ function NotificationsSection() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ===== GMAIL LABELS SECTION =====
+
+const LABEL_PALETTE = [
+  { name: "Respond", color: "#cc3a21", text: "#fff" },
+  { name: "Awaiting reply", color: "#eaa041", text: "#fff" },
+  { name: "Follow up", color: "#3c78d8", text: "#fff" },
+  { name: "Meeting", color: "#8e63ce", text: "#fff" },
+  { name: "Receipt", color: "#149e60", text: "#fff" },
+  { name: "FYI", color: "#cccccc", text: "#000" },
+  { name: "Marketing", color: "#fbc8d9", text: "#000" },
+];
+
+function LabelsSection() {
+  const [busy, setBusy] = useState<null | "apply" | "reset">(null);
+  const [result, setResult] = useState<null | {
+    scanned: number;
+    applied: number;
+    breakdown: Record<string, number>;
+  }>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const apply = async () => {
+    setBusy("apply");
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch("/api/labels/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: 14 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Couldn't apply labels");
+      } else {
+        setResult({
+          scanned: data.scanned || 0,
+          applied: data.applied || 0,
+          breakdown: data.breakdown || {},
+        });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const reset = async () => {
+    if (!confirm("Remove all Oushi labels from Gmail? This will delete the Oushi/* labels and un-label all messages.")) return;
+    setBusy("reset");
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch("/api/labels/reset", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Reset failed");
+      } else {
+        setResult({ scanned: 0, applied: 0, breakdown: {} });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div>
+      <SectionHeader
+        title="Gmail labels"
+        description="Oushi categorizes every email and adds a colored label in your Gmail sidebar — so your inbox stays organized even when you're not in Oushi."
+      />
+
+      {/* Preview of the label set */}
+      <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] p-4 mb-5">
+        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#A89F92] mb-3">
+          The categories
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {LABEL_PALETTE.map((l, i) => (
+            <span
+              key={l.name}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11.5px] font-medium"
+              style={{ backgroundColor: l.color, color: l.text }}
+            >
+              <span className="font-mono opacity-70">{i + 1}</span>
+              {l.name}
+            </span>
+          ))}
+        </div>
+        <p className="text-[11.5px] text-[#766E63] mt-3 leading-relaxed">
+          Oushi picks the single best category for each email. Updates as the
+          state changes — e.g., once you reply, the Respond label is removed.
+        </p>
+      </div>
+
+      {/* Apply button */}
+      <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] p-4 mb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium text-[#2A2520]">
+              Apply labels to my last 2 weeks of email
+            </p>
+            <p className="text-[11.5px] text-[#766E63] mt-1 leading-relaxed">
+              Creates the labels in your Gmail and tags every email from the
+              last 14 days. From then on, new emails are auto-labeled as Oushi
+              ranks them.
+            </p>
+          </div>
+          <button
+            onClick={apply}
+            disabled={busy !== null}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] text-white text-[12.5px] font-medium shadow-sm hover:shadow-md transition-all disabled:opacity-60"
+          >
+            {busy === "apply" ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5" />
+            )}
+            {busy === "apply" ? "Labeling…" : "Apply labels"}
+          </button>
+        </div>
+      </div>
+
+      {result && result.scanned > 0 && (
+        <div className="rounded-lg border border-[#6B8E68]/30 bg-[#E8EFE5]/40 px-4 py-3 mb-3">
+          <p className="text-[12.5px] font-medium text-[#4F6B4D]">
+            Labeled {result.applied} of {result.scanned} emails.
+          </p>
+          {Object.keys(result.breakdown).length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {Object.entries(result.breakdown)
+                .filter(([k]) => k !== "no_label")
+                .sort((a, b) => b[1] - a[1])
+                .map(([k, n]) => (
+                  <span
+                    key={k}
+                    className="text-[10.5px] font-mono uppercase tracking-wider text-[#4F6B4D] bg-white/60 px-1.5 py-0.5 rounded"
+                  >
+                    {k} {n}
+                  </span>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-[#B86B4A]/30 bg-[#F5E8E0]/40 px-4 py-3 mb-3 text-[12.5px] text-[#B86B4A]">
+          {error}
+        </div>
+      )}
+
+      {/* Reset */}
+      <button
+        onClick={reset}
+        disabled={busy !== null}
+        className="text-[11.5px] text-[#A89F92] hover:text-[#B86B4A] transition-colors disabled:opacity-50"
+      >
+        {busy === "reset" ? "Resetting…" : "Remove all Oushi labels from Gmail"}
+      </button>
     </div>
   );
 }

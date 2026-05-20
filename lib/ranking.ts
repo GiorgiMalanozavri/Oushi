@@ -1,4 +1,9 @@
 import { createAnthropicClient, extractJson } from "@/lib/claude";
+import {
+  applyLabelsBatch,
+  computeLabelForEmail,
+  type OushiLabelKey,
+} from "@/lib/gmail-labels";
 import { createServiceClient } from "@/lib/supabase/server";
 import { prefilter } from "@/lib/prefilter";
 import {
@@ -385,6 +390,45 @@ export async function rankUnrankedEmails(userId: string) {
       }
     }
     await Promise.all(writeOps);
+  }
+
+  // Auto-apply Gmail labels for users who've opted in. Best-effort —
+  // never blocks the rank from returning. We re-fetch the freshly ranked
+  // rows because we need user_replied / is_unread / is_read / score for
+  // the classifier, and the prefiltered + Claude-ranked sets have only
+  // partial views.
+  try {
+    const { data: optIn } = await supabase
+      .from("user_sync_state")
+      .select("gmail_labels_enabled")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (optIn?.gmail_labels_enabled) {
+      const allRankedIds = [
+        ...prefiltered.map((r) => r.id),
+        ...needsClaude.map((e) => e.id),
+      ];
+      if (allRankedIds.length > 0) {
+        const { data: freshRows } = await supabase
+          .from("emails")
+          .select("*")
+          .in("id", allRankedIds);
+        if (freshRows && freshRows.length > 0) {
+          const decisions: Array<{ gmailMessageId: string; labelKey: OushiLabelKey | null }> = [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          for (const row of freshRows as any[]) {
+            if (!row.gmail_message_id) continue;
+            decisions.push({
+              gmailMessageId: row.gmail_message_id,
+              labelKey: computeLabelForEmail(row),
+            });
+          }
+          await applyLabelsBatch(userId, decisions);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("[ranking] gmail label apply failed", e instanceof Error ? e.message : e);
   }
 
   return ranked;
