@@ -29,10 +29,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // for a full first-time apply on ~200 ambiguous emails.
 const EMAILS_PER_BATCH = 10;
 const MAX_PARALLEL_BATCHES = 4;
-// Hard ceiling per pipeline invocation to bound cost on a power user with
+// Default per-invocation ceiling to bound cost on a power user with
 // thousands of new emails in a single rank. Excess emails fall back to
 // the heuristic (which means "communication" → state logic).
-const MAX_PER_INVOCATION = 50;
+//
+// Callers can pass a higher ceiling for one-time backfills — /api/labels/apply
+// uses ~200 so the first run on a 30-day window LLM-classifies the whole
+// ambiguous set in one shot. /api/rank uses the default because it only
+// sees new emails since the last sync.
+export const DEFAULT_MAX_PER_INVOCATION = 50;
 
 const VALID_LABELS: Set<string> = new Set(CONTENT_LABELS);
 
@@ -281,11 +286,11 @@ async function enrichContext(
  */
 export async function classifyAmbiguousEmails(
   emails: EmailRow[],
-  userId?: string
+  userId?: string,
+  options: { maxPerInvocation?: number } = {}
 ): Promise<Map<string, ContentLabel>> {
-  const candidates = emails
-    .filter(needsLlmClassification)
-    .slice(0, MAX_PER_INVOCATION);
+  const cap = Math.max(1, options.maxPerInvocation ?? DEFAULT_MAX_PER_INVOCATION);
+  const candidates = emails.filter(needsLlmClassification).slice(0, cap);
   if (candidates.length === 0) return new Map();
 
   const service = await createServiceClient();

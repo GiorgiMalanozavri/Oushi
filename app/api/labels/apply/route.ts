@@ -36,7 +36,10 @@ export const dynamic = "force-dynamic";
  *     { phase: "done", scanned, applied, cleared, breakdown }
  *     { phase: "error", message }
  *
- *   Body: { days?: number } — default 14, capped at 60
+ *   Body: { days?: number } — default 30, capped 7–60. Explicit body
+ *   value overrides user_sync_state.gmail_labels_window_days; both are
+ *   persisted so subsequent applies (and the stale-self-heal in rank)
+ *   read the same number.
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -59,8 +62,20 @@ export async function POST(request: Request) {
     );
   }
 
+  // Resolve the window: explicit body.days > stored user preference > default 30.
   const body = await request.json().catch(() => ({}));
-  const days = Math.max(1, Math.min(60, Number(body?.days) || 14));
+  const bodyDays = Number(body?.days);
+  const serviceForRead = await createServiceClient();
+  const { data: existingPref } = await serviceForRead
+    .from("user_sync_state")
+    .select("gmail_labels_window_days")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const rawDays =
+    Number.isFinite(bodyDays) && bodyDays > 0
+      ? bodyDays
+      : existingPref?.gmail_labels_window_days || 30;
+  const days = Math.max(7, Math.min(60, rawDays));
 
   const encoder = new TextEncoder();
   const userId = user.id;
@@ -144,11 +159,18 @@ export async function POST(request: Request) {
         //    verdicts to emails.gmail_label_llm_key and returns a map
         //    we merge into the in-memory rows so step 5's classifier
         //    sees them without a re-fetch.
+        //
+        //    We lift the per-invocation LLM cap to 200 here (vs the 50
+        //    default used by /api/rank) because this is a one-time
+        //    backfill — the user clicked the button expecting the whole
+        //    ambiguous set to be looked at. Cost ceiling: ~$0.10 one-time.
         const llmCandidates = (emails as EmailRow[]).filter(needsLlmClassification);
         if (llmCandidates.length > 0) {
           send({ phase: "llm_classifying", count: llmCandidates.length });
           try {
-            const llmMap = await classifyAmbiguousEmails(llmCandidates, userId);
+            const llmMap = await classifyAmbiguousEmails(llmCandidates, userId, {
+              maxPerInvocation: 200,
+            });
             if (llmMap.size > 0) mergeLlmLabels(emails as EmailRow[], llmMap);
           } catch (e) {
             // Best-effort. Fall through to heuristic default.
@@ -188,7 +210,9 @@ export async function POST(request: Request) {
           send(event);
         });
 
-        // 6. Mark the user as opted-in so future syncs auto-label
+        // 6. Mark the user as opted-in so future syncs auto-label,
+        //    and persist the chosen window so the rank self-heal pass
+        //    reads the same number.
         await service
           .from("user_sync_state")
           .upsert(
@@ -196,6 +220,7 @@ export async function POST(request: Request) {
               user_id: userId,
               gmail_labels_enabled: true,
               gmail_labels_last_applied_at: new Date().toISOString(),
+              gmail_labels_window_days: days,
             },
             { onConflict: "user_id" }
           );

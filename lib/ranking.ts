@@ -409,10 +409,18 @@ export async function rankUnrankedEmails(userId: string) {
   try {
     const { data: optIn } = await supabase
       .from("user_sync_state")
-      .select("gmail_labels_enabled")
+      .select("gmail_labels_enabled, gmail_labels_window_days")
       .eq("user_id", userId)
       .maybeSingle();
     if (optIn?.gmail_labels_enabled) {
+      // Self-heal window must match the apply backfill window — otherwise
+      // any email in (windowDays-14, windowDays] gets labeled but never
+      // corrected when state changes. Clamp to the same 7–60 range the
+      // apply route enforces.
+      const windowDays = Math.max(
+        7,
+        Math.min(60, optIn.gmail_labels_window_days || 30)
+      );
       // Pre-load the user's label overrides so manual decisions win over
       // the heuristic ("user said this is a Receipt, not Respond").
       const { data: overrideRows } = await supabase
@@ -454,11 +462,13 @@ export async function rankUnrankedEmails(userId: string) {
       }
 
       // ── (b) Stale-label self-heal ────────────────────────────────────
-      // Pull every previously-labeled email in the 14-day window, then in JS
-      // find ones whose any state timestamp moved AFTER gmail_label_applied_at.
-      // The 14-day cap matches what `apply` covers; older emails get re-labeled
-      // only if the user re-runs apply.
-      const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      // Pull every previously-labeled email in the configured window,
+      // then in JS find ones whose any state timestamp moved AFTER
+      // gmail_label_applied_at. The window matches what `apply` covers;
+      // older emails get re-labeled only if the user re-runs apply.
+      const since = new Date(
+        Date.now() - windowDays * 24 * 60 * 60 * 1000
+      ).toISOString();
       const { data: maybeStale } = await supabase
         .from("emails")
         .select("*")

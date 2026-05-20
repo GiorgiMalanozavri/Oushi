@@ -1281,6 +1281,9 @@ interface ApplyProgress {
   totalToApply?: number;
 }
 
+const WINDOW_OPTIONS = [14, 30, 60] as const;
+type WindowDays = (typeof WINDOW_OPTIONS)[number];
+
 function LabelsSection() {
   const [busy, setBusy] = useState<null | "apply" | "reset">(null);
   const [result, setResult] = useState<null | {
@@ -1291,13 +1294,14 @@ function LabelsSection() {
   const [error, setError] = useState<string | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [progress, setProgress] = useState<ApplyProgress | null>(null);
+  const [windowDays, setWindowDays] = useState<WindowDays>(30);
 
   const phaseLabel = (p: ApplyProgress): string => {
     switch (p.phase) {
       case "ensuring_labels":
         return "Creating Gmail labels…";
       case "fetching":
-        return "Scanning your last 14 days…";
+        return `Scanning your last ${windowDays} days…`;
       case "fetched":
         return `Found ${p.count} emails — classifying…`;
       case "llm_classifying":
@@ -1342,7 +1346,7 @@ function LabelsSection() {
       const res = await fetch("/api/labels/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ days: 14 }),
+        body: JSON.stringify({ days: windowDays }),
       });
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => ({}));
@@ -1408,6 +1412,36 @@ function LabelsSection() {
     }
   };
 
+  // Load the user's persisted window choice so the selector reflects
+  // what's currently configured (and what the rank self-heal is using).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase
+          .from("user_sync_state")
+          .select("gmail_labels_window_days")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        const stored = data?.gmail_labels_window_days;
+        if (!cancelled && stored && WINDOW_OPTIONS.includes(stored as WindowDays)) {
+          setWindowDays(stored as WindowDays);
+        }
+      } catch {
+        // Default of 30 stays
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const windowLabel =
+    windowDays === 14 ? "2 weeks" : windowDays === 30 ? "month" : "2 months";
+
   return (
     <div>
       <SectionHeader
@@ -1444,12 +1478,13 @@ function LabelsSection() {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-[#2A2520]">
-              Apply labels to my last 2 weeks of email
+              Apply labels to my last {windowLabel} of email
             </p>
             <p className="text-[11.5px] text-[#766E63] mt-1 leading-relaxed">
               Creates the labels in your Gmail and tags every email from the
-              last 14 days. From then on, new emails are auto-labeled as Oushi
-              ranks them.
+              last {windowDays} days. From then on, new emails are auto-labeled
+              as Oushi ranks them. Older labels self-heal when you reply or
+              dismiss — across the same window.
             </p>
           </div>
           <button
@@ -1464,6 +1499,31 @@ function LabelsSection() {
             )}
             {busy === "apply" ? "Labeling…" : "Apply labels"}
           </button>
+        </div>
+
+        {/* Window selector — applies on next backfill + drives rank self-heal */}
+        <div className="mt-3 flex items-center gap-2">
+          <p className="text-[10.5px] font-medium uppercase tracking-[0.14em] text-[#A89F92]">
+            Window
+          </p>
+          <div className="inline-flex rounded-md border border-[#E6DCC4] overflow-hidden">
+            {WINDOW_OPTIONS.map((d, idx) => (
+              <button
+                key={d}
+                onClick={() => setWindowDays(d)}
+                disabled={busy !== null}
+                className={`text-[11px] px-2.5 py-1 transition-colors ${
+                  idx > 0 ? "border-l border-[#E6DCC4]" : ""
+                } ${
+                  windowDays === d
+                    ? "bg-[#3D6A95] text-white font-medium"
+                    : "bg-transparent text-[#766E63] hover:text-[#2A2520] hover:bg-[#FAF6EB]"
+                } disabled:opacity-50`}
+              >
+                {d === 14 ? "14d" : d === 30 ? "30d" : "60d"}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Progress bar */}
