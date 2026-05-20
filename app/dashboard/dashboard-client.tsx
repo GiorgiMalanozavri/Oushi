@@ -49,6 +49,14 @@ import { AskSpotlight, type ChatMessage, type AttachmentPreview } from "@/compon
 import { parsePartialAsk } from "@/lib/partial-json";
 import { PromisesView } from "@/components/promises-view";
 import { FirstSyncSplash } from "@/components/first-sync-splash";
+import { DashboardSkeleton } from "@/components/skeleton";
+import { KeyboardHelp } from "@/components/keyboard-help";
+import {
+  enableFeedbackFx,
+  fxDismiss,
+  fxNav,
+  fxComplete,
+} from "@/lib/feedback-fx";
 import { TodayOushi } from "@/components/today-oushi";
 import { useToast } from "@/components/toast";
 import { EmptyState as FeedbackEmptyState } from "@/components/feedback";
@@ -177,6 +185,23 @@ export function DashboardClient({
   const [adding, setAdding] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<Classified | null>(null);
   const [showAddTopic, setShowAddTopic] = useState(false);
+  // Keyboard-driven focus + help overlay state
+  const [focusedEmailId, setFocusedEmailId] = useState<string | null>(null);
+  const [kbdHelpOpen, setKbdHelpOpen] = useState(false);
+
+  // Unlock audio FX on the first real user interaction. Safari/iOS require
+  // a synchronous user gesture before AudioContext can resume; calling
+  // enableFeedbackFx() inside this listener is the simplest way to satisfy
+  // that across browsers. Cheap no-op after the first call.
+  useEffect(() => {
+    const onFirstInteraction = () => enableFeedbackFx();
+    window.addEventListener("pointerdown", onFirstInteraction, { once: true });
+    window.addEventListener("keydown", onFirstInteraction, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", onFirstInteraction);
+      window.removeEventListener("keydown", onFirstInteraction);
+    };
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 60_000);
@@ -528,6 +553,7 @@ export function DashboardClient({
       },
       dismiss: async (emailId) => {
         setDismissedIds((p) => new Set(p).add(emailId));
+        fxDismiss();
         await fetch("/api/email/dismiss", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -558,19 +584,234 @@ export function DashboardClient({
     setCurrentThreadId(null);
   };
 
-  // Cmd+K / Ctrl+K opens the chat
+  // Compute the list of emails the keyboard arrows navigate. Tracks the
+  // current view so J/K moves through what the user is actually looking at.
+  const navList = useMemo<Classified[]>(() => {
+    switch (view.type) {
+      case "urgent":
+        return visible.urgent;
+      case "awaiting":
+        return visible.awaiting;
+      case "following":
+        return visible.following;
+      case "reference":
+        return visible.reference;
+      case "untagged":
+        return emailsByTopic.untagged;
+      case "board": {
+        const t = topics.find((x) => x.id === view.id);
+        return (t && emailsByTopic.byTopic.get(t.name)) || [];
+      }
+      case "today":
+      default:
+        // Today view shows urgent + awaiting + following in order
+        return [...visible.urgent, ...visible.awaiting, ...visible.following];
+    }
+  }, [view, visible, emailsByTopic, topics]);
+
+  // Reset focus when the underlying list changes (view switch or list mutates)
   useEffect(() => {
+    if (!focusedEmailId) return;
+    if (!navList.some((e) => e.id === focusedEmailId)) {
+      setFocusedEmailId(null);
+    }
+  }, [navList, focusedEmailId]);
+
+  // ── Global keyboard shortcuts ────────────────────────────────────────
+  // Power-user navigation: J/K to move through the list, Enter to open,
+  // E to archive, R to draft reply, S to snooze, G+? for view jumps,
+  // ? to show help. Skip everything while the user is typing in a field.
+  useEffect(() => {
+    // "g" is a leader key — pressing it puts us in a pending state for
+    // the next 1.5s. Then "t" jumps to Today, "u" to Urgent, etc.
+    let pendingG = false;
+    let pendingGTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const isTypingTarget = (target: EventTarget | null): boolean => {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      if (target.isContentEditable) return true;
+      return false;
+    };
+
     const onKey = (e: KeyboardEvent) => {
+      // Cmd/Ctrl combos always work — they don't conflict with typing
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setAskOpen(true);
-      } else if (e.key === "Escape" && askOpen) {
-        setAskOpen(false);
+        return;
+      }
+
+      // Escape closes whatever overlay is open
+      if (e.key === "Escape") {
+        if (kbdHelpOpen) {
+          setKbdHelpOpen(false);
+          return;
+        }
+        if (askOpen) {
+          setAskOpen(false);
+          return;
+        }
+        if (selectedEmail) {
+          setSelectedEmail(null);
+          return;
+        }
+        return;
+      }
+
+      // Don't intercept while the user is typing or another modifier is held
+      if (isTypingTarget(e.target)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // "?" — help overlay (Shift+/ on most layouts)
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setKbdHelpOpen((v) => !v);
+        return;
+      }
+
+      // While the help overlay or any modal is open, suspend the rest
+      if (kbdHelpOpen || askOpen) return;
+
+      // The "g" leader for view jumps
+      if (pendingG) {
+        pendingG = false;
+        if (pendingGTimer) {
+          clearTimeout(pendingGTimer);
+          pendingGTimer = null;
+        }
+        const k = e.key.toLowerCase();
+        if (k === "t") {
+          e.preventDefault();
+          setView({ type: "today" });
+          return;
+        }
+        if (k === "u") {
+          e.preventDefault();
+          setView({ type: "urgent" });
+          return;
+        }
+        if (k === "a") {
+          e.preventDefault();
+          setView({ type: "awaiting" });
+          return;
+        }
+        if (k === "f") {
+          e.preventDefault();
+          setView({ type: "following" });
+          return;
+        }
+        if (k === "r") {
+          e.preventDefault();
+          setView({ type: "reference" });
+          return;
+        }
+        // Fall through to single-key actions if not a g-combo
+      }
+      if (e.key.toLowerCase() === "g" && !selectedEmail) {
+        pendingG = true;
+        pendingGTimer = setTimeout(() => {
+          pendingG = false;
+        }, 1500);
+        return;
+      }
+
+      // Single-key actions — most affect the focused or modal-open email.
+      const activeId = selectedEmail?.id || focusedEmailId;
+      const activeEmail = selectedEmail
+        ? selectedEmail
+        : navList.find((x) => x.id === focusedEmailId) || null;
+
+      const key = e.key.toLowerCase();
+
+      // J / Down — next in list
+      if (key === "j" || e.key === "ArrowDown") {
+        if (navList.length === 0) return;
+        e.preventDefault();
+        const idx = focusedEmailId
+          ? navList.findIndex((x) => x.id === focusedEmailId)
+          : -1;
+        const next = navList[Math.min(idx + 1, navList.length - 1)] || navList[0];
+        if (next) {
+          setFocusedEmailId(next.id);
+          fxNav();
+          // Scroll the focused row into view if possible
+          requestAnimationFrame(() => {
+            document
+              .getElementById(`email-row-${next.id}`)
+              ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          });
+        }
+        return;
+      }
+      // K / Up — previous in list
+      if (key === "k" || e.key === "ArrowUp") {
+        if (navList.length === 0) return;
+        e.preventDefault();
+        const idx = focusedEmailId
+          ? navList.findIndex((x) => x.id === focusedEmailId)
+          : 1;
+        const prev = navList[Math.max(idx - 1, 0)] || navList[0];
+        if (prev) {
+          setFocusedEmailId(prev.id);
+          fxNav();
+          requestAnimationFrame(() => {
+            document
+              .getElementById(`email-row-${prev.id}`)
+              ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          });
+        }
+        return;
+      }
+
+      // Enter — open focused
+      if (e.key === "Enter" && activeEmail && !selectedEmail) {
+        e.preventDefault();
+        setSelectedEmail(activeEmail);
+        return;
+      }
+
+      // E — archive
+      if (key === "e" && activeId && actionCtx.dismiss) {
+        e.preventDefault();
+        actionCtx.dismiss(activeId);
+        // Close the modal if we dismissed the currently-open email
+        if (selectedEmail?.id === activeId) setSelectedEmail(null);
+        // Advance focus to the next row in the list
+        if (!selectedEmail) {
+          const idx = navList.findIndex((x) => x.id === activeId);
+          const next = navList[idx + 1] || navList[idx - 1] || null;
+          setFocusedEmailId(next ? next.id : null);
+        }
+        return;
+      }
+
+      // R — open + draft reply
+      if (key === "r" && activeEmail) {
+        e.preventDefault();
+        if (!selectedEmail) setSelectedEmail(activeEmail);
+        // The modal auto-opens; drafting is the next action the user
+        // would take. We don't force-trigger draft from out here — the
+        // modal exposes the Draft button big and obvious — but opening
+        // the modal puts the user one click away.
+        return;
       }
     };
+
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [askOpen]);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (pendingGTimer) clearTimeout(pendingGTimer);
+    };
+  }, [
+    askOpen,
+    kbdHelpOpen,
+    selectedEmail,
+    focusedEmailId,
+    navList,
+    actionCtx,
+  ]);
 
   const triggerRematch = async () => {
     setRematching(true);
@@ -650,14 +891,7 @@ export function DashboardClient({
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#FAF6EB] text-[#2A2520] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 mx-auto rounded-full border-2 border-[#5E8FBF]/30 border-t-[#5E8FBF] animate-spin mb-4" />
-          <p className="text-[13px] text-[#766E63]">Reading your inbox…</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   // ===== Main =====
@@ -740,15 +974,25 @@ export function DashboardClient({
 
         {/* Floating Ask Oushi pill — Spotlight-style search trigger */}
         {!askOpen && (
-          <button
-            onClick={() => setAskOpen(true)}
-            className="fixed top-3 right-3 z-30 group flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-full bg-[#FFFCF3]/90 backdrop-blur-md border border-[#E6DCC4] hover:border-[#5E8FBF] text-[#766E63] hover:text-[#3D6A95] shadow-[0_4px_24px_-4px_rgba(42,37,32,0.12)] hover:shadow-[0_8px_32px_-4px_rgba(94,143,191,0.25)] transition-all"
-            title="Ask Oushi (⌘K)"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#5E8FBF]" />
-            <span className="text-[13px] font-medium">Ask Oushi anything</span>
-            <kbd className="text-[10px] font-mono text-[#A89F92] bg-[#FAF6EB] rounded px-1.5 py-0.5 border border-[#E6DCC4] group-hover:border-[#5E8FBF]/30">⌘K</kbd>
-          </button>
+          <div className="fixed top-3 right-3 z-30 flex items-center gap-2">
+            <button
+              onClick={() => setAskOpen(true)}
+              className="group flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-full bg-[#FFFCF3]/90 backdrop-blur-md border border-[#E6DCC4] hover:border-[#5E8FBF] text-[#766E63] hover:text-[#3D6A95] shadow-[0_4px_24px_-4px_rgba(42,37,32,0.12)] hover:shadow-[0_8px_32px_-4px_rgba(94,143,191,0.25)] transition-all"
+              title="Ask Oushi (⌘K)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#5E8FBF]" />
+              <span className="text-[13px] font-medium">Ask Oushi anything</span>
+              <kbd className="text-[10px] font-mono text-[#A89F92] bg-[#FAF6EB] rounded px-1.5 py-0.5 border border-[#E6DCC4] group-hover:border-[#5E8FBF]/30">⌘K</kbd>
+            </button>
+            <button
+              onClick={() => setKbdHelpOpen(true)}
+              title="Keyboard shortcuts (?)"
+              className="w-7 h-7 rounded-full bg-[#FFFCF3]/90 backdrop-blur-md border border-[#E6DCC4] hover:border-[#5E8FBF] text-[#A89F92] hover:text-[#3D6A95] text-[12.5px] font-mono shadow-[0_4px_24px_-4px_rgba(42,37,32,0.12)] flex items-center justify-center transition-all"
+              aria-label="Keyboard shortcuts"
+            >
+              ?
+            </button>
+          </div>
         )}
 
         {/* Mobile-only top bar (when sidebar is closed) — gives breathing room for the floating menu button */}
@@ -801,6 +1045,7 @@ export function DashboardClient({
               onOpen={setSelectedEmail}
               now={now}
               emptyMessage="Nothing urgent. Nice."
+              focusedEmailId={focusedEmailId}
             />
           )}
           {view.type === "awaiting" && (
@@ -813,6 +1058,7 @@ export function DashboardClient({
               onOpen={setSelectedEmail}
               now={now}
               emptyMessage="No replies pending."
+              focusedEmailId={focusedEmailId}
             />
           )}
           {view.type === "following" && (
@@ -825,6 +1071,7 @@ export function DashboardClient({
               onOpen={setSelectedEmail}
               now={now}
               emptyMessage="No threads need a nudge."
+              focusedEmailId={focusedEmailId}
             />
           )}
           {view.type === "reference" && (
@@ -837,6 +1084,7 @@ export function DashboardClient({
               onOpen={setSelectedEmail}
               now={now}
               emptyMessage="Nothing saved yet."
+              focusedEmailId={focusedEmailId}
             />
           )}
           {view.type === "untagged" && (
@@ -849,6 +1097,7 @@ export function DashboardClient({
               onOpen={setSelectedEmail}
               now={now}
               emptyMessage="Everything is sorted."
+              focusedEmailId={focusedEmailId}
             />
           )}
           {view.type === "promises" && <PromisesView />}
@@ -865,6 +1114,7 @@ export function DashboardClient({
                 onRematch={triggerRematch}
                 rematching={rematching}
                 now={now}
+                focusedEmailId={focusedEmailId}
               />
             );
           })()}
@@ -909,6 +1159,9 @@ export function DashboardClient({
           now={now}
         />
       </ErrorBoundary>
+
+      {/* Keyboard shortcut help — opens with "?" */}
+      <KeyboardHelp open={kbdHelpOpen} onClose={() => setKbdHelpOpen(false)} />
 
       {totalEmails === 0 && view.type === "today" && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -1401,6 +1654,7 @@ function ListView({
   onOpen,
   now,
   emptyMessage,
+  focusedEmailId,
 }: {
   title: string;
   subtitle: string;
@@ -1410,6 +1664,7 @@ function ListView({
   onOpen: (e: Classified) => void;
   now: Date;
   emptyMessage: string;
+  focusedEmailId?: string | null;
 }) {
   const accentText = accent === "terracotta" ? "text-[#B86B4A]" : accent === "ink" ? "text-[#3D6A95]" : accent === "sky" ? "text-[#5E8FBF]" : "text-[#766E63]";
   const accentBg = accent === "terracotta" ? "bg-[#F5E8E0]" : accent === "muted" ? "bg-[#F0E9D6]" : "bg-[#D0E1F0]";
@@ -1436,7 +1691,13 @@ function ListView({
         <Card>
           <div className="divide-y divide-[#E6DCC4]/60">
             {emails.map((e) => (
-              <EmailRow key={e.id} email={e} now={now} onOpen={onOpen} />
+              <EmailRow
+                key={e.id}
+                email={e}
+                now={now}
+                onOpen={onOpen}
+                focused={focusedEmailId === e.id}
+              />
             ))}
           </div>
         </Card>
@@ -1456,6 +1717,7 @@ function BoardView({
   onRematch,
   rematching,
   now,
+  focusedEmailId,
 }: {
   topic: Topic;
   emails: Classified[];
@@ -1465,6 +1727,7 @@ function BoardView({
   onRematch: () => void;
   rematching: boolean;
   now: Date;
+  focusedEmailId?: string | null;
 }) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(topic.name);
@@ -1546,7 +1809,13 @@ function BoardView({
           <Card>
             <div className="divide-y divide-[#E6DCC4]/60">
               {emails.map((e) => (
-                <EmailRow key={e.id} email={e} now={now} onOpen={onOpen} />
+                <EmailRow
+                  key={e.id}
+                  email={e}
+                  now={now}
+                  onOpen={onOpen}
+                  focused={focusedEmailId === e.id}
+                />
               ))}
             </div>
           </Card>
@@ -1562,10 +1831,13 @@ function EmailRow({
   email,
   now,
   onOpen,
+  focused = false,
 }: {
   email: Classified;
   now: Date;
   onOpen: (e: Classified) => void;
+  /** Highlighted because the keyboard cursor (J/K) is on this row */
+  focused?: boolean;
 }) {
   const ageText = ageString(email.received_at, now);
   const score = scoreShade(email.score);
@@ -1587,6 +1859,7 @@ function EmailRow({
 
   return (
     <div
+      id={`email-row-${email.id}`}
       role="button"
       tabIndex={0}
       onClick={() => onOpen(email)}
@@ -1596,7 +1869,11 @@ function EmailRow({
           onOpen(email);
         }
       }}
-      className="group relative flex w-full items-start gap-3 text-left px-4 py-3 hover:bg-[#FAF6EB]/60 transition-colors cursor-pointer"
+      className={`group relative flex w-full items-start gap-3 text-left px-4 py-3 transition-colors cursor-pointer ${
+        focused
+          ? "bg-[#D0E1F0]/40 ring-1 ring-[#5E8FBF]/40 ring-inset"
+          : "hover:bg-[#FAF6EB]/60"
+      }`}
     >
       <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${score.bg} ${score.text} text-[11px] font-semibold mt-0.5 ring-1 ${score.ring}`}>
         {email.score}
@@ -2219,6 +2496,7 @@ function EmailPanel({
         toast.error("Couldn't send reply", { detail: data.error || `HTTP ${res.status}` });
       } else {
         setSent(true);
+        fxComplete();
         const af = data.autoFulfilled || 0;
         toast.success("Reply sent", {
           detail:
