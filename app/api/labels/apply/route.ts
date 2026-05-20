@@ -5,6 +5,11 @@ import {
   computeLabelForEmail,
   type OushiLabelKey,
 } from "@/lib/gmail-labels";
+import { needsLlmClassification } from "@/lib/gmail-labels-shared";
+import {
+  classifyAmbiguousEmails,
+  mergeLlmLabels,
+} from "@/lib/gmail-labels-llm";
 import type { EmailRow } from "@/lib/outstanding";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -133,7 +138,27 @@ export async function POST(request: Request) {
           overrides.set(r.email_id, r.override_label_key ?? null);
         }
 
-        // 4. Classify each email
+        // 4. LLM-classify ambiguous emails (heuristic-fallthrough that
+        //    we haven't already cached). The classifier persists the
+        //    verdicts to emails.gmail_label_llm_key and returns a map
+        //    we merge into the in-memory rows so step 5's classifier
+        //    sees them without a re-fetch.
+        const llmCandidates = (emails as EmailRow[]).filter(needsLlmClassification);
+        if (llmCandidates.length > 0) {
+          send({ phase: "llm_classifying", count: llmCandidates.length });
+          try {
+            const llmMap = await classifyAmbiguousEmails(llmCandidates);
+            if (llmMap.size > 0) mergeLlmLabels(emails as EmailRow[], llmMap);
+          } catch (e) {
+            // Best-effort. Fall through to heuristic default.
+            console.error(
+              "[labels/apply] LLM classification failed",
+              e instanceof Error ? e.message : e
+            );
+          }
+        }
+
+        // 5. Classify each email
         send({ phase: "classifying" });
         const decisions: Array<{
           emailId: string;

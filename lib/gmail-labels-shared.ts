@@ -3,6 +3,23 @@
  * classifier function. Lives apart from `lib/gmail-labels.ts` (which
  * imports googleapis and is server-only) so the dashboard modal can
  * render the current label without hitting the API.
+ *
+ * The classifier is split into two layers:
+ *
+ *   1. CONTENT classification (this email is fundamentally a meeting /
+ *      receipt / marketing / fyi / real communication). Done by:
+ *        a. `heuristicContentLabel` — regex + flags. Cheap and confident
+ *           on clear cases (calendar invites, transactional receipts,
+ *           noise-category newsletters, login alerts).
+ *        b. Cached LLM verdict in `gmail_label_llm_key`. The
+ *           lib/gmail-labels-llm module fills this in for emails where
+ *           the heuristic returned null.
+ *        c. Default to `communication` if both are unavailable.
+ *
+ *   2. STATE logic on top. "communication" content gets mapped to one
+ *      of respond / awaiting / followup / fyi based on the email's
+ *      read/replied/sent timestamps. Static content labels (meeting /
+ *      receipt / marketing / fyi) pass through unchanged.
  */
 
 import {
@@ -21,12 +38,31 @@ export type OushiLabelKey =
   | "fyi"
   | "marketing";
 
+/**
+ * The 5-option content label the LLM picks from. This is the "what kind
+ * of email is this fundamentally?" question, separate from "what state
+ * is the user-email relationship in?".
+ */
+export type ContentLabel =
+  | "meeting"
+  | "receipt"
+  | "marketing"
+  | "fyi"
+  | "communication";
+
+export const CONTENT_LABELS: ContentLabel[] = [
+  "meeting",
+  "receipt",
+  "marketing",
+  "fyi",
+  "communication",
+];
+
 export interface OushiLabelDef {
   key: OushiLabelKey;
   name: string;
   color: { textColor: string; backgroundColor: string };
   description: string;
-  /** Shorthand for UI ("Respond", "FYI", ...) — without the Oushi/N · prefix. */
   shortLabel: string;
 }
 
@@ -90,36 +126,28 @@ export function getLabelByKey(key: OushiLabelKey): OushiLabelDef | undefined {
 
 export const LABEL_PREFIX = "Oushi/";
 
-/**
- * Pick the single best Oushi label for an email, or null if no label fits.
- * Priority order matters — earlier rules win.
- *
- * If the caller passes an `override` (from email_label_overrides), it wins
- * unconditionally:
- *   - override === undefined → no override, run heuristic
- *   - override === null      → user said "don't label this"
- *   - override === <key>     → user picked this label manually
- */
-export function computeLabelForEmail(
-  email: EmailRow,
-  override?: OushiLabelKey | null
-): OushiLabelKey | null {
-  if (override !== undefined) return override;
+// ─────────────────────────────────────────────────────────────────────────
+// CONTENT CLASSIFICATION (regex + cached LLM)
+// ─────────────────────────────────────────────────────────────────────────
 
+/**
+ * Heuristic content classifier. Returns a content label if we're confident
+ * from regex / category signals, null if it's ambiguous (in which case
+ * the LLM layer should look at the email).
+ */
+export function heuristicContentLabel(email: EmailRow): ContentLabel | null {
   const subject = (email.subject || "").toLowerCase();
   const fromEmail = (email.from_email || "").toLowerCase();
 
-  // 1. Marketing — pure noise
+  // Noise category = newsletter / promo / automated. Login alerts and
+  // verification codes ride along in here too — split them off as FYI.
   if (email.category === "noise") {
-    // Login alerts / verification codes go to FYI, not marketing
     if (isLowValueNotification(email)) return "fyi";
     return "marketing";
   }
 
-  // 2. Receipts / transactional confirmations
-  if (isTrueTransactional(email)) {
-    return "receipt";
-  }
+  // Receipt — money + confirmation number, or strong subject pattern
+  if (isTrueTransactional(email)) return "receipt";
   if (
     /^your\s+(receipt|order|invoice|booking|reservation|subscription|statement)/i.test(subject) ||
     /receipt\s+from/i.test(subject) ||
@@ -130,7 +158,8 @@ export function computeLabelForEmail(
     return "receipt";
   }
 
-  // 3. Meeting — calendar invites / scheduling
+  // Meeting — calendar invite / scheduling. Calendar notification sender
+  // is a perfect signal; subject patterns are pretty reliable.
   if (
     /\b(meeting|calendar|invite|invitation|scheduled|rsvp|google\s+meet|zoom)\b/i.test(subject) ||
     /^invitation:/i.test(subject) ||
@@ -139,12 +168,71 @@ export function computeLabelForEmail(
     return "meeting";
   }
 
-  // 4. Low-value notification (login alerts, verification codes etc) -> FYI
-  if (isLowValueNotification(email)) {
-    return "fyi";
-  }
+  // Low-value notifications (login alerts, verification codes, etc.)
+  // regardless of category — these have very strong content signals.
+  if (isLowValueNotification(email)) return "fyi";
 
-  // 5. Follow-up — user sent last and the thread went quiet
+  // Anything else is ambiguous. The LLM layer will look.
+  return null;
+}
+
+/**
+ * Pick the cached content label for an email — heuristic first, then the
+ * LLM-cached column. Returns null only if neither has an answer.
+ */
+export function resolvedContentLabel(email: EmailRow): ContentLabel | null {
+  const heuristic = heuristicContentLabel(email);
+  if (heuristic) return heuristic;
+  const cached = email.gmail_label_llm_key;
+  if (cached && isContentLabel(cached)) return cached;
+  return null;
+}
+
+function isContentLabel(value: string): value is ContentLabel {
+  return (
+    value === "meeting" ||
+    value === "receipt" ||
+    value === "marketing" ||
+    value === "fyi" ||
+    value === "communication"
+  );
+}
+
+/**
+ * True if this email should be sent to the LLM for content classification.
+ * Skips emails the heuristic already handles, and emails we've already
+ * classified (cached in `gmail_label_llm_key`).
+ */
+export function needsLlmClassification(email: EmailRow): boolean {
+  if (heuristicContentLabel(email) !== null) return false;
+  if (email.gmail_label_llm_key) return false;
+  const haystack =
+    (email.subject || "") + " " + (email.body_preview || "") + " " + (email.snippet || "");
+  return haystack.trim().length > 10;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// STATE LOGIC (content label → final Oushi label, given user state)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Map a content label + email state to the final Oushi label.
+ * Static content (meeting/receipt/marketing/fyi) passes through unchanged.
+ * "communication" gets mapped to respond/awaiting/followup based on state.
+ */
+export function applyStateLogic(
+  contentLabel: ContentLabel,
+  email: EmailRow
+): OushiLabelKey | null {
+  // Static content labels — return directly.
+  if (contentLabel === "meeting") return "meeting";
+  if (contentLabel === "receipt") return "receipt";
+  if (contentLabel === "marketing") return "marketing";
+  if (contentLabel === "fyi") return "fyi";
+
+  // contentLabel === "communication" — state decides.
+
+  // Follow-up: user sent last, thread silent 5+ days, real sender.
   if (
     email.user_was_last_sender &&
     !email.followup_dismissed_at &&
@@ -152,13 +240,14 @@ export function computeLabelForEmail(
     !isAutomatedEmail(email)
   ) {
     const daysSinceUserSent =
-      (Date.now() - new Date(email.user_last_sent_at).getTime()) / (24 * 60 * 60 * 1000);
+      (Date.now() - new Date(email.user_last_sent_at).getTime()) /
+      (24 * 60 * 60 * 1000);
     if (daysSinceUserSent >= 5 && email.score >= 50) {
       return "followup";
     }
   }
 
-  // 6. Awaiting — you opened, never replied, real sender, score >= 50
+  // Awaiting: you opened it, never replied, real sender, score >= 50.
   if (
     email.is_read &&
     !email.user_replied &&
@@ -168,7 +257,7 @@ export function computeLabelForEmail(
     return "awaiting";
   }
 
-  // 7. Respond — unread, scored >= 60, real sender, not transactional
+  // Respond: unread, scored >= 60, real sender, not transactional.
   if (
     email.is_unread &&
     !email.user_replied &&
@@ -178,11 +267,39 @@ export function computeLabelForEmail(
     return "respond";
   }
 
-  // 8. Useful FYI — middle ground
+  // Useful but in the middle — FYI.
   if (email.category === "useful" && email.score >= 30 && email.score < 60) {
     return "fyi";
   }
 
-  // No label
   return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PUBLIC ENTRY POINT
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Pick the single best Oushi label for an email, or null if no label fits.
+ *
+ * Order of precedence:
+ *   1. Override (if explicitly provided by the caller)
+ *   2. Heuristic content label
+ *   3. Cached LLM content label
+ *   4. Default to "communication" → state logic
+ *
+ * The override semantics:
+ *   - override === undefined → no override, run heuristic + LLM
+ *   - override === null      → user said "don't label this"
+ *   - override === <key>     → user picked this label manually
+ */
+export function computeLabelForEmail(
+  email: EmailRow,
+  override?: OushiLabelKey | null
+): OushiLabelKey | null {
+  if (override !== undefined) return override;
+
+  // Heuristic content → cached LLM → fallback to "communication"
+  const contentLabel: ContentLabel = resolvedContentLabel(email) || "communication";
+  return applyStateLogic(contentLabel, email);
 }

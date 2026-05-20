@@ -4,6 +4,10 @@ import {
   computeLabelForEmail,
   type OushiLabelKey,
 } from "@/lib/gmail-labels";
+import {
+  classifyAmbiguousEmails,
+  mergeLlmLabels,
+} from "@/lib/gmail-labels-llm";
 import { createServiceClient } from "@/lib/supabase/server";
 import { prefilter } from "@/lib/prefilter";
 import {
@@ -421,18 +425,19 @@ export async function rankUnrankedEmails(userId: string) {
         overrides.set(r.email_id, r.override_label_key ?? null);
       }
 
+      // Collect every candidate row in one place so the LLM pass below
+      // sees both newly-ranked emails and stale-self-heal candidates in
+      // a single batch. The seenIds set dedupes if the same id shows
+      // up in both buckets.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const candidateRows: any[] = [];
+      const seenIds = new Set<string>();
+
       // ── (a) Newly-ranked emails ──────────────────────────────────────
       const newlyRankedIds = [
         ...prefiltered.map((r) => r.id),
         ...needsClaude.map((e) => e.id),
       ];
-      const decisions: Array<{
-        emailId: string;
-        gmailMessageId: string;
-        labelKey: OushiLabelKey | null;
-      }> = [];
-      const seenIds = new Set<string>();
-
       if (newlyRankedIds.length > 0) {
         const { data: freshRows } = await supabase
           .from("emails")
@@ -443,12 +448,7 @@ export async function rankUnrankedEmails(userId: string) {
           for (const row of freshRows as any[]) {
             if (!row.gmail_message_id || seenIds.has(row.id)) continue;
             seenIds.add(row.id);
-            const override = overrides.has(row.id) ? overrides.get(row.id) : undefined;
-            decisions.push({
-              emailId: row.id,
-              gmailMessageId: row.gmail_message_id,
-              labelKey: computeLabelForEmail(row, override),
-            });
+            candidateRows.push(row);
           }
         }
       }
@@ -484,16 +484,43 @@ export async function rankUnrankedEmails(userId: string) {
           );
           if (stateMaxMs > appliedAt) {
             seenIds.add(row.id);
-            const override = overrides.has(row.id) ? overrides.get(row.id) : undefined;
-            decisions.push({
-              emailId: row.id,
-              gmailMessageId: row.gmail_message_id,
-              labelKey: computeLabelForEmail(row, override),
-            });
+            candidateRows.push(row);
           }
         }
       }
 
+      // ── LLM pass on the ambiguous subset ────────────────────────────
+      // classifyAmbiguousEmails internally filters via needsLlmClassification
+      // (skips rows the heuristic already handles or that we've already
+      // classified), respects a per-invocation ceiling, and persists the
+      // verdicts so we never re-classify the same email. We merge the
+      // fresh map into the in-memory rows so computeLabelForEmail below
+      // sees the new gmail_label_llm_key without a re-fetch.
+      try {
+        const llmMap = await classifyAmbiguousEmails(candidateRows);
+        if (llmMap.size > 0) mergeLlmLabels(candidateRows, llmMap);
+      } catch (e) {
+        // Best-effort — heuristic fallback covers all rows on failure.
+        console.error(
+          "[ranking] LLM label classification failed",
+          e instanceof Error ? e.message : e
+        );
+      }
+
+      // ── Build decisions and apply ────────────────────────────────────
+      const decisions: Array<{
+        emailId: string;
+        gmailMessageId: string;
+        labelKey: OushiLabelKey | null;
+      }> = [];
+      for (const row of candidateRows) {
+        const override = overrides.has(row.id) ? overrides.get(row.id) : undefined;
+        decisions.push({
+          emailId: row.id,
+          gmailMessageId: row.gmail_message_id,
+          labelKey: computeLabelForEmail(row, override),
+        });
+      }
       if (decisions.length > 0) {
         await applyLabelsBatch(userId, decisions);
       }

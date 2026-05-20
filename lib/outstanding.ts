@@ -32,6 +32,10 @@ export interface EmailRow {
   } | null;
   snooze_until?: string | null;
   snooze_reason?: string | null;
+  // LLM-classified content label (one of meeting/receipt/marketing/fyi/communication).
+  // Populated by lib/gmail-labels-llm when the heuristic is ambiguous; read by
+  // computeLabelForEmail in lib/gmail-labels-shared.
+  gmail_label_llm_key?: string | null;
 }
 
 export type Bucket =

@@ -1270,6 +1270,7 @@ interface ApplyProgress {
     | "ensuring_labels"
     | "fetching"
     | "fetched"
+    | "llm_classifying"
     | "classifying"
     | "applying"
     | "applied"
@@ -1299,6 +1300,8 @@ function LabelsSection() {
         return "Scanning your last 14 days…";
       case "fetched":
         return `Found ${p.count} emails — classifying…`;
+      case "llm_classifying":
+        return `Reading ${p.count} ambiguous emails with Claude…`;
       case "classifying":
         return "Classifying…";
       case "applying":
@@ -1320,8 +1323,9 @@ function LabelsSection() {
     if (!p) return 0;
     if (p.phase === "ensuring_labels") return 5;
     if (p.phase === "fetching") return 10;
-    if (p.phase === "fetched") return 20;
-    if (p.phase === "classifying") return 25;
+    if (p.phase === "fetched") return 15;
+    if (p.phase === "llm_classifying") return 22;
+    if (p.phase === "classifying") return 28;
     if (p.phase === "stamping") return 98;
     if (p.totalToApply && p.appliedSoFar !== undefined) {
       return 30 + Math.floor(65 * (p.appliedSoFar / Math.max(1, p.totalToApply)));
