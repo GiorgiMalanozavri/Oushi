@@ -31,8 +31,15 @@ import {
   ThumbsDown,
   Loader2,
   ArrowRight,
+  Tag,
 } from "lucide-react";
 import type { Classified } from "@/lib/outstanding";
+import {
+  OUSHI_LABELS,
+  computeLabelForEmail,
+  getLabelByKey,
+  type OushiLabelKey,
+} from "@/lib/gmail-labels-shared";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { OushiMark } from "@/components/oushi-mark";
 import { AmbientBackground } from "@/components/ambient-bg";
@@ -1961,6 +1968,166 @@ function FeedbackButtons({
   );
 }
 
+/**
+ * Small clickable label chip in the email modal — shows the current Oushi
+ * label for this email + lets the user manually correct it. "Manual" badge
+ * appears when the user has overridden the heuristic. Selection POSTs to
+ * /api/labels/override which immediately re-labels the message in Gmail.
+ */
+function LabelChip({ email }: { email: Classified }) {
+  const toast = useToast();
+  // undefined = "auto" (no override row), null = "don't label" override,
+  // string = explicit label override
+  const [override, setOverride] = useState<OushiLabelKey | null | undefined>(undefined);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Compute the effective label: override wins, else heuristic
+  const effective: OushiLabelKey | null =
+    override === undefined ? computeLabelForEmail(email) : override;
+  const effectiveDef = effective ? getLabelByKey(effective) : null;
+  const isManual = override !== undefined;
+
+  // Fetch any persisted override for this email when the modal opens
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/labels/override?emailId=${encodeURIComponent(email.id)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        // data.override can be string | null | undefined
+        setOverride(data.override);
+      } catch {
+        // Best-effort — leave at undefined (auto)
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [email.id]);
+
+  const choose = async (value: OushiLabelKey | "none" | "auto") => {
+    setOpen(false);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/labels/override", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailId: email.id, labelKey: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Couldn't update label");
+        return;
+      }
+      // Update local state to reflect what the server stored
+      if (value === "auto") setOverride(undefined);
+      else if (value === "none") setOverride(null);
+      else setOverride(value);
+
+      // User-friendly confirmation
+      if (value === "auto") {
+        toast.success("Using Oushi's choice");
+      } else if (value === "none") {
+        toast.success("Won't label this email");
+      } else {
+        const def = getLabelByKey(value as OushiLabelKey);
+        toast.success(`Labeled "${def?.shortLabel || value}"`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="relative inline-block">
+      <button
+        onClick={() => !saving && setOpen((v) => !v)}
+        disabled={saving}
+        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11.5px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+        style={
+          effectiveDef
+            ? {
+                backgroundColor: effectiveDef.color.backgroundColor,
+                color: effectiveDef.color.textColor,
+              }
+            : { backgroundColor: "#E6DCC4", color: "#766E63" }
+        }
+      >
+        <Tag className="w-3 h-3" />
+        <span>{effectiveDef ? effectiveDef.shortLabel : "No label"}</span>
+        {isManual && (
+          <span
+            className="text-[9px] font-mono uppercase tracking-wider opacity-80 ml-0.5 px-1 rounded"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.18)",
+            }}
+            title="You manually set this label"
+          >
+            Manual
+          </span>
+        )}
+        <ChevronRight className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`} />
+      </button>
+
+      {open && (
+        <>
+          {/* Click-outside catcher */}
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 z-50 w-56 rounded-lg border border-[#E6DCC4] bg-white shadow-lg py-1.5 overflow-hidden">
+            <p className="px-2.5 py-1 text-[9.5px] font-medium uppercase tracking-[0.14em] text-[#A89F92]">
+              Set label
+            </p>
+            {OUSHI_LABELS.map((l) => (
+              <button
+                key={l.key}
+                onClick={() => choose(l.key)}
+                className={`w-full text-left px-2.5 py-1.5 text-[12px] hover:bg-[#FAF6EB] transition-colors flex items-center gap-2 ${
+                  effective === l.key ? "bg-[#FAF6EB]" : ""
+                }`}
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-sm shrink-0"
+                  style={{ backgroundColor: l.color.backgroundColor }}
+                />
+                <span className="flex-1 truncate text-[#2A2520]">{l.shortLabel}</span>
+                {effective === l.key && <Check className="w-3 h-3 text-[#6B8E68]" />}
+              </button>
+            ))}
+            <div className="my-1 border-t border-[#E6DCC4]" />
+            <button
+              onClick={() => choose("none")}
+              className={`w-full text-left px-2.5 py-1.5 text-[12px] hover:bg-[#FAF6EB] transition-colors flex items-center gap-2 ${
+                override === null ? "bg-[#FAF6EB]" : ""
+              }`}
+            >
+              <span className="w-2.5 h-2.5 rounded-sm border border-[#E6DCC4] shrink-0" />
+              <span className="flex-1 text-[#766E63]">Don&apos;t label</span>
+              {override === null && <Check className="w-3 h-3 text-[#6B8E68]" />}
+            </button>
+            {isManual && (
+              <>
+                <div className="my-1 border-t border-[#E6DCC4]" />
+                <button
+                  onClick={() => choose("auto")}
+                  className="w-full text-left px-2.5 py-1.5 text-[12px] hover:bg-[#FAF6EB] transition-colors flex items-center gap-2 text-[#5E8FBF]"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span className="flex-1">Use Oushi&apos;s choice</span>
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function EmailPanel({
   email,
   onClose,
@@ -2144,9 +2311,14 @@ function EmailPanel({
               </div>
             </div>
 
-            <h1 className="text-[20px] font-semibold tracking-tight text-[#2A2520] mb-4 leading-tight">
+            <h1 className="text-[20px] font-semibold tracking-tight text-[#2A2520] mb-2 leading-tight">
               {email.subject}
             </h1>
+
+            {/* Oushi label — manually correctable */}
+            <div className="mb-4">
+              <LabelChip email={email} />
+            </div>
 
             {/* Oushi summary — only if there's a highlight */}
             {email.highlight && (

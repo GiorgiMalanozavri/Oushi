@@ -409,6 +409,18 @@ export async function rankUnrankedEmails(userId: string) {
       .eq("user_id", userId)
       .maybeSingle();
     if (optIn?.gmail_labels_enabled) {
+      // Pre-load the user's label overrides so manual decisions win over
+      // the heuristic ("user said this is a Receipt, not Respond").
+      const { data: overrideRows } = await supabase
+        .from("email_label_overrides")
+        .select("email_id, override_label_key")
+        .eq("user_id", userId);
+      const overrides = new Map<string, OushiLabelKey | null>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const r of (overrideRows || []) as any[]) {
+        overrides.set(r.email_id, r.override_label_key ?? null);
+      }
+
       // ── (a) Newly-ranked emails ──────────────────────────────────────
       const newlyRankedIds = [
         ...prefiltered.map((r) => r.id),
@@ -431,10 +443,11 @@ export async function rankUnrankedEmails(userId: string) {
           for (const row of freshRows as any[]) {
             if (!row.gmail_message_id || seenIds.has(row.id)) continue;
             seenIds.add(row.id);
+            const override = overrides.has(row.id) ? overrides.get(row.id) : undefined;
             decisions.push({
               emailId: row.id,
               gmailMessageId: row.gmail_message_id,
-              labelKey: computeLabelForEmail(row),
+              labelKey: computeLabelForEmail(row, override),
             });
           }
         }
@@ -471,10 +484,11 @@ export async function rankUnrankedEmails(userId: string) {
           );
           if (stateMaxMs > appliedAt) {
             seenIds.add(row.id);
+            const override = overrides.has(row.id) ? overrides.get(row.id) : undefined;
             decisions.push({
               emailId: row.id,
               gmailMessageId: row.gmail_message_id,
-              labelKey: computeLabelForEmail(row),
+              labelKey: computeLabelForEmail(row, override),
             });
           }
         }

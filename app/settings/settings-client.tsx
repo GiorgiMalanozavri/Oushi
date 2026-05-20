@@ -1265,6 +1265,21 @@ const LABEL_PALETTE = [
   { name: "Marketing", color: "#fbc8d9", text: "#000" },
 ];
 
+interface ApplyProgress {
+  phase:
+    | "ensuring_labels"
+    | "fetching"
+    | "fetched"
+    | "classifying"
+    | "applying"
+    | "applied"
+    | "stamping";
+  count?: number;
+  group?: string;
+  appliedSoFar?: number;
+  totalToApply?: number;
+}
+
 function LabelsSection() {
   const [busy, setBusy] = useState<null | "apply" | "reset">(null);
   const [result, setResult] = useState<null | {
@@ -1273,39 +1288,107 @@ function LabelsSection() {
     breakdown: Record<string, number>;
   }>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [progress, setProgress] = useState<ApplyProgress | null>(null);
+
+  const phaseLabel = (p: ApplyProgress): string => {
+    switch (p.phase) {
+      case "ensuring_labels":
+        return "Creating Gmail labels…";
+      case "fetching":
+        return "Scanning your last 14 days…";
+      case "fetched":
+        return `Found ${p.count} emails — classifying…`;
+      case "classifying":
+        return "Classifying…";
+      case "applying":
+        return p.group && p.group !== "__none__"
+          ? `Labeling ${p.group} (${p.count})…`
+          : "Clearing unlabeled…";
+      case "applied":
+        return p.group && p.group !== "__none__"
+          ? `Labeled ${p.appliedSoFar}/${p.totalToApply}…`
+          : `Labeled ${p.appliedSoFar}/${p.totalToApply}…`;
+      case "stamping":
+        return "Finalizing…";
+      default:
+        return "Working…";
+    }
+  };
+
+  const progressPct = (p: ApplyProgress | null): number => {
+    if (!p) return 0;
+    if (p.phase === "ensuring_labels") return 5;
+    if (p.phase === "fetching") return 10;
+    if (p.phase === "fetched") return 20;
+    if (p.phase === "classifying") return 25;
+    if (p.phase === "stamping") return 98;
+    if (p.totalToApply && p.appliedSoFar !== undefined) {
+      return 30 + Math.floor(65 * (p.appliedSoFar / Math.max(1, p.totalToApply)));
+    }
+    return 30;
+  };
 
   const apply = async () => {
     setBusy("apply");
     setError(null);
     setResult(null);
+    setProgress({ phase: "ensuring_labels" });
     try {
       const res = await fetch("/api/labels/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ days: 14 }),
       });
-      const data = await res.json();
-      if (!res.ok) {
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}));
         setError(data.error || "Couldn't apply labels");
-      } else {
-        setResult({
-          scanned: data.scanned || 0,
-          applied: data.applied || 0,
-          breakdown: data.breakdown || {},
-        });
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nl;
+        while ((nl = buffer.indexOf("\n")) >= 0) {
+          const line = buffer.slice(0, nl).trim();
+          buffer = buffer.slice(nl + 1);
+          if (!line) continue;
+          try {
+            const event = JSON.parse(line);
+            if (event.phase === "error") {
+              setError(event.message || "Apply failed");
+            } else if (event.phase === "done") {
+              setResult({
+                scanned: event.scanned || 0,
+                applied: event.applied || 0,
+                breakdown: event.breakdown || {},
+              });
+            } else {
+              setProgress(event);
+            }
+          } catch {
+            // Ignore malformed lines
+          }
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");
     } finally {
       setBusy(null);
+      setProgress(null);
     }
   };
 
   const reset = async () => {
-    if (!confirm("Remove all Oushi labels from Gmail? This will delete the Oushi/* labels and un-label all messages.")) return;
     setBusy("reset");
     setError(null);
     setResult(null);
+    setConfirmingReset(false);
     try {
       const res = await fetch("/api/labels/reset", { method: "POST" });
       const data = await res.json();
@@ -1348,6 +1431,7 @@ function LabelsSection() {
         <p className="text-[11.5px] text-[#766E63] mt-3 leading-relaxed">
           Oushi picks the single best category for each email. Updates as the
           state changes — e.g., once you reply, the Respond label is removed.
+          You can override any label from inside the email panel.
         </p>
       </div>
 
@@ -1377,6 +1461,22 @@ function LabelsSection() {
             {busy === "apply" ? "Labeling…" : "Apply labels"}
           </button>
         </div>
+
+        {/* Progress bar */}
+        {busy === "apply" && progress && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[11.5px] text-[#766E63]">{phaseLabel(progress)}</p>
+              <p className="text-[10.5px] font-mono text-[#A89F92]">{progressPct(progress)}%</p>
+            </div>
+            <div className="h-1.5 rounded-full bg-[#E6DCC4] overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#5E8FBF] to-[#3D6A95] transition-all duration-300 ease-out"
+                style={{ width: `${progressPct(progress)}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {result && result.scanned > 0 && (
@@ -1408,14 +1508,36 @@ function LabelsSection() {
         </div>
       )}
 
-      {/* Reset */}
-      <button
-        onClick={reset}
-        disabled={busy !== null}
-        className="text-[11.5px] text-[#A89F92] hover:text-[#B86B4A] transition-colors disabled:opacity-50"
-      >
-        {busy === "reset" ? "Resetting…" : "Remove all Oushi labels from Gmail"}
-      </button>
+      {/* Reset — inline confirm instead of native alert */}
+      {!confirmingReset ? (
+        <button
+          onClick={() => setConfirmingReset(true)}
+          disabled={busy !== null}
+          className="text-[11.5px] text-[#A89F92] hover:text-[#B86B4A] transition-colors disabled:opacity-50"
+        >
+          {busy === "reset" ? "Resetting…" : "Remove all Oushi labels from Gmail"}
+        </button>
+      ) : (
+        <div className="rounded-lg border border-[#B86B4A]/30 bg-[#F5E8E0]/40 px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-[12px] text-[#B86B4A] leading-snug">
+            Delete all Oushi/* labels and un-label every message?
+          </p>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setConfirmingReset(false)}
+              className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={reset}
+              className="text-[11.5px] font-medium text-white bg-[#B86B4A] hover:bg-[#A65B3F] rounded-md px-2.5 py-1"
+            >
+              Yes, remove
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
