@@ -79,11 +79,60 @@ const LOW_VALUE_NOTIFICATION_HINTS = [
   "two-factor", "welcome to",
 ];
 
+// Known job-aggregator / mass-broadcast platforms. Their emails consistently
+// match a user's "internships" / "job search" / "engineering" interest in the
+// LLM ranker, then get pushed into Urgent — even though they're broadcast
+// to thousands. Catch them here so they short-circuit to "automated" and
+// drop out of Urgent/Awaiting buckets regardless of score.
+const BROADCAST_SENDER_DOMAINS = [
+  // Job aggregators
+  "lensa", "indeed.com", "ziprecruiter", "glassdoor", "monster.com",
+  "linkedin-jobs", "jobalerts", "jobsalert", "career-builder", "careerbuilder",
+  "simplyhired", "talent.com", "jora.com", "joinhandshake", "wellfound",
+  "lever.co", "greenhouse.io",
+  // Newsletter / digest platforms (most are pure broadcast)
+  "substack.com", "beehiiv", "mailchi.mp", "mailchimp", "convertkit",
+  "campaign-archive", "ec.europa.eu",
+  // Social network digests
+  "linkedin.com/comm/", "linkedin.com/email", "facebookmail",
+  "twitter.com/i/notifications",
+  // Misc bulk platforms
+  "marketo", "salesforce.com/notifications", "hubspotemail",
+];
+
+const BROADCAST_FROM_NAME_HINTS = [
+  "aggregator", "aggregated", "digest", "daily digest", "weekly digest",
+  "alerts", "newsletter",
+];
+
+const BROADCAST_SUBJECT_HINTS = [
+  "be the first to apply", "just in:", "new jobs", "jobs near you",
+  "matches your search", "matches your job search", "job alert",
+  "job alerts", "today's top jobs", "daily job", "weekly job",
+  "your job matches", "we found jobs", "new openings near",
+  "your daily", "your weekly digest", "this week in", "this week's",
+  "top stories", "trending in", "you might like",
+];
+
+export function isBroadcastNoise(email: EmailRow): boolean {
+  const from = (email.from_email || "").toLowerCase();
+  if (BROADCAST_SENDER_DOMAINS.some((d) => from.includes(d))) return true;
+  const fromName = (email.from_name || "").toLowerCase();
+  if (BROADCAST_FROM_NAME_HINTS.some((h) => fromName.includes(h))) return true;
+  const subject = (email.subject || "").toLowerCase();
+  if (BROADCAST_SUBJECT_HINTS.some((h) => subject.includes(h))) return true;
+  return false;
+}
+
 export function isAutomatedEmail(email: EmailRow): boolean {
   const from = (email.from_email || "").toLowerCase();
   if (AUTOMATED_SENDER_HINTS.some((hint) => from.includes(hint))) return true;
   const subject = (email.subject || "").toLowerCase();
   if (TRANSACTIONAL_SUBJECT_HINTS.some((hint) => subject.includes(hint))) return true;
+  // Aggregator broadcasts (Lensa, Indeed digests, daily job alerts, etc.)
+  // count as automated for bucket-routing purposes — they should never land
+  // in Urgent / Awaiting reply just because their content matches an interest.
+  if (isBroadcastNoise(email)) return true;
   return false;
 }
 

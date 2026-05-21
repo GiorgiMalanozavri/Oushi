@@ -58,19 +58,37 @@ Example good memories (DON'T copy these unless they apply):
 - {"kind":"context","subject":"NYC trip","content":"Traveling June 4-8, staying with sister","ttl_days":60}
 
 Scoring guide:
-- 90-100: time-sensitive AND directly relevant (interview, deadline, project update from someone they work with)
-- 75-89: directly relevant but not urgent (newsletter on a core interest, opportunity matching their profile)
-- 50-74: tangentially useful (general updates from orgs they're in)
-- 25-49: low signal but not noise (broad announcements)
-- 0-24: noise (promotions, automated receipts, irrelevant marketing)
+- 90-100: time-sensitive AND directly relevant TO THIS USER. An interview invite from a real recruiter, a deadline a real person set for them, a project update from someone they actually work with. Personal correspondence.
+- 75-89: directly relevant but not urgent — a newsletter the user clearly chose, a personally-addressed opportunity from a real human.
+- 50-74: tangentially useful (general updates from orgs they're in, conference CFPs they'd plausibly care about).
+- 25-49: low signal but not noise (broad announcements, generic updates).
+- 0-24: noise — promotions, automated receipts, irrelevant marketing, broadcast aggregator alerts.
+
+CRITICAL: BROADCAST EMAILS ARE NOT URGENT, EVEN WHEN THEY MATCH AN INTEREST.
+The user's interest list ("internships", "engineering jobs", "AI news",
+etc.) is what they want to KNOW about — not what to be interrupted by.
+Score the following as 0-24 (noise) regardless of keyword match:
+  - Job-aggregator alerts: Lensa, Indeed, ZipRecruiter, Glassdoor,
+    LinkedIn job alerts, Monster, Handshake digests, anything with
+    "Aggregator" / "Aggregated" / "Digest" in the sender name.
+  - Subject patterns like "Be the first to apply", "Just in:", "New
+    jobs near you", "Matches your search", "Today's top jobs", "Your
+    daily/weekly digest", "We found jobs", "Top stories", "Trending
+    in X" — these are sent to thousands of users.
+  - Newsletter platforms (Substack, Beehiiv, Mailchimp campaigns)
+    unless the user EXPLICITLY listed that newsletter by name.
+  - Social-network digests (LinkedIn "comm/" emails, Facebook
+    notifications) unless they're a direct person-to-person message.
+A real opportunity for THIS user comes from an individual human or a
+company writing to them personally — not from a broadcast platform.
 
 Highlight rules:
 - Only write a highlight if there's a SPECIFIC connection to the user's interests/priorities. Vague matches get null.
 - Quote or paraphrase the specific thing in the email that matches.
-- NEVER write a highlight for login alerts, receipts, or routine automated emails.
+- NEVER write a highlight for login alerts, receipts, routine automated emails, OR broadcast aggregator alerts.
 - matched_interests must use the EXACT strings from the user's interests/priorities list, not paraphrases.
 
-Be honest. Most emails should score under 50.`;
+Be honest. Most emails should score under 50. Aggregator broadcasts should ALL score under 25.`;
 
 interface UserProfile {
   bio: string;
