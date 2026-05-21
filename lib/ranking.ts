@@ -142,16 +142,21 @@ async function rankEmail(
     ? `\nUSER TOPICS (boards the user wants emails sorted into — one email can match multiple, or none):\n${topics.map((t) => `- "${t.name}"${t.description ? `: ${t.description}` : ""}`).join("\n")}`
     : `\nUSER TOPICS: (none defined — return empty matched_topics array)`;
 
-  const userMsg = `USER PROFILE:
+  // Split the prompt into a CACHED block (stable per user across a rank
+  // pass — system + profile + memories + topics + feedback) and a FRESH
+  // block (the email being ranked). Anthropic caches the prefix for ~5min
+  // at 90% discount on reads → big savings when we rank a batch of
+  // emails for the same user in a tight loop.
+  const cachedContext = `USER PROFILE:
 Bio: ${profile.bio}
 Interests: ${profile.interests.join(", ")}
 What they always care about: ${profile.priorities.join(", ")}
 What they consider noise: ${profile.noise.join(", ")}
 ${topicsBlock}
 ${memoryBlock ? `\n${memoryBlock}` : ""}
-${feedbackContext ? `\nPAST FEEDBACK (use to calibrate):\n${feedbackContext}` : ""}
+${feedbackContext ? `\nPAST FEEDBACK (use to calibrate):\n${feedbackContext}` : ""}`;
 
-EMAIL:
+  const freshContent = `EMAIL:
 From: ${email.from_name} <${email.from_email}>
 Subject: ${email.subject}
 Preview: ${email.body_preview?.slice(0, 500) || email.snippet}${email.attachments_text ? `\n\nATTACHMENT CONTENT (extracted from PDFs/images):\n${email.attachments_text.slice(0, 2500)}` : ""}
@@ -165,8 +170,19 @@ Rank this email for this user, and extract any durable memories.`;
       response = await client.messages.create({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 800,
-        system: RANKING_SYSTEM,
-        messages: [{ role: "user", content: userMsg }],
+        // System prompt + per-user context are cached as one block so
+        // every rank call after the first within ~5min pays 10% on the
+        // cached portion. Cache writes are 25% more expensive on the
+        // first call but it pays back after just 2-3 emails.
+        system: [
+          { type: "text", text: RANKING_SYSTEM },
+          {
+            type: "text",
+            text: cachedContext,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: [{ role: "user", content: freshContent }],
       });
       break;
     } catch (err) {

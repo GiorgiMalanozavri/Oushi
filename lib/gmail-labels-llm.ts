@@ -145,10 +145,19 @@ async function classifyOneBatch(
 
   let raw = "";
   try {
+    // Cache the system prompt — it's identical across every label
+    // classification call. Anthropic returns 90% discount on cached
+    // input tokens after the first call within ~5min.
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 400,
-      system: SYSTEM_PROMPT,
+      system: [
+        {
+          type: "text",
+          text: SYSTEM_PROMPT,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
       messages: [{ role: "user", content: userMsg }],
     });
     raw = response.content[0]?.type === "text" ? response.content[0].text : "";
