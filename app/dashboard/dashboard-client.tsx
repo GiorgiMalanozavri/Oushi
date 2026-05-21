@@ -51,7 +51,11 @@ import { PromisesView } from "@/components/promises-view";
 import { FirstSyncSplash } from "@/components/first-sync-splash";
 import { DashboardSkeleton } from "@/components/skeleton";
 import { KeyboardHelp } from "@/components/keyboard-help";
-import { FeedbackWidget } from "@/components/feedback-widget";
+import {
+  FeedbackModal,
+  FeedbackPrompt,
+  ReportBugItem,
+} from "@/components/feedback-widget";
 import {
   enableFeedbackFx,
   fxDismiss,
@@ -1533,8 +1537,11 @@ export function DashboardClient({
       {/* Keyboard shortcut help — opens with "?" */}
       <KeyboardHelp open={kbdHelpOpen} onClose={() => setKbdHelpOpen(false)} />
 
-      {/* Always-visible feedback launcher — one-click report during beta */}
-      <FeedbackWidget />
+      {/* Feedback system — modal, periodic prompt, and a sidebar item.
+          The sidebar item lives inside Sidebar/SidebarFooter; this
+          mounts the controllers at the page root. */}
+      <FeedbackModal />
+      <FeedbackPrompt />
 
       {totalEmails === 0 && view.type === "today" && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -1820,6 +1827,13 @@ function SidebarFooter({
     <div className="p-3">
       {/* Soft gradient divider above the footer */}
       <div className="mx-2 h-px bg-gradient-to-r from-transparent via-[#E6DCC4] to-transparent mb-3" />
+
+      {/* Report-bug row — lives ABOVE the user card so the launcher is
+          inline with the sidebar's other interaction targets, not a
+          floating button that covers the user's name. */}
+      <div className="mb-2">
+        <ReportBugItem />
+      </div>
 
       <div
         className="flex items-center gap-2.5 px-2 py-2 rounded-xl bg-[#FFFCF3]/60"
