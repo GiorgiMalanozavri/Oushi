@@ -23,27 +23,7 @@
   "crons": [
     {
       "path": "/api/cron/sync-all",
-      "schedule": "*/2 * * * *"
-    },
-    {
-      "path": "/api/cron/snooze-resurface",
-      "schedule": "*/10 * * * *"
-    },
-    {
-      "path": "/api/cron/commitments",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/nudges",
-      "schedule": "0 9,15 * * *"
-    },
-    {
-      "path": "/api/cron/daily-digest",
-      "schedule": "0 13 * * *"
-    },
-    {
-      "path": "/api/cron/checkin-emails",
-      "schedule": "0 14 * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/gmail-watch-refresh",
