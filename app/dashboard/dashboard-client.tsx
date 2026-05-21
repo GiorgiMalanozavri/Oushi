@@ -345,6 +345,64 @@ export function DashboardClient({
     })();
   }, [isFirstSync, hasGmail]);
 
+  // Inbox health check — runs once on mount. Detects "all buckets empty
+  // because ranking never finished" and auto-triggers a re-rank, so the
+  // user isn't stuck staring at empty views.
+  const [diagnosis, setDiagnosis] = useState<null | {
+    diagnosis: string;
+    total_14d: number;
+    unranked_14d: number;
+    scored_14d: number;
+  }>(null);
+  const [reranking, setReranking] = useState(false);
+
+  useEffect(() => {
+    if (!hasGmail || loading || isFirstSync) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/diagnose");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setDiagnosis({
+          diagnosis: data.diagnosis,
+          total_14d: data.total_14d,
+          unranked_14d: data.unranked_14d,
+          scored_14d: data.scored_14d,
+        });
+        // Auto-rank if everything is unranked — this is the silent failure
+        // case where onboarding finished but rank didn't (network hiccup,
+        // Claude API timeout, etc.). One-shot defensive call.
+        if (data.diagnosis === "all_unranked" && data.unranked_14d > 0) {
+          setReranking(true);
+          await fetch("/api/rank", { method: "POST" });
+          if (!cancelled) {
+            setReranking(false);
+            // Reload so the new scores feed into bucketize
+            window.location.reload();
+          }
+        }
+      } catch {
+        // Best-effort — no banner if the diagnostic itself errors
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasGmail, loading, isFirstSync]);
+
+  const manualRerank = async () => {
+    setReranking(true);
+    try {
+      await fetch("/api/rank", { method: "POST" });
+      window.location.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Re-rank failed");
+      setReranking(false);
+    }
+  };
+
   // (briefing useEffect removed — was only used by the old TodayView)
 
   useEffect(() => {
@@ -1179,9 +1237,64 @@ export function DashboardClient({
         {isMobile && !sidebarOpen && <div className="h-12" />}
 
         {error && (
-          <div className="mx-8 mt-6 flex items-center justify-between gap-3 rounded-lg border border-[#B86B4A]/30 bg-[#F5E8E0]/50 px-4 py-2.5 text-[13px] text-[#B86B4A]">
+          <div className="mx-8 mt-6 flex items-center justify-between gap-3 rounded-lg border border-[#B86B4A]/30 bg-[#F5E8E0]/50 dark:bg-[#3A2F23]/40 dark:border-[#D9956E]/30 px-4 py-2.5 text-[13px] text-[#B86B4A] dark:text-[#D9956E]">
             <span>{error}</span>
-            <button onClick={() => setError(null)}><X className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setError(null)}>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Inbox health banner — explains "all buckets empty" honestly.
+            Auto-rank is already firing for "all_unranked", so the banner
+            here is for the slower failure modes (partial rank, low scores). */}
+        {diagnosis &&
+          !reranking &&
+          (diagnosis.diagnosis === "mostly_unranked" ||
+            diagnosis.diagnosis === "low_scores") && (
+            <div className="mx-8 mt-6 rounded-xl border border-[#E6DCC4] bg-[#FFFCF3]/70 dark:bg-[#25201A]/70 dark:border-[#3A3127] px-5 py-3.5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-[14px] text-[#2A2520] dark:text-[#FBF4DF] mb-1"
+                    style={{
+                      fontFamily: "var(--font-source-serif), Georgia, serif",
+                    }}
+                  >
+                    {diagnosis.diagnosis === "mostly_unranked"
+                      ? `${diagnosis.unranked_14d} of ${diagnosis.total_14d} emails still need to be ranked.`
+                      : `${diagnosis.total_14d} emails synced — none scored as urgent.`}
+                  </p>
+                  <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] leading-relaxed">
+                    {diagnosis.diagnosis === "mostly_unranked"
+                      ? "Ranking ran but didn't finish — probably timed out. One re-rank should sort it."
+                      : "Either your inbox is genuinely calm, or Oushi doesn't know what matters to you yet. Re-rank with your current profile, or add interests in Settings → Profile to teach it."}
+                  </p>
+                </div>
+                <button
+                  onClick={manualRerank}
+                  disabled={reranking}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-[#B86B4A] to-[#A65B3F] px-3 py-1.5 text-[12px] font-medium text-white hover:from-[#A65B3F] hover:to-[#9C523A] transition-all disabled:opacity-60"
+                  style={{
+                    boxShadow:
+                      "0 2px 8px -2px rgba(184,107,74,0.30)",
+                  }}
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Re-rank now
+                </button>
+              </div>
+            </div>
+          )}
+
+        {/* Auto-rank in progress — visible feedback while the diagnose
+            useEffect's defensive re-rank is firing. */}
+        {reranking && (
+          <div className="mx-8 mt-6 rounded-xl border border-[#E6DCC4] bg-[#FFFCF3]/70 dark:bg-[#25201A]/70 dark:border-[#3A3127] px-5 py-3.5 flex items-center gap-3">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#B86B4A]" />
+            <p className="text-[13px] text-[#3F362C] dark:text-[#E8D9B8]">
+              Ranking your inbox — this takes about a minute on first run.
+            </p>
           </div>
         )}
 
