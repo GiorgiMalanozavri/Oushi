@@ -37,18 +37,23 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF6EB] text-[#2A2520] overflow-hidden relative">
-      {/* Soft ambient gradient — subtle, not distracting */}
+    <div className="min-h-screen flex flex-col text-[#2A2520] dark:text-[#FBF4DF] overflow-hidden relative login-bg">
+      {/* Soft ambient blooms — warmer than the old cool blues */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-[20%] -right-[10%] w-[60vw] h-[60vw] rounded-full bg-[#D0E1F0]/30 blur-[120px]" />
-        <div className="absolute -bottom-[20%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-[#F0E9D6]/40 blur-[120px]" />
+        <div className="absolute -top-[20%] -right-[10%] w-[60vw] h-[60vw] rounded-full bg-[#F2DDD0]/40 blur-[120px]" />
+        <div className="absolute -bottom-[20%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-[#FBF4DF]/60 blur-[120px]" />
       </div>
 
       {/* Top header */}
       <header className="relative z-10 flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
-        <div className="flex items-center gap-2">
-          <OushiMark size={28} />
-          <span className="text-[16px] font-semibold tracking-tight">Oushi</span>
+        <div className="flex items-center gap-2.5">
+          <OushiMark size={26} />
+          <span
+            className="text-[19px] tracking-[-0.012em] text-[#2A2520] font-medium"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
+            Oushi
+          </span>
         </div>
       </header>
 
@@ -57,38 +62,72 @@ export default function LoginPage() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           className="w-full max-w-md"
         >
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#5E8FBF] mb-3">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.05 }}
+            className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[#A89F92] mb-3"
+          >
             Welcome back
-          </p>
-          <h1 className="text-[36px] sm:text-[44px] font-semibold tracking-tight leading-[1.05]">
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="text-[44px] sm:text-[54px] tracking-[-0.018em] leading-[1.02] text-[#2A2520]"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
             Sign in to Oushi.
-          </h1>
-          <p className="mt-3 text-[15px] text-[#766E63] leading-relaxed max-w-sm">
-            The AI assistant that reads your inbox, surfaces what matters, and replies in your voice.
-          </p>
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="mt-4 text-[17px] text-[#766E63] leading-[1.55] max-w-sm font-serif italic"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
+            An inbox that reads what you read, replies in your voice, and won&apos;t
+            let you forget.
+          </motion.p>
 
           {error && (
-            <div className="mt-6 flex items-start gap-2.5 rounded-lg border border-[#B86B4A]/30 bg-[#F5E8E0]/50 px-4 py-3 text-[13px] text-[#B86B4A]">
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 flex items-start gap-2.5 rounded-xl border border-[#B86B4A]/25 bg-[#F5E8E0]/40 px-4 py-3 text-[13px] text-[#B86B4A]"
+              style={{
+                boxShadow:
+                  "0 1px 0 rgba(255,255,255,0.5) inset, 0 2px 8px -4px rgba(184,107,74,0.10)",
+              }}
+            >
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="font-medium">Sign-in failed</p>
                 <p className="mt-0.5 text-[12px] opacity-80 break-words">{error}</p>
               </div>
-            </div>
+            </motion.div>
           )}
+
           <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.28, ease: [0.16, 1, 0.3, 1] }}
             onClick={handleLogin}
             disabled={loading}
-            whileHover={!loading ? { scale: 1.01 } : {}}
+            whileHover={!loading ? { y: -1 } : {}}
             whileTap={!loading ? { scale: 0.99 } : {}}
-            className="mt-8 group flex w-full items-center justify-center gap-3 rounded-lg border border-[#E6DCC4] bg-[#FFFCF3] px-4 py-3.5 text-[15px] font-medium text-[#2A2520] shadow-sm transition-all hover:border-[#5E8FBF]/30 hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+            className="mt-9 group flex w-full items-center justify-center gap-3 rounded-2xl border border-[#E6DCC4] bg-[#FFFCF3] px-4 py-4 text-[15px] font-medium text-[#2A2520] transition-all hover:border-[#B86B4A]/30 disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{
+              boxShadow:
+                "0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 28px -10px rgba(106,76,38,0.14), 0 1px 3px rgba(106,76,38,0.04)",
+            }}
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 rounded-full border-2 border-[#5E8FBF]/30 border-t-[#5E8FBF] animate-spin" />
+                <div className="w-4 h-4 rounded-full border-2 border-[#B86B4A]/30 border-t-[#B86B4A] animate-spin" />
                 Redirecting…
               </>
             ) : (
@@ -104,13 +143,19 @@ export default function LoginPage() {
             )}
           </motion.button>
 
-          <div className="mt-6 flex items-start gap-2 text-[12px] text-[#A89F92]">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mt-6 flex items-start gap-2 text-[12px] text-[#A89F92]"
+          >
             <div className="w-1 h-1 rounded-full bg-[#A89F92] mt-1.5 shrink-0" />
-            <p>
-              By continuing, you agree to Oushi reading your Gmail to provide its features.
-              We don&apos;t share your email content with anyone, and you can delete everything at any time.
+            <p className="leading-relaxed">
+              By continuing, you agree to Oushi reading your Gmail to provide its
+              features. We don&apos;t share your email content with anyone, and you
+              can delete everything at any time.
             </p>
-          </div>
+          </motion.div>
         </motion.div>
       </main>
 
@@ -118,8 +163,12 @@ export default function LoginPage() {
       <footer className="relative z-10 px-6 py-5 max-w-5xl mx-auto w-full flex items-center justify-between text-[11px] text-[#A89F92]">
         <span>© Oushi {new Date().getFullYear()}</span>
         <div className="flex items-center gap-4">
-          <a href="/privacy" className="hover:text-[#3D6A95] transition-colors">Privacy</a>
-          <a href="/terms" className="hover:text-[#3D6A95] transition-colors">Terms</a>
+          <a href="/privacy" className="hover:text-[#B86B4A] transition-colors">
+            Privacy
+          </a>
+          <a href="/terms" className="hover:text-[#B86B4A] transition-colors">
+            Terms
+          </a>
         </div>
       </footer>
     </div>

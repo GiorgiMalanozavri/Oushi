@@ -123,6 +123,69 @@
   --sidebar-accent-foreground: #3D6A95;
   --sidebar-border: #E6DCC4;
   --sidebar-ring: #5E8FBF;
+
+  /* ====== Editorial surface tokens (used by the new design system) ======
+     These are the only colors the dark-mode override flips. Components
+     that read them via var() get a warm-dark theme for free. Components
+     still using inline hex values stay light until refactored. */
+  --surface-page: #FAF6EB;        /* outer page background */
+  --surface-elev: #FFFCF3;        /* cards / sidebars / panels */
+  --surface-elev-2: #FBF4DF;      /* accent gradient stop (warmer) */
+  --surface-elev-3: #F5E8D2;      /* secondary gradient stop */
+  --ink-strong: #2A2520;          /* primary text */
+  --ink-soft: #3F362C;            /* body text in serif blocks */
+  --ink-muted: #766E63;           /* secondary text */
+  --ink-faint: #A89F92;           /* tertiary text / meta */
+  --hairline: #E6DCC4;            /* default hairline borders */
+  --hairline-strong: #D4C6A6;     /* heavier dividers */
+  --accent-warm: #B86B4A;         /* primary action / accent */
+  --accent-warm-hover: #A65B3F;
+}
+
+.dark {
+  /* ====== Warm dark mode — manuscript-feel in low light ======
+     Not pure black: a deep warm brown that pairs with cream serif text.
+     Same color logic as light mode, just shifted down the L axis. */
+  --background: #1B1813;
+  --foreground: #FBF4DF;
+  --card: #25201A;
+  --card-foreground: #FBF4DF;
+  --popover: #25201A;
+  --popover-foreground: #FBF4DF;
+  --primary: #D9956E;
+  --primary-foreground: #1B1813;
+  --secondary: #2E2820;
+  --secondary-foreground: #FBF4DF;
+  --muted: #2E2820;
+  --muted-foreground: #A89F92;
+  --accent: #3A2F23;
+  --accent-foreground: #FBF4DF;
+  --destructive: #D9956E;
+  --border: #3A3127;
+  --input: #3A3127;
+  --ring: #D9956E;
+  --sidebar: #1F1B15;
+  --sidebar-foreground: #FBF4DF;
+  --sidebar-accent: #2E2820;
+  --sidebar-accent-foreground: #FBF4DF;
+  --sidebar-border: #3A3127;
+  --sidebar-ring: #D9956E;
+
+  /* Editorial surface tokens — warm-dark variants */
+  --surface-page: #1B1813;
+  --surface-elev: #25201A;
+  --surface-elev-2: #2E2820;
+  --surface-elev-3: #332A21;
+  --ink-strong: #FBF4DF;
+  --ink-soft: #E8D9B8;
+  --ink-muted: #A89F92;
+  --ink-faint: #7A7065;
+  --hairline: #3A3127;
+  --hairline-strong: #4A3F33;
+  --accent-warm: #D9956E;
+  --accent-warm-hover: #E5A57D;
+
+  color-scheme: dark;
 }
 
 @layer base {
@@ -304,6 +367,79 @@
 
 .oushi-glow {
   animation: oushi-glow 2.4s ease-in-out infinite;
+}
+
+/* =====================================================================
+ * Editorial surfaces — warm radial-gradient backgrounds.
+ *
+ * Defined as classes (rather than inline style) so the .dark variant can
+ * swap palettes without overriding the entire `style` attribute. Each
+ * class corresponds to one of the major reading surfaces in the app.
+ * ===================================================================== */
+
+.narrative-bg,
+.settings-bg,
+.login-bg,
+.onboarding-bg {
+  background:
+    radial-gradient(ellipse at 20% -10%, #FBF4DF 0%, transparent 55%),
+    radial-gradient(ellipse at 90% 100%, #F5E8D2 0%, transparent 60%),
+    #FAF6EB;
+}
+
+.dark .narrative-bg,
+.dark .settings-bg,
+.dark .login-bg,
+.dark .onboarding-bg {
+  background:
+    radial-gradient(ellipse at 20% -10%, #2E2820 0%, transparent 55%),
+    radial-gradient(ellipse at 90% 100%, #2A241E 0%, transparent 60%),
+    #1B1813;
+}
+
+/* Sidebar — vertical gradient (top → bottom slightly darker) */
+.sidebar-bg {
+  background: linear-gradient(180deg, #FFFCF3 0%, #FBF6E9 100%);
+}
+.dark .sidebar-bg {
+  background: linear-gradient(180deg, #25201A 0%, #1F1B15 100%);
+}
+
+/* Dashboard root */
+.app-shell {
+  background: #FAF6EB;
+}
+.dark .app-shell {
+  background: #1B1813;
+}
+
+/* Surfaces — cards, modal panels */
+.surface-elev {
+  background: #FFFCF3;
+}
+.dark .surface-elev {
+  background: #25201A;
+}
+
+/* Modal panel — radial gradient */
+.modal-panel-bg {
+  background:
+    radial-gradient(ellipse at 70% 0%, #FBF4DF 0%, transparent 50%),
+    radial-gradient(ellipse at 30% 100%, #F5E8D2 0%, transparent 55%),
+    #FAF6EB;
+}
+.dark .modal-panel-bg {
+  background:
+    radial-gradient(ellipse at 70% 0%, #2E2820 0%, transparent 50%),
+    radial-gradient(ellipse at 30% 100%, #2A241E 0%, transparent 55%),
+    #1B1813;
+}
+
+/* Body text colors flip too — most components use #2A2520 directly, but
+ * we expose a class for new surfaces that want to participate. */
+.dark body {
+  color: #FBF4DF;
+  background: #1B1813;
 }
 
 /* Subtle "paper grain" — comment out if too much */

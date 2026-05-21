@@ -40,6 +40,7 @@ import {
   writeStoredTodayMode,
   type TodayMode,
 } from "@/components/today-mode-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface Profile {
   bio: string;
@@ -336,16 +337,7 @@ export function SettingsClient({
   const currentSection = sections.find((s) => s.key === section);
 
   return (
-    <div
-      className="h-screen text-[#2A2520] overflow-hidden flex relative"
-      style={{
-        background: `
-          radial-gradient(ellipse at 20% -10%, #FBF4DF 0%, transparent 55%),
-          radial-gradient(ellipse at 90% 100%, #F5E8D2 0%, transparent 60%),
-          #FAF6EB
-        `,
-      }}
-    >
+    <div className="h-screen text-[#2A2520] dark:text-[#FBF4DF] overflow-hidden flex relative settings-bg">
       <AmbientBackground variant="subtle" />
       {/* Mobile backdrop */}
       <AnimatePresence>
@@ -370,21 +362,10 @@ export function SettingsClient({
             animate={isMobile ? { x: 0 } : { width: 260, opacity: 1 }}
             exit={isMobile ? { x: -260 } : { width: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-            className={`shrink-0 h-full flex flex-col border-r border-[#E6DCC4] overflow-hidden relative z-10 ${
+            className={`sidebar-bg shrink-0 h-full flex flex-col border-r border-[#E6DCC4] dark:border-[#3A3127] overflow-hidden relative z-10 ${
               isMobile ? "fixed z-40 w-[260px] shadow-2xl" : ""
             }`}
-            style={
-              isMobile
-                ? {
-                    background:
-                      "linear-gradient(180deg, #FFFCF3 0%, #FBF6E9 100%)",
-                  }
-                : {
-                    width: 260,
-                    background:
-                      "linear-gradient(180deg, #FFFCF3 0%, #FBF6E9 100%)",
-                  }
-            }
+            style={isMobile ? {} : { width: 260 }}
           >
             {/* Brand block — serif wordmark to match dashboard */}
             <div className="flex items-center justify-between px-5 pt-5 pb-4">
@@ -933,10 +914,31 @@ function AppearanceSection() {
         </div>
       </Card>
 
-      <p className="mt-3 text-[11.5px] text-[#A89F92] italic leading-relaxed">
-        More appearance options — dark mode, density, time-aware warmth shift —
-        coming soon.
-      </p>
+      {/* ===== Theme ===== */}
+      <div className="mt-6">
+        <Card>
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex-1 min-w-0">
+                <p className="text-[13.5px] font-medium text-[#2A2520] mb-1">
+                  Theme
+                </p>
+                <p className="text-[12px] text-[#766E63] leading-relaxed">
+                  Light is the warm cream you&apos;re used to. Dark is a warm
+                  manuscript-feel deep brown — easier on the eyes after dark.
+                  System follows your OS.
+                </p>
+              </div>
+              <ThemeToggle size="md" />
+            </div>
+          </div>
+        </Card>
+        <p className="mt-3 text-[11.5px] text-[#A89F92] italic leading-relaxed">
+          Dark mode is early — a few smaller surfaces still render light while we
+          finish migrating colors to the token system. Density and time-aware
+          warmth shift coming next.
+        </p>
+      </div>
     </div>
   );
 }

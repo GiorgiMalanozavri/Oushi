@@ -4,6 +4,7 @@ import { Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { ToastProvider } from "@/components/toast";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -70,8 +71,26 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${sourceSerif.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Apply the stored theme BEFORE first paint to avoid a flash of
+            light mode for dark-mode users. The script is tiny and runs
+            synchronously; failures fall through to light mode silently. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var t = localStorage.getItem('oushi.theme');
+                var d = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (d) document.documentElement.classList.add('dark');
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
+        <ThemeProvider />
         <ToastProvider>
           <NavigationProgress />
           {children}

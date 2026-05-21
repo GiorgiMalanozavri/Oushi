@@ -214,16 +214,9 @@ export function NarrativeToday({
 
   return (
     <div
-      className="min-h-full w-full relative"
-      style={{
-        // Warm radial gradient — like Claude's reading view background.
-        // Adds spatial depth without committing to a heavy bg image.
-        background: `
-          radial-gradient(ellipse at 20% -10%, #FBF4DF 0%, transparent 55%),
-          radial-gradient(ellipse at 90% 100%, #F5E8D2 0%, transparent 60%),
-          #FAF6EB
-        `,
-      }}
+      className="min-h-full w-full relative narrative-bg"
+      // Background lives in a CSS class so dark mode can override it without
+      // overriding the whole inline style. See globals.css → .narrative-bg.
     >
       <div className="px-5 sm:px-8 py-12 sm:py-20 max-w-[720px] mx-auto">
         {/* Top meta line — date stamp on left, view-mode toggle on right.

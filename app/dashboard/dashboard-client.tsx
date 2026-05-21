@@ -940,7 +940,7 @@ export function DashboardClient({
   };
 
   return (
-    <div className="h-screen bg-[#FAF6EB] text-[#2A2520] overflow-hidden flex relative">
+    <div className="app-shell h-screen text-[#2A2520] dark:text-[#FBF4DF] overflow-hidden flex relative">
       {/* First-time setup splash — covers everything until the auto-reload */}
       {isFirstSync && hasGmail && <FirstSyncSplash />}
       <AmbientBackground variant="subtle" />
@@ -1399,12 +1399,8 @@ function Sidebar({
 
   return (
     <div
-      className="h-full flex flex-col relative"
-      style={{
-        width: 260,
-        background:
-          "linear-gradient(180deg, #FFFCF3 0%, #FBF6E9 100%)",
-      }}
+      className="sidebar-bg h-full flex flex-col relative"
+      style={{ width: 260 }}
     >
       {/* Top: logo + collapse — serif wordmark, more breathing room */}
       <div className="flex items-center justify-between px-5 pt-5 pb-4">
@@ -2688,65 +2684,103 @@ function EmailPanel({
         initial={{ x: "100%" }}
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
-        transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-        className="fixed top-0 right-0 z-50 h-screen w-full sm:w-[560px] bg-[#FFFCF3] border-l border-[#E6DCC4] shadow-2xl flex flex-col"
+        transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+        className="modal-panel-bg fixed top-0 right-0 z-50 h-screen w-full sm:w-[580px] border-l border-[#E6DCC4] dark:border-[#3A3127] flex flex-col text-[#2A2520] dark:text-[#FBF4DF]"
+        style={{
+          boxShadow:
+            "-24px 0 60px -20px rgba(106,76,38,0.18), -8px 0 20px -8px rgba(106,76,38,0.10)",
+        }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-[#E6DCC4] shrink-0">
+        {/* Header — softer, gradient divider below */}
+        <div className="flex items-center justify-between gap-3 px-5 py-3 shrink-0 relative">
           <button
             onClick={onClose}
-            className="text-[#766E63] hover:text-[#2A2520] inline-flex items-center gap-1.5 text-[12px] font-medium"
+            className="text-[#766E63] hover:text-[#3F362C] inline-flex items-center gap-1.5 text-[12px] font-medium px-2 py-1 rounded-md hover:bg-[#FAF6EB]/60 transition-colors"
           >
             <X className="w-3.5 h-3.5" />
             Close
           </button>
-          <p className="text-[11px] text-[#A89F92] font-mono">{dateLine}</p>
+          <p className="text-[10.5px] text-[#A89F92] font-mono uppercase tracking-[0.16em]">
+            {dateLine}
+          </p>
           {gmailUrl && (
-            <a href={gmailUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[#A89F92] hover:text-[#3D6A95] inline-flex items-center gap-1">
+            <a
+              href={gmailUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-[#A89F92] hover:text-[#B86B4A] inline-flex items-center gap-1 transition-colors"
+            >
               Gmail <ExternalLink className="w-3 h-3" />
             </a>
           )}
+          <div className="absolute bottom-0 left-5 right-5 h-px bg-gradient-to-r from-transparent via-[#E6DCC4] to-transparent" />
         </div>
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto">
-          <div className="px-6 py-5">
+          <div className="px-7 py-6">
             {/* Sender + score */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-full bg-[#D0E1F0] flex items-center justify-center shrink-0">
-                <span className="text-[14px] font-semibold text-[#3D6A95]">
+            <div className="flex items-center gap-3 mb-5">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ring-1 ring-white/60"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #F2DDD0 0%, #E8DDC9 100%)",
+                }}
+              >
+                <span className="text-[14px] font-semibold text-[#7A5A36]">
                   {(email.from_name || email.from_email || "?")[0]?.toUpperCase()}
                 </span>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="text-[14px] font-semibold text-[#2A2520] truncate">
+                  <p className="text-[14.5px] font-semibold text-[#2A2520] truncate">
                     {email.from_name || email.from_email}
                   </p>
                   <ScorePill score={email.score} />
                 </div>
-                <p className="text-[12px] text-[#766E63] truncate font-mono" title={email.from_email}>
+                <p
+                  className="text-[11.5px] text-[#766E63] truncate font-mono"
+                  title={email.from_email}
+                >
                   {email.from_email}
                 </p>
               </div>
             </div>
 
-            <h1 className="text-[20px] font-semibold tracking-tight text-[#2A2520] mb-2 leading-tight">
+            {/* Serif subject — manuscript-feel */}
+            <h1
+              className="text-[26px] tracking-[-0.012em] text-[#2A2520] mb-3 leading-[1.18]"
+              style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+            >
               {email.subject}
             </h1>
 
             {/* Oushi label — manually correctable */}
-            <div className="mb-4">
+            <div className="mb-5">
               <LabelChip email={email} />
             </div>
 
-            {/* Oushi summary — only if there's a highlight */}
+            {/* Oushi summary — only if there's a highlight. Warmer terracotta tint */}
             {email.highlight && (
-              <div className="mb-4 rounded-xl border border-[#5E8FBF]/25 bg-[#D0E1F0]/20 px-4 py-3.5">
-                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-2 inline-flex items-center gap-1.5">
+              <div
+                className="mb-5 rounded-2xl border border-[#B86B4A]/20 px-4 py-3.5"
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(245,232,224,0.45) 0%, rgba(251,244,223,0.30) 100%)",
+                  boxShadow:
+                    "0 1px 0 rgba(255,255,255,0.5) inset, 0 2px 12px -6px rgba(106,76,38,0.10)",
+                }}
+              >
+                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#B86B4A] mb-2 inline-flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3" /> Oushi
                 </p>
-                <p className="text-[13.5px] text-[#2A2520] leading-[1.55]">
+                <p
+                  className="text-[15px] text-[#3F362C] leading-[1.55] italic"
+                  style={{
+                    fontFamily: "var(--font-source-serif), Georgia, serif",
+                  }}
+                >
                   {email.highlight}
                 </p>
               </div>
@@ -2804,12 +2838,20 @@ function EmailPanel({
           </div>
         </div>
 
-        {/* Footer: draft reply / actions */}
-        <div className="border-t border-[#E6DCC4] bg-[#FAF6EB]/40 p-4 shrink-0 max-h-[55%] overflow-y-auto">
+        {/* Footer: draft reply / actions — warmer, terracotta primary */}
+        <div
+          className="p-4 shrink-0 max-h-[55%] overflow-y-auto relative"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(255,252,243,0.4) 0%, rgba(245,232,224,0.25) 100%)",
+          }}
+        >
+          {/* Top gradient divider */}
+          <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-[#E6DCC4] to-transparent" />
           {!draft && !notReplyable && !draftLoading && !draftError && (
             <button
               onClick={requestDraft}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#5E8FBF] px-3 py-2.5 text-[13px] font-medium text-white hover:bg-[#4A7AAB] transition-colors"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#B86B4A] to-[#A65B3F] px-3 py-3 text-[13px] font-medium text-white hover:from-[#A65B3F] hover:to-[#9C523A] transition-all shadow-[0_4px_16px_-4px_rgba(184,107,74,0.30)]"
             >
               <Sparkles className="w-3.5 h-3.5" />
               Draft a reply with Oushi
@@ -2866,7 +2908,7 @@ function EmailPanel({
                 <button
                   onClick={sendDraft}
                   disabled={sending || !draft.trim()}
-                  className="inline-flex items-center gap-1 rounded-md bg-[#5E8FBF] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#4A7AAB] disabled:opacity-40"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-br from-[#B86B4A] to-[#A65B3F] px-3 py-1.5 text-[11px] font-medium text-white hover:from-[#A65B3F] hover:to-[#9C523A] disabled:opacity-40 transition-all shadow-[0_2px_8px_-2px_rgba(184,107,74,0.30)]"
                 >
                   {sending ? <><ThinkingDots />Sending</> : <><Send className="w-3 h-3" />Send</>}
                 </button>

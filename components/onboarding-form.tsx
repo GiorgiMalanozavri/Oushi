@@ -199,14 +199,21 @@ export function OnboardingForm() {
             </div>
           </div>
 
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#5E8FBF] mb-3">
+          <p className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[#A89F92] mb-3">
             Welcome to Oushi
           </p>
-          <h1 className="text-[30px] sm:text-[38px] font-semibold tracking-[-0.015em] text-[#2A2520] leading-[1.08]">
+          <h1
+            className="text-[40px] sm:text-[48px] tracking-[-0.018em] text-[#2A2520] leading-[1.04]"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
             The inbox that won&apos;t let you forget.
           </h1>
-          <p className="mt-4 text-[15px] text-[#766E63] leading-relaxed max-w-sm mx-auto">
-            Oushi watches your email and calendar, learns what matters to you, and pings you before you drop something.
+          <p
+            className="mt-5 text-[17px] text-[#766E63] leading-[1.55] max-w-sm mx-auto italic"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
+            Oushi watches your email and calendar, learns what matters to you,
+            and pings you before you drop something.
           </p>
 
           {/* Preview cards — show what they're signing up for */}
@@ -261,14 +268,18 @@ export function OnboardingForm() {
           <div className="w-12 h-12 mx-auto rounded-xl bg-[#D0E1F0] flex items-center justify-center mb-6">
             <Mail className="w-5 h-5 text-[#3D6A95]" />
           </div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#5E8FBF] mb-3">
+          <p className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[#A89F92] mb-3">
             Step 1 of 3
           </p>
-          <h1 className="text-[26px] sm:text-[32px] font-semibold tracking-tight leading-[1.1]">
+          <h1
+            className="text-[32px] sm:text-[40px] tracking-[-0.014em] leading-[1.06] text-[#2A2520]"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
             Connect your Gmail
           </h1>
-          <p className="mt-3 text-[14px] text-[#766E63] leading-relaxed max-w-sm mx-auto">
-            Oushi reads your inbox to learn what matters. Your emails stay yours — we never share content with anyone, and you can disconnect anytime.
+          <p className="mt-4 text-[15px] text-[#766E63] leading-[1.55] max-w-sm mx-auto">
+            Oushi reads your inbox to learn what matters. Your emails stay yours —
+            we never share content with anyone, and you can disconnect anytime.
           </p>
 
           {/* Permissions — concrete, not scary */}
@@ -320,13 +331,18 @@ export function OnboardingForm() {
               <OushiMark size={48} />
             </div>
           </div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#5E8FBF] mb-3">
+          <p className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[#A89F92] mb-3">
             Step 1 of 3 · Reading
           </p>
-          <h2 className="text-[24px] font-semibold tracking-tight text-[#2A2520]">
+          <h2
+            className="text-[28px] tracking-[-0.012em] text-[#2A2520]"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
             Getting to know your inbox.
           </h2>
-          <p className="mt-2 text-[13px] text-[#766E63] max-w-sm mx-auto leading-relaxed">
+          <p className="mt-2 text-[14px] text-[#766E63] max-w-sm mx-auto leading-relaxed italic"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
             Categorizing your last 30 days. Takes about 15 seconds.
           </p>
           <div className="mt-8 flex items-center justify-center gap-1.5">
@@ -408,7 +424,10 @@ export function OnboardingForm() {
                 <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#A89F92] mb-1.5">
                   Category
                 </p>
-                <h2 className="text-[22px] font-semibold tracking-tight text-[#2A2520]">
+                <h2
+                  className="text-[26px] tracking-[-0.01em] text-[#2A2520]"
+                  style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+                >
                   {current.label}
                 </h2>
                 <p className="mt-1 text-[13px] text-[#766E63]">{current.description}</p>
@@ -509,10 +528,13 @@ export function OnboardingForm() {
     return (
       <Shell wide>
         <div className="w-full max-w-md">
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#5E8FBF] mb-2">
+          <p className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[#A89F92] mb-2">
             Step 3 of 3
           </p>
-          <h2 className="text-[24px] sm:text-[28px] font-semibold tracking-tight text-[#2A2520] leading-[1.15]">
+          <h2
+            className="text-[30px] sm:text-[36px] tracking-[-0.014em] text-[#2A2520] leading-[1.08]"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
             Who do you most want to hear from?
           </h2>
           <p className="mt-2 text-[13.5px] text-[#766E63] leading-relaxed">
@@ -627,10 +649,13 @@ export function OnboardingForm() {
             </div>
           </div>
 
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#6B8E68] mb-3">
+          <p className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[#6B8E68] mb-3">
             You&apos;re all set
           </p>
-          <h2 className="text-[28px] font-semibold tracking-tight text-[#2A2520] leading-[1.15]">
+          <h2
+            className="text-[34px] tracking-[-0.014em] text-[#2A2520] leading-[1.06]"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
             Oushi knows you a little already.
           </h2>
 
@@ -745,20 +770,27 @@ function initials(name: string): string {
 
 function Shell({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF6EB] text-[#2A2520] relative overflow-hidden">
+    <div className="min-h-screen flex flex-col text-[#2A2520] dark:text-[#FBF4DF] relative overflow-hidden onboarding-bg">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-[20%] -right-[10%] w-[60vw] h-[60vw] rounded-full bg-[#D0E1F0]/25 blur-[120px]" />
-        <div className="absolute -bottom-[20%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-[#F0E9D6]/40 blur-[120px]" />
+        <div className="absolute -top-[20%] -right-[10%] w-[60vw] h-[60vw] rounded-full bg-[#F2DDD0]/35 blur-[120px]" />
+        <div className="absolute -bottom-[20%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-[#FBF4DF]/60 blur-[120px]" />
       </div>
 
       <header className="relative z-10 flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
-        <div className="flex items-center gap-2">
-          <OushiMark size={28} />
-          <span className="text-[16px] font-semibold tracking-tight">Oushi</span>
+        <div className="flex items-center gap-2.5">
+          <OushiMark size={26} />
+          <span
+            className="text-[19px] tracking-[-0.012em] text-[#2A2520] font-medium"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
+            Oushi
+          </span>
         </div>
       </header>
 
-      <main className={`relative z-10 flex-1 flex items-start justify-center px-6 pb-16 pt-4 sm:pt-8 ${wide ? "" : ""}`}>
+      <main
+        className={`relative z-10 flex-1 flex items-start justify-center px-6 pb-16 pt-4 sm:pt-8 ${wide ? "" : ""}`}
+      >
         <div className="w-full max-w-md flex justify-center">{children}</div>
       </main>
     </div>
