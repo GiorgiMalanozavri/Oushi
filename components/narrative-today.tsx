@@ -123,9 +123,18 @@ function connectorFor(index: number, total: number): string | null {
 }
 
 // Open-line that picks the right narrative based on what's on the plate.
-function leadParagraph(count: number): string {
+// totalEmailCount lets us tell apart "you have no email yet" (brand-new
+// account, the system is still warming up) from "you have email but
+// nothing's urgent" (genuinely calm inbox). These need different copy
+// because the former feels broken if it says "your inbox is calm."
+function leadParagraph(count: number, totalEmailCount: number): string {
   if (count === 0) {
-    return "Your inbox is calm. Nothing pressing right now — Oushi is watching, and will surface anything that needs you the moment it arrives.";
+    // Truly empty system — first-time user, no synced emails yet
+    if (totalEmailCount === 0) {
+      return "I'm reading your inbox right now. The first sync takes about a minute — Oushi catalogs the last 30 days, scores what matters, and labels everything in your Gmail. Stay on this page; new cards will appear as I work through them.";
+    }
+    // Has synced email, just nothing urgent today
+    return "Your inbox is in good shape. I've already triaged the noise — nothing here needs you right now. I'll surface anything important the moment it arrives.";
   }
   if (count === 1) {
     return "One thing is waiting on you today.";
@@ -295,7 +304,16 @@ export function NarrativeToday({
           className="font-serif text-[19px] sm:text-[20px] leading-[1.55] text-[#3F362C] mt-5"
           style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
         >
-          {loading ? "Reading your inbox…" : leadParagraph(emailLikeItems.length)}
+          {loading
+            ? "Reading your inbox…"
+            : leadParagraph(
+                emailLikeItems.length,
+                // If we have nothing in any bucket — no email cards, no
+                // meetings, no "quietly handled" — this is almost certainly
+                // a brand-new user whose inbox hasn't synced yet. Tell them
+                // the system is working, not that their inbox is "calm."
+                emailLikeItems.length + meetings.length + quietHandledCount
+              )}
         </motion.p>
 
         {data?.summary && !loading && (

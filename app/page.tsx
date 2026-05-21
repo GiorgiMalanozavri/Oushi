@@ -121,10 +121,25 @@ export default function LandingPage() {
               </a>
             </motion.div>
 
-            <motion.p variants={fadeUp} className="mt-6 text-[12px] text-[#A89F92] flex items-center justify-center gap-1.5">
-              <Shield className="w-3 h-3" />
-              Reads your Gmail · disconnect anytime · nothing shared
-            </motion.p>
+            {/* Trust copy — above the fold, more visible than the previous
+                one-line strip. Investors + skeptics need this loud, not
+                buried two clicks deep in the privacy policy. */}
+            <motion.div
+              variants={fadeUp}
+              className="mt-7 inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#FFFCF3]/80 backdrop-blur-sm border border-[#E6DCC4] text-[11.5px] text-[#766E63]"
+              style={{
+                boxShadow:
+                  "0 1px 0 rgba(255,255,255,0.5) inset, 0 4px 16px -8px rgba(106,76,38,0.08)",
+              }}
+            >
+              <Shield className="w-3 h-3 text-[#6B8E68]" />
+              <span>
+                <strong className="text-[#3F362C] font-semibold">
+                  Your email stays yours.
+                </strong>{" "}
+                We never sell, share, or train on your data. Disconnect anytime.
+              </span>
+            </motion.div>
           </motion.div>
 
           {/* Hero product mock */}
@@ -309,18 +324,52 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="relative z-10 border-t border-[#E6DCC4]/60 py-8">
-        <div className="max-w-5xl mx-auto px-6 flex flex-wrap items-center justify-between gap-3 text-[12px] text-[#A89F92]">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-[#5E8FBF]/30 flex items-center justify-center">
-              <span className="text-[#3D6A95] text-[9px] font-semibold leading-none">O</span>
-            </div>
-            <span>© Oushi {new Date().getFullYear()}</span>
+      <footer className="relative z-10 border-t border-[#E6DCC4]/60 py-10">
+        <div className="max-w-5xl mx-auto px-6">
+          {/* Founder line — addresses "who built this?" investor question */}
+          <div className="mb-6 pb-6 border-b border-[#E6DCC4]/60">
+            <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-[#A89F92] mb-2">
+              Built by
+            </p>
+            <p
+              className="text-[16px] text-[#2A2520]"
+              style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+            >
+              Giorgi Malania — solo founder, shipping in public.
+            </p>
+            <p className="text-[12.5px] text-[#766E63] mt-1.5 leading-relaxed max-w-[560px]">
+              Building Oushi because email shouldn&apos;t be where commitments go
+              to die. Reach me directly at{" "}
+              <a
+                href="mailto:giorgi@oushi.app"
+                className="text-[#B86B4A] underline-offset-2 hover:underline"
+              >
+                giorgi@oushi.app
+              </a>
+              .
+            </p>
           </div>
-          <div className="flex items-center gap-5">
-            <a href="/privacy" className="hover:text-[#3D6A95]">Privacy</a>
-            <a href="/terms" className="hover:text-[#3D6A95]">Terms</a>
-            <a href="mailto:hello@oushi.app" className="hover:text-[#3D6A95]">Contact</a>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 text-[12px] text-[#A89F92]">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded bg-[#5E8FBF]/30 flex items-center justify-center">
+                <span className="text-[#3D6A95] text-[9px] font-semibold leading-none">
+                  O
+                </span>
+              </div>
+              <span>© Oushi {new Date().getFullYear()}</span>
+            </div>
+            <div className="flex items-center gap-5">
+              <a href="/privacy" className="hover:text-[#3D6A95]">
+                Privacy
+              </a>
+              <a href="/terms" className="hover:text-[#3D6A95]">
+                Terms
+              </a>
+              <a href="mailto:hello@oushi.app" className="hover:text-[#3D6A95]">
+                Contact
+              </a>
+            </div>
           </div>
         </div>
       </footer>
