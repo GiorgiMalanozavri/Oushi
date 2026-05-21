@@ -6,7 +6,7 @@ import { classifyAll, bucketize, type EmailRow } from "@/lib/outstanding";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ firstSync?: string }>;
+  searchParams: Promise<{ firstSync?: string; gmailError?: string }>;
 }) {
   const supabase = await createClient();
   const {
@@ -58,6 +58,7 @@ export default async function DashboardPage({
 
   const params = await searchParams;
   const isFirstSync = params.firstSync === "true";
+  const gmailError = params.gmailError || null;
 
   const classified = classifyAll((emails || []) as EmailRow[]);
   const buckets = bucketize(classified);
@@ -78,6 +79,7 @@ export default async function DashboardPage({
       totalEmails={classified.length}
       hasGmail={!!tokens}
       isFirstSync={isFirstSync}
+      gmailError={gmailError}
       userEmail={user.email || ""}
       userAvatar={(user.user_metadata?.avatar_url as string | undefined) || null}
       userName={(user.user_metadata?.full_name as string | undefined) || (user.user_metadata?.name as string | undefined) || null}

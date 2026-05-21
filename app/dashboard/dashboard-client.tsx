@@ -106,6 +106,8 @@ interface DashboardClientProps {
   profile: Profile;
   feedbackCount: number;
   lastSyncedAt: string | null;
+  /** Error code from the OAuth callback if Gmail connect failed */
+  gmailError?: string | null;
 }
 
 type ViewKey =
@@ -120,6 +122,77 @@ type ViewKey =
 
 // ChatMessage type now lives in ask-spotlight.tsx — imported above.
 
+/**
+ * Decode the gmailError code from /api/gmail/callback into a human-readable
+ * banner the connect-empty-state can render. Each code maps to a title,
+ * a one-line explanation, an optional hint, and an optional outbound link
+ * (e.g. Google's permissions page where the user can revoke and retry).
+ */
+function decodeGmailError(code: string): {
+  title: string;
+  detail: string;
+  hint?: string;
+  actionLink?: { label: string; href: string };
+} {
+  if (code === "no_refresh_token") {
+    return {
+      title: "Google didn't send back a refresh token.",
+      detail:
+        "This usually happens when you've already approved Oushi at least once and Google decided to skip the re-consent. Revoke Oushi's access on your Google account, then try again — Google will issue a fresh refresh token.",
+      hint: "If your OAuth app is still in pending-verification, also make sure your Google account is added as a test user in Google Cloud Console.",
+      actionLink: {
+        label: "Open Google account permissions",
+        href: "https://myaccount.google.com/permissions",
+      },
+    };
+  }
+  if (code === "access_denied") {
+    return {
+      title: "Google blocked the sign-in.",
+      detail:
+        "Either you cancelled the consent, or your Google account isn't authorized to use this app while it's pending verification.",
+      hint: "If you're the developer: add your Google account as a test user at console.cloud.google.com → OAuth consent screen.",
+      actionLink: {
+        label: "Open Google Cloud OAuth consent screen",
+        href: "https://console.cloud.google.com/apis/credentials/consent",
+      },
+    };
+  }
+  if (code === "missing_code") {
+    return {
+      title: "Google didn't return an authorization code.",
+      detail:
+        "The OAuth flow finished without the code we need. Usually a brief network blip — give it another try.",
+    };
+  }
+  if (code.startsWith("token_exchange:")) {
+    return {
+      title: "We couldn't exchange Google's code for tokens.",
+      detail:
+        decodeURIComponent(code.slice("token_exchange:".length)) ||
+        "Google rejected the authorization code.",
+      hint: "Codes can only be used once and expire fast — try the connect flow again from the start.",
+    };
+  }
+  if (code.startsWith("storage:") || code.startsWith("storage_exception:")) {
+    const detail = decodeURIComponent(
+      code.replace(/^storage(_exception)?:/, "")
+    );
+    return {
+      title: "We got the tokens but couldn't save them.",
+      detail: detail || "Database write failed.",
+      hint: "This is on our side — try once more. If it keeps failing, ping support.",
+    };
+  }
+  return {
+    title: "Couldn't finish connecting Gmail.",
+    detail:
+      "Google returned an unexpected response: " +
+      decodeURIComponent(code).slice(0, 200),
+    hint: "Try the connect flow once more. If it keeps failing, the OAuth app may need its verification renewed.",
+  };
+}
+
 export function DashboardClient({
   buckets: initialBuckets,
   allEmails,
@@ -127,6 +200,7 @@ export function DashboardClient({
   totalEmails,
   hasGmail,
   isFirstSync,
+  gmailError,
   userEmail,
   userAvatar = null,
   userName = null,
@@ -906,23 +980,92 @@ export function DashboardClient({
   // ===== Early states =====
 
   if (!hasGmail) {
+    // Decode the OAuth error code into a human-readable explanation +
+    // the right next step. Codes are set by /api/gmail/callback.
+    const errorMessage = gmailError ? decodeGmailError(gmailError) : null;
+
     return (
-      <div className="min-h-screen bg-[#FAF6EB] text-[#2A2520] flex items-center justify-center px-6">
-        <div className="text-center max-w-md">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-[#D0E1F0] flex items-center justify-center mb-6">
-            <Mail className="w-5 h-5 text-[#3D6A95]" />
-          </div>
-          <h1 className="text-[24px] font-semibold tracking-tight">Connect your inbox</h1>
-          <p className="mt-2 text-[14px] text-[#766E63]">
-            Oushi reads your Gmail and surfaces what matters — quietly, in your own voice.
-          </p>
-          <a
-            href="/api/gmail/connect"
-            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-[#5E8FBF] px-5 py-2.5 text-[14px] font-medium text-white hover:bg-[#4A7AAB] transition-colors"
+      <div className="min-h-screen narrative-bg text-[#2A2520] dark:text-[#FBF4DF] flex items-center justify-center px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="text-center max-w-md"
+        >
+          <div
+            className="w-12 h-12 mx-auto rounded-2xl flex items-center justify-center mb-6 ring-1 ring-white/60"
+            style={{
+              background:
+                "linear-gradient(135deg, #F2DDD0 0%, #E8DDC9 100%)",
+            }}
           >
-            Connect Gmail
-          </a>
-        </div>
+            <Mail className="w-5 h-5 text-[#7A5A36]" />
+          </div>
+          <h1
+            className="text-[32px] sm:text-[38px] tracking-[-0.014em] leading-[1.08] text-[#2A2520] dark:text-[#FBF4DF]"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
+            Connect your inbox.
+          </h1>
+          <p
+            className="mt-4 text-[16px] text-[#766E63] dark:text-[#A89F92] leading-[1.55] italic max-w-sm mx-auto"
+            style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+          >
+            Oushi reads your Gmail and surfaces what matters — quietly, in your
+            own voice.
+          </p>
+
+          {/* Error from a previous failed OAuth attempt */}
+          {errorMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+              className="mt-6 rounded-2xl border border-[#B86B4A]/25 bg-[#F5E8E0]/40 dark:bg-[#3A2F23]/40 dark:border-[#D9956E]/30 px-5 py-4 text-left"
+              style={{
+                boxShadow:
+                  "0 1px 0 rgba(255,255,255,0.5) inset, 0 2px 8px -4px rgba(184,107,74,0.10)",
+              }}
+            >
+              <p className="text-[13px] font-medium text-[#B86B4A] dark:text-[#D9956E] mb-1.5">
+                {errorMessage.title}
+              </p>
+              <p className="text-[12.5px] text-[#A66556] dark:text-[#C9BFAA] leading-relaxed mb-2">
+                {errorMessage.detail}
+              </p>
+              {errorMessage.hint && (
+                <p className="text-[11.5px] text-[#A89F92] italic leading-relaxed">
+                  {errorMessage.hint}
+                </p>
+              )}
+            </motion.div>
+          )}
+
+          <motion.a
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            href="/api/gmail/connect"
+            className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#B86B4A] to-[#A65B3F] px-6 py-3 text-[14px] font-medium text-white hover:from-[#A65B3F] hover:to-[#9C523A] transition-all"
+            style={{
+              boxShadow:
+                "0 8px 24px -8px rgba(184,107,74,0.30), 0 1px 0 rgba(255,255,255,0.15) inset",
+            }}
+          >
+            {errorMessage ? "Try again" : "Connect Gmail"}
+          </motion.a>
+
+          {errorMessage?.actionLink && (
+            <a
+              href={errorMessage.actionLink.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-block text-[12px] text-[#766E63] hover:text-[#B86B4A] dark:text-[#A89F92] dark:hover:text-[#D9956E] underline-offset-2 hover:underline transition-colors"
+            >
+              {errorMessage.actionLink.label} →
+            </a>
+          )}
+        </motion.div>
       </div>
     );
   }
