@@ -44,6 +44,10 @@ interface TodayItem {
   commitment_id: string | null;
   calendar_event_id: string | null;
   icon: "meeting" | "deadline" | "mail" | "handshake" | "calendar";
+  sender_email?: string | null;
+  is_automated?: boolean;
+  group_count?: number;
+  group_email_ids?: string[];
 }
 
 interface TodayResponse {
@@ -429,7 +433,12 @@ export function NarrativeToday({
                         });
                       }}
                       onArchive={() => {
-                        if (item.email_id && onDismissEmail) {
+                        // If this card represents a group, archive every
+                        // email in the group, not just the head.
+                        if (!onDismissEmail) return;
+                        if (item.group_email_ids && item.group_email_ids.length > 1) {
+                          for (const id of item.group_email_ids) onDismissEmail(id);
+                        } else if (item.email_id) {
                           onDismissEmail(item.email_id);
                         }
                       }}
@@ -654,18 +663,34 @@ function NarrativeCard({
           </div>
         </div>
 
+        {/* Group indicator — "+N more from this sender" — for collapsed
+            multi-item groups. Sits above the action row so it's visible
+            at a glance. */}
+        {item.group_count && item.group_count > 1 && (
+          <p className="mt-4 text-[11.5px] text-[#A89F92] italic"
+             style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}>
+            +{item.group_count - 1} more from this sender
+          </p>
+        )}
+
         {/* Inline action row */}
         {item.email_id && (
           <div className="mt-5 flex items-center gap-1.5 -mb-1">
-            <ActionPill
-              icon={<Sparkles className="w-3 h-3" />}
-              label="Reply with Oushi"
-              tone="primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDraft();
-              }}
-            />
+            {/* "Reply with Oushi" only appears when the email is actually
+                replyable. Automated senders (auto-forwarders, shift
+                reminders, calendar bots, etc.) and grouped batches get
+                an "Open" CTA instead. */}
+            {!item.is_automated && !(item.group_count && item.group_count > 1) && (
+              <ActionPill
+                icon={<Sparkles className="w-3 h-3" />}
+                label="Reply with Oushi"
+                tone="primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDraft();
+                }}
+              />
+            )}
             <ActionPill
               icon={<Clock className="w-3 h-3" />}
               label="Snooze"
@@ -676,7 +701,11 @@ function NarrativeCard({
             />
             <ActionPill
               icon={<Archive className="w-3 h-3" />}
-              label="Archive"
+              label={
+                item.group_count && item.group_count > 1
+                  ? `Archive all ${item.group_count}`
+                  : "Archive"
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onArchive();
@@ -685,8 +714,10 @@ function NarrativeCard({
             <div className="ml-auto">
               <ActionPill
                 icon={<ArrowUpRight className="w-3 h-3" />}
-                label="Open"
-                tone="ghost"
+                label={
+                  item.group_count && item.group_count > 1 ? "Open latest" : "Open"
+                }
+                tone={item.is_automated ? "primary" : "ghost"}
                 onClick={(e) => {
                   e.stopPropagation();
                   onOpen();

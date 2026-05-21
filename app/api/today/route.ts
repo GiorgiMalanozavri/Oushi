@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { isWorthSurfacing, type EmailRow } from "@/lib/outstanding";
+import {
+  isWorthSurfacing,
+  isAutomatedEmail,
+  type EmailRow,
+} from "@/lib/outstanding";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +42,15 @@ interface TodayItem {
   calendar_event_id: string | null;
   // Iconography
   icon: "meeting" | "deadline" | "mail" | "handshake" | "calendar";
+  // Hints for the UI:
+  //   sender_email — used for grouping multiple cards from the same sender
+  //   is_automated — narrative card hides "Reply with Oushi" when true
+  //   group_count  — when > 1, this item represents N items collapsed
+  //   group_email_ids — IDs of all members in the group (for "Open all")
+  sender_email?: string | null;
+  is_automated?: boolean;
+  group_count?: number;
+  group_email_ids?: string[];
 }
 
 interface TodayResponse {
@@ -250,7 +263,7 @@ export async function GET() {
     const urgency = Math.min(95, 50 + Math.floor((e.score || 50) * 0.3) + Math.min(15, ageDays * 2));
     return {
       id: `email:${e.id}`,
-      type: "email",
+      type: "email" as const,
       urgency,
       title: e.from_name || e.from_email || "(no sender)",
       subtitle: e.subject || null,
@@ -259,9 +272,60 @@ export async function GET() {
       email_id: e.id,
       commitment_id: null,
       calendar_event_id: null,
-      icon: "mail",
+      icon: "mail" as const,
+      sender_email: (e.from_email || "").toLowerCase() || null,
+      // We checked isWorthSurfacing above (so blatant noise is gone), but
+      // isAutomatedEmail catches the "Reply with Oushi shouldn't show"
+      // gate — recurring shift reminders, auto-forwarders, etc.
+      is_automated: isAutomatedEmail(e as unknown as EmailRow),
     };
   });
+
+  // ---- Group same-sender items so 5 shift reminders collapse to 1 ----
+  // Trigger threshold: 2+ items from the same sender. The most-urgent
+  // becomes the head; the rest are tucked into group_email_ids so the
+  // card can show "+4 more from this sender" and let the user open all
+  // of them if they want.
+  const groupedEmailItems: TodayItem[] = (() => {
+    const bySender = new Map<string, TodayItem[]>();
+    const ungrouped: TodayItem[] = [];
+    for (const item of emailItems) {
+      const key = item.sender_email;
+      if (!key) {
+        ungrouped.push(item);
+        continue;
+      }
+      const list = bySender.get(key) || [];
+      list.push(item);
+      bySender.set(key, list);
+    }
+
+    const out: TodayItem[] = [...ungrouped];
+    for (const [, list] of bySender) {
+      if (list.length === 1) {
+        out.push(list[0]);
+        continue;
+      }
+      // Sort the group internally so the highest-urgency item is the head
+      list.sort((a, b) => b.urgency - a.urgency);
+      const head = list[0];
+      const rest = list.slice(1);
+      out.push({
+        ...head,
+        // Keep the head's urgency so the group still sorts correctly
+        // against meetings + other emails
+        urgency: Math.min(95, head.urgency + 5), // a small boost: 5 emails > 1 email
+        // Subtitle shifts to reflect the count
+        subtitle:
+          head.subtitle && list.length > 1
+            ? `${head.subtitle} (+${rest.length} more)`
+            : head.subtitle,
+        group_count: list.length,
+        group_email_ids: list.map((x) => x.email_id).filter(Boolean) as string[],
+      });
+    }
+    return out;
+  })();
 
   // ---- Merge, dedupe by underlying resource, sort by urgency ----
   const seenEmailIds = new Set<string>();
@@ -275,13 +339,15 @@ export async function GET() {
   for (const c of commitmentItems) {
     merged.push(c);
   }
-  for (const e of emailItems) {
+  for (const e of groupedEmailItems) {
     if (e.email_id && seenEmailIds.has(e.email_id)) continue;
     merged.push(e);
   }
 
   merged.sort((a, b) => b.urgency - a.urgency);
-  const top = merged.slice(0, 5);
+  // Slightly larger cap now that same-sender items collapse into groups —
+  // 8 distinct concerns is a comfortable upper bound for a Today view.
+  const top = merged.slice(0, 8);
 
   // ---- Greeting copy ----
   const hour = now.getHours();

@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Star,
+  RefreshCw,
 } from "lucide-react";
 import { OushiMark } from "@/components/oushi-mark";
 
@@ -45,6 +46,7 @@ type Phase =
   | "loading"
   | "review"
   | "people"
+  | "activate"   // Feature-toggle wizard — labels / voice / push
   | "complete";
 
 export function OnboardingForm({
@@ -161,7 +163,11 @@ export function OnboardingForm({
   };
 
   const finishOnboarding = async () => {
-    setPhase("complete");
+    // Move to the activate phase IMMEDIATELY so the user sees the next
+    // step. We then call /api/onboarding/complete in the background — it
+    // saves the preferences + ranks the inbox, but the user is already
+    // looking at the feature-toggle wizard while it runs.
+    setPhase("activate");
     try {
       const importantPeople = topPeople
         .filter((p) => selectedPeople.has(p.email))
@@ -180,15 +186,17 @@ export function OnboardingForm({
           important_people: importantPeople,
         }),
       });
-      // Hold the "complete" screen for a brief beat so the user reads the
-      // success state, then transition to dashboard with firstSync flag.
-      setTimeout(() => {
-        router.push("/dashboard?firstSync=true");
-      }, 2000);
     } catch {
       setError("Failed to save preferences");
       setPhase("people");
     }
+  };
+
+  const finishActivation = () => {
+    setPhase("complete");
+    setTimeout(() => {
+      router.push("/dashboard?firstSync=true");
+    }, 1500);
   };
 
   // ============================================================
@@ -642,7 +650,18 @@ export function OnboardingForm({
   }
 
   // ============================================================
-  // PHASE 6: COMPLETE — success summary while we redirect
+  // PHASE 6: ACTIVATE — turn on the features (labels / voice / push)
+  // ============================================================
+  if (phase === "activate") {
+    return (
+      <Shell>
+        <ActivatePhase onContinue={finishActivation} />
+      </Shell>
+    );
+  }
+
+  // ============================================================
+  // PHASE 7: COMPLETE — success summary while we redirect
   // ============================================================
   if (phase === "complete") {
     const liked = categories.filter((c) => c.preference === "yes").length;
@@ -779,6 +798,286 @@ function initials(name: string): string {
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() || "")
     .join("") || "?";
+}
+
+// ============================================================
+// ActivatePhase — feature toggle wizard between onboarding and dashboard
+// ============================================================
+function ActivatePhase({ onContinue }: { onContinue: () => void }) {
+  const [labelsEnabling, setLabelsEnabling] = useState(false);
+  const [labelsEnabled, setLabelsEnabled] = useState(false);
+  const [voiceLearning, setVoiceLearning] = useState(false);
+  const [voiceTrained, setVoiceTrained] = useState(false);
+  const [pushEnabling, setPushEnabling] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+
+  // Apply labels (background — apply route streams ndjson but we just
+  // wait for completion before flipping the toggle)
+  const enableLabels = async () => {
+    if (labelsEnabling || labelsEnabled) return;
+    setLabelsEnabling(true);
+    try {
+      const res = await fetch("/api/labels/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: 30 }),
+      });
+      if (!res.ok || !res.body) {
+        setLabelsEnabling(false);
+        return;
+      }
+      // Drain the stream so we know it's done
+      const reader = res.body.getReader();
+      while (true) {
+        const { done } = await reader.read();
+        if (done) break;
+      }
+      setLabelsEnabled(true);
+    } catch {
+      // fall through — user can still try later from Settings
+    } finally {
+      setLabelsEnabling(false);
+    }
+  };
+
+  const learnVoice = async () => {
+    if (voiceLearning || voiceTrained) return;
+    setVoiceLearning(true);
+    try {
+      const res = await fetch("/api/voice/learn", { method: "POST" });
+      if (res.ok) setVoiceTrained(true);
+    } catch {
+      // ignore
+    } finally {
+      setVoiceLearning(false);
+    }
+  };
+
+  // Push needs the browser permission prompt + a service-worker
+  // subscription. We hand off to /settings?section=notifications for
+  // the heavy lifting and just mark as "configured later" if skipped.
+  const enablePush = async () => {
+    if (pushEnabling || pushEnabled) return;
+    if (typeof window === "undefined") return;
+    if (!("Notification" in window)) {
+      // Browser doesn't support — quietly mark done
+      setPushEnabled(true);
+      return;
+    }
+    setPushEnabling(true);
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === "granted") {
+        // Subscribe via the existing endpoint
+        const reg = await navigator.serviceWorker.ready.catch(() => null);
+        if (reg) {
+          const vapidKey =
+            (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY as string | undefined) || "";
+          try {
+            // Cast around the DOM lib's stricter ArrayBuffer type — VAPID
+            // keys are <50 bytes and the runtime is fine, TS just doesn't
+            // know.
+            const sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: vapidKey
+                ? (urlBase64ToUint8Array(vapidKey).buffer as ArrayBuffer)
+                : undefined,
+            });
+            await fetch("/api/push/subscribe", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ subscription: sub.toJSON() }),
+            });
+            setPushEnabled(true);
+          } catch {
+            // Fall through — user can re-try from Settings
+          }
+        }
+      }
+    } finally {
+      setPushEnabling(false);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-md">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="text-center"
+      >
+        <p className="text-[10.5px] font-mono uppercase tracking-[0.18em] text-[#A89F92] mb-3">
+          Almost there
+        </p>
+        <h2
+          className="text-[30px] sm:text-[36px] tracking-[-0.014em] text-[#2A2520] leading-[1.08]"
+          style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+        >
+          Turn Oushi on.
+        </h2>
+        <p
+          className="mt-4 text-[15px] text-[#766E63] leading-[1.55] max-w-sm mx-auto italic"
+          style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+        >
+          Three quick switches. You can change any of these later in
+          Settings.
+        </p>
+      </motion.div>
+
+      <div className="mt-8 space-y-3">
+        <ActivationRow
+          number={1}
+          title="Label my Gmail"
+          description="Oushi tags every email — Respond, Awaiting, Receipt, Marketing — so your Gmail sidebar is organized."
+          state={
+            labelsEnabled
+              ? "done"
+              : labelsEnabling
+                ? "loading"
+                : "idle"
+          }
+          loadingLabel="Labeling…"
+          ctaLabel="Apply labels"
+          onClick={enableLabels}
+        />
+        <ActivationRow
+          number={2}
+          title="Learn how I write"
+          description="Reads your sent folder so AI-drafted replies sound like you, not a robot."
+          state={
+            voiceTrained ? "done" : voiceLearning ? "loading" : "idle"
+          }
+          loadingLabel="Reading sent…"
+          ctaLabel="Train voice"
+          onClick={learnVoice}
+        />
+        <ActivationRow
+          number={3}
+          title="Send me nudges"
+          description="Browser notifications when something urgent arrives or a promise is overdue."
+          state={
+            pushEnabled ? "done" : pushEnabling ? "loading" : "idle"
+          }
+          loadingLabel="Asking permission…"
+          ctaLabel="Enable nudges"
+          onClick={enablePush}
+        />
+      </div>
+
+      <div className="mt-8 flex items-center justify-between">
+        <button
+          onClick={onContinue}
+          className="text-[12px] text-[#A89F92] hover:text-[#766E63] transition-colors"
+        >
+          Skip for now
+        </button>
+        <button
+          onClick={onContinue}
+          className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-[#B86B4A] to-[#A65B3F] px-5 py-2.5 text-[13.5px] font-medium text-white hover:from-[#A65B3F] hover:to-[#9C523A] transition-all"
+          style={{
+            boxShadow:
+              "0 8px 24px -8px rgba(184,107,74,0.30), 0 1px 0 rgba(255,255,255,0.15) inset",
+          }}
+        >
+          Continue to Oushi
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ActivationRow({
+  number,
+  title,
+  description,
+  state,
+  loadingLabel,
+  ctaLabel,
+  onClick,
+}: {
+  number: number;
+  title: string;
+  description: string;
+  state: "idle" | "loading" | "done";
+  loadingLabel: string;
+  ctaLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      className="rounded-2xl border border-[#E6DCC4] bg-[#FFFCF3] p-4"
+      style={{
+        boxShadow:
+          "0 1px 0 rgba(255,255,255,0.5) inset, 0 4px 16px -8px rgba(106,76,38,0.08)",
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[12px] font-mono font-semibold ${
+            state === "done"
+              ? "bg-[#6B8E68] text-white"
+              : "bg-[#FAF6EB] text-[#766E63] border border-[#E6DCC4]"
+          }`}
+        >
+          {state === "done" ? (
+            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+          ) : (
+            number
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p
+            className={`text-[14px] font-medium ${
+              state === "done"
+                ? "text-[#A89F92] line-through"
+                : "text-[#2A2520]"
+            }`}
+          >
+            {title}
+          </p>
+          <p className="text-[12px] text-[#766E63] mt-0.5 leading-snug">
+            {description}
+          </p>
+          {state !== "done" && (
+            <button
+              onClick={onClick}
+              disabled={state === "loading"}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-[#B86B4A] to-[#A65B3F] px-3 py-1.5 text-[12px] font-medium text-white hover:from-[#A65B3F] hover:to-[#9C523A] transition-all disabled:opacity-60"
+              style={{
+                boxShadow:
+                  "0 2px 8px -2px rgba(184,107,74,0.30)",
+              }}
+            >
+              {state === "loading" ? (
+                <>
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  {loadingLabel}
+                </>
+              ) : (
+                ctaLabel
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Helper: convert a base64url VAPID public key into the byte array
+// pushManager.subscribe() expects. Copied here rather than importing
+// to keep the onboarding form self-contained.
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = typeof window !== "undefined" ? window.atob(base64) : "";
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
 
 function Shell({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {

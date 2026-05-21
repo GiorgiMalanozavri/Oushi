@@ -62,6 +62,11 @@ const AUTOMATED_SENDER_HINTS = [
   "notifications", "notification", "alerts", "alert", "updates", "update",
   "automated", "automatic", "mailer", "newsletter", "receipts", "billing",
   "support@", "info@", "hello@", "team@", "service@", "postmaster",
+  // Auto-forwarders and scheduling/reminder bots — catches "WhenToWork"
+  // shift reminders, calendar reminders, ICS senders, etc.
+  "autoforward", "auto-forward", "auto_forward", "forwarder",
+  "reminders@", "reminder@", "scheduler", "schedule@", "shifts@",
+  "rsvp@", "calendar-notification",
 ];
 
 const TRANSACTIONAL_SUBJECT_HINTS = [
