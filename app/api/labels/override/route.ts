@@ -83,6 +83,11 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const emailId = String(body?.emailId || "").trim();
   const labelKey = String(body?.labelKey || "").trim();
+  // Optional structured "why" — one of: "wrong_category" | "wrong_urgency" |
+  // "spam_aggregator" | "missed_opportunity" | "other". Free-form string
+  // accepted so the UI can evolve without backend changes.
+  const correctionReason =
+    typeof body?.reason === "string" ? body.reason.slice(0, 60) : null;
 
   if (!emailId) {
     return NextResponse.json({ error: "emailId is required" }, { status: 400 });
@@ -170,6 +175,8 @@ export async function POST(request: Request) {
         llm_content_label: llmContentLabel,
         sender_email: (email.from_email || "").toLowerCase() || null,
         subject: (email.subject || "").slice(0, 200) || null,
+        correction_reason: correctionReason,
+        score_at_time: typeof email.score === "number" ? email.score : null,
       });
     } catch (e) {
       console.error(

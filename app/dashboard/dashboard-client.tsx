@@ -2741,14 +2741,21 @@ function LabelChip({ email }: { email: Classified }) {
     };
   }, [email.id]);
 
-  const choose = async (value: OushiLabelKey | "none" | "auto") => {
+  const choose = async (
+    value: OushiLabelKey | "none" | "auto",
+    reason?: string
+  ) => {
     setOpen(false);
     setSaving(true);
     try {
       const res = await fetch("/api/labels/override", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailId: email.id, labelKey: value }),
+        body: JSON.stringify({
+          emailId: email.id,
+          labelKey: value,
+          reason: reason || null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
