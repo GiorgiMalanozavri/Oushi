@@ -37,7 +37,16 @@ export async function GET(request: Request) {
   const now = new Date();
   const currentHourUtc = now.getUTCHours();
 
-  // Find users whose digest hour matches now AND haven't received one today
+  // Find users whose digest hour matches now AND haven't received one today.
+  // On Vercel Hobby we can only run this cron once per day, so the
+  // per-user digest_hour_utc preference is moot — we accept anyone
+  // enabled. The 20h "never more than once per day" guard still applies
+  // so a deploy or manual rerun doesn't double-send.
+  //
+  // Set DIGEST_HOURLY_MODE=true in env once you're on Vercel Pro and
+  // running this cron hourly — then digest_hour_utc gets honored again.
+  const hourlyMode = process.env.DIGEST_HOURLY_MODE === "true";
+
   const { data: candidates } = await service
     .from("user_sync_state")
     .select("user_id, digest_enabled, digest_hour_utc, last_digest_sent_at")
@@ -48,7 +57,7 @@ export async function GET(request: Request) {
   }
 
   const dueUsers = candidates.filter((u) => {
-    if (u.digest_hour_utc !== currentHourUtc) return false;
+    if (hourlyMode && u.digest_hour_utc !== currentHourUtc) return false;
     if (!u.last_digest_sent_at) return true;
     const last = new Date(u.last_digest_sent_at);
     const hoursSince = (now.getTime() - last.getTime()) / 3600000;
