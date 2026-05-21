@@ -20,7 +20,7 @@ export default function PrivacyPage() {
         </h1>
         <p className="text-[15px] text-[#766E63] leading-relaxed">
           This policy explains what Oushi collects, why, and what we&apos;ll never do with it. We&apos;ve tried to write it in plain English. If something is unclear,{" "}
-          <a href="mailto:hi@oushi.app" className="text-[#3D6A95] underline underline-offset-2">email us</a>.
+          <a href="mailto:hello@oushi.app" className="text-[#3D6A95] underline underline-offset-2">email us</a>.
         </p>
 
         <div className="prose-section">
@@ -139,7 +139,7 @@ export default function PrivacyPage() {
             </ul>
             <p>
               If you reside in the EU/UK, you also have the right to access, correct, port, or restrict processing of your personal data, and to lodge a complaint with your local data protection authority. To exercise these rights beyond what the in-app controls allow, email{" "}
-              <a href="mailto:hi@oushi.app" className="link">hi@oushi.app</a>.
+              <a href="mailto:hello@oushi.app" className="link">hello@oushi.app</a>.
             </p>
             <p>
               If you reside in California, you have additional rights under the CCPA, including the right to know what we collect, the right to delete, and the right not to be discriminated against for exercising your rights. We do not sell personal information.
@@ -166,7 +166,7 @@ export default function PrivacyPage() {
 
           <Section title="12. Contact">
             <p>
-              Questions, requests, or concerns? Email <a href="mailto:hi@oushi.app" className="link">hi@oushi.app</a>. We aim to respond within a few business days.
+              Questions, requests, or concerns? Email <a href="mailto:hello@oushi.app" className="link">hello@oushi.app</a>. We aim to respond within a few business days.
             </p>
           </Section>
         </div>
@@ -178,7 +178,7 @@ export default function PrivacyPage() {
           <div className="flex items-center gap-5">
             <Link href="/" className="hover:text-[#3D6A95]">Home</Link>
             <Link href="/terms" className="hover:text-[#3D6A95]">Terms</Link>
-            <a href="mailto:hi@oushi.app" className="hover:text-[#3D6A95]">Contact</a>
+            <a href="mailto:hello@oushi.app" className="hover:text-[#3D6A95]">Contact</a>
           </div>
         </div>
       </footer>

@@ -119,7 +119,7 @@ export default function TermsPage() {
               You are responsible for safeguarding access to your Google account. The Operator is not responsible for losses arising from unauthorized access to your Google account, weak passwords, compromised devices, or your failure to enable two-factor authentication.
             </p>
             <p>
-              You must notify the Operator immediately at <a href="mailto:hi@oushi.app" className="link">hi@oushi.app</a> if you suspect unauthorized use of your Account.
+              You must notify the Operator immediately at <a href="mailto:hello@oushi.app" className="link">hello@oushi.app</a> if you suspect unauthorized use of your Account.
             </p>
             <p>
               You may delete your Account at any time through the in-application <Link href="/settings" className="link">Settings</Link> page, which will trigger deletion of your data as described in our <Link href="/privacy" className="link">Privacy Policy</Link>.
@@ -325,7 +325,7 @@ export default function TermsPage() {
           {/* ============================ */}
           <Section title="18. Termination and Suspension">
             <p>
-              <strong>By you.</strong> You may terminate these Terms at any time by deleting your Account through the in-application <Link href="/settings" className="link">Settings</Link> page or by emailing <a href="mailto:hi@oushi.app" className="link">hi@oushi.app</a>.
+              <strong>By you.</strong> You may terminate these Terms at any time by deleting your Account through the in-application <Link href="/settings" className="link">Settings</Link> page or by emailing <a href="mailto:hello@oushi.app" className="link">hello@oushi.app</a>.
             </p>
             <p>
               <strong>By the Operator.</strong> The Operator may suspend or terminate your Account, your access to the Service, or these Terms in their entirety, at any time and for any reason, including without limitation if the Operator believes, in its sole discretion, that:
@@ -405,7 +405,7 @@ export default function TermsPage() {
           {/* ============================ */}
           <Section title="23. Dispute Resolution and Binding Arbitration">
             <p>
-              <strong>Informal resolution.</strong> Before filing any formal proceeding, you agree to first contact the Operator at <a href="mailto:hi@oushi.app" className="link">hi@oushi.app</a> with a written description of the dispute, your contact information, the relief you seek, and any supporting documentation. The Operator and you will attempt in good faith to resolve the dispute informally within sixty (60) days of such notice.
+              <strong>Informal resolution.</strong> Before filing any formal proceeding, you agree to first contact the Operator at <a href="mailto:hello@oushi.app" className="link">hello@oushi.app</a> with a written description of the dispute, your contact information, the relief you seek, and any supporting documentation. The Operator and you will attempt in good faith to resolve the dispute informally within sixty (60) days of such notice.
             </p>
             <p>
               <strong>Binding arbitration.</strong> If the dispute is not resolved through informal negotiation, you and the Operator agree that any dispute, claim, or controversy arising out of or relating to these Terms or the Service shall be resolved by binding individual arbitration administered by the American Arbitration Association (&ldquo;<strong>AAA</strong>&rdquo;) under its Consumer Arbitration Rules, in the English language. The arbitrator&apos;s decision shall be final and binding, and judgment on the award may be entered in any court of competent jurisdiction.
@@ -417,7 +417,7 @@ export default function TermsPage() {
               <strong>Small-claims exception.</strong> Notwithstanding the foregoing, either you or the Operator may bring an individual action in small claims court if the dispute is within that court&apos;s jurisdictional limits.
             </p>
             <p>
-              <strong>Right to opt out.</strong> You may opt out of this arbitration agreement within thirty (30) days of first accepting these Terms by sending written notice to <a href="mailto:hi@oushi.app" className="link">hi@oushi.app</a> with the subject line &ldquo;Arbitration Opt-Out&rdquo; and including your Account email. Opting out will not affect any other portion of these Terms.
+              <strong>Right to opt out.</strong> You may opt out of this arbitration agreement within thirty (30) days of first accepting these Terms by sending written notice to <a href="mailto:hello@oushi.app" className="link">hello@oushi.app</a> with the subject line &ldquo;Arbitration Opt-Out&rdquo; and including your Account email. Opting out will not affect any other portion of these Terms.
             </p>
           </Section>
 
@@ -467,7 +467,7 @@ export default function TermsPage() {
               <strong>Notices to you.</strong> The Operator may provide notices to you under these Terms by email to the address associated with your Account, by posting on the Service, or by other reasonable means. Notices are deemed given as of the date the Operator sends them.
             </p>
             <p>
-              <strong>Notices to the Operator.</strong> All legal notices to the Operator must be sent in writing to <a href="mailto:hi@oushi.app" className="link">hi@oushi.app</a> with the subject line &ldquo;Legal Notice.&rdquo; Notices are deemed given as of the date received and acknowledged by the Operator.
+              <strong>Notices to the Operator.</strong> All legal notices to the Operator must be sent in writing to <a href="mailto:hello@oushi.app" className="link">hello@oushi.app</a> with the subject line &ldquo;Legal Notice.&rdquo; Notices are deemed given as of the date received and acknowledged by the Operator.
             </p>
             <p>
               <strong>Consent to electronic communications.</strong> You consent to receive all communications, agreements, notices, and disclosures from the Operator in electronic form, and you agree that such electronic communications satisfy any legal requirement that such communications be in writing.
@@ -512,7 +512,7 @@ export default function TermsPage() {
               <li>Manually verify any time-sensitive emails (such as legal notices, deadlines, or financial communications) directly in Gmail rather than relying solely on Oushi&apos;s briefings or rankings;</li>
               <li>Review every AI-drafted reply before clicking Send. Do not enable any future autonomous features without understanding their behavior;</li>
               <li>Export your data periodically using the in-application data export feature so you have your own copy of your boards, profile, and memory;</li>
-              <li>Report bugs, unexpected behavior, or security concerns to <a href="mailto:hi@oushi.app" className="link">hi@oushi.app</a> promptly.</li>
+              <li>Report bugs, unexpected behavior, or security concerns to <a href="mailto:hello@oushi.app" className="link">hello@oushi.app</a> promptly.</li>
             </ul>
             <p>
               The Operator may unilaterally restrict your use of the Service if your usage patterns suggest that you are relying on the Service in a manner that creates legal or operational risk for the Operator or other Users.
@@ -536,7 +536,7 @@ export default function TermsPage() {
             </p>
             <div className="mt-2 rounded-lg border border-[#E6DCC4] bg-[#FFFCF3] px-4 py-3 text-[14px]">
               <p className="font-semibold text-[#2A2520]">Oushi (Operator)</p>
-              <p className="text-[#766E63] mt-0.5">Email: <a href="mailto:hi@oushi.app" className="link">hi@oushi.app</a></p>
+              <p className="text-[#766E63] mt-0.5">Email: <a href="mailto:hello@oushi.app" className="link">hello@oushi.app</a></p>
               <p className="text-[#766E63]">Web: <a href="https://oushi.app" className="link">oushi.app</a></p>
             </div>
             <p className="text-[12px] text-[#A89F92] mt-3">
@@ -552,7 +552,7 @@ export default function TermsPage() {
           <div className="flex items-center gap-5">
             <Link href="/" className="hover:text-[#3D6A95]">Home</Link>
             <Link href="/privacy" className="hover:text-[#3D6A95]">Privacy</Link>
-            <a href="mailto:hi@oushi.app" className="hover:text-[#3D6A95]">Contact</a>
+            <a href="mailto:hello@oushi.app" className="hover:text-[#3D6A95]">Contact</a>
           </div>
         </div>
       </footer>

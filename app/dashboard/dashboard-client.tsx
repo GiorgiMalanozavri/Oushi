@@ -51,6 +51,7 @@ import { PromisesView } from "@/components/promises-view";
 import { FirstSyncSplash } from "@/components/first-sync-splash";
 import { DashboardSkeleton } from "@/components/skeleton";
 import { KeyboardHelp } from "@/components/keyboard-help";
+import { FeedbackWidget } from "@/components/feedback-widget";
 import {
   enableFeedbackFx,
   fxDismiss,
@@ -1531,6 +1532,9 @@ export function DashboardClient({
 
       {/* Keyboard shortcut help — opens with "?" */}
       <KeyboardHelp open={kbdHelpOpen} onClose={() => setKbdHelpOpen(false)} />
+
+      {/* Always-visible feedback launcher — one-click report during beta */}
+      <FeedbackWidget />
 
       {totalEmails === 0 && view.type === "today" && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

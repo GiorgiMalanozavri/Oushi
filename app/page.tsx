@@ -320,7 +320,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-5">
             <a href="/privacy" className="hover:text-[#3D6A95]">Privacy</a>
             <a href="/terms" className="hover:text-[#3D6A95]">Terms</a>
-            <a href="mailto:hi@oushi.app" className="hover:text-[#3D6A95]">Contact</a>
+            <a href="mailto:hello@oushi.app" className="hover:text-[#3D6A95]">Contact</a>
           </div>
         </div>
       </footer>
