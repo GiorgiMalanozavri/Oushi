@@ -47,7 +47,13 @@ type Phase =
   | "people"
   | "complete";
 
-export function OnboardingForm() {
+export function OnboardingForm({
+  hasGmailTokens = false,
+}: {
+  /** True if user_tokens already exists for this user — skip the connect
+   * phase and jump to loading samples. */
+  hasGmailTokens?: boolean;
+}) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [categories, setCategories] = useState<CategoryWithPref[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -59,17 +65,24 @@ export function OnboardingForm() {
   const [loadingPeople, setLoadingPeople] = useState(false);
   const router = useRouter();
 
-  // If user already has Gmail tokens (e.g. they came back to this screen),
-  // skip intro and start loading samples.
+  // Auto-advance past the intro/connect phases when Gmail is already
+  // connected. We rely on two signals:
+  //   1. The server-side `hasGmailTokens` prop (most reliable — set by
+  //      onboarding/page.tsx from the user_tokens table)
+  //   2. The `?connected` query param the OAuth callback sets when it
+  //      sends a new user here (fallback if the prop somehow isn't set)
+  // Either signal triggers the loading phase. Without this, a user who
+  // has tokens but no profile would loop through OAuth from the intro.
   useEffect(() => {
-    const hasGmail =
-      typeof window !== "undefined" && !window.location.search.includes("noGmail");
-    if (hasGmail && window.location.search.includes("connected")) {
+    const urlSaysConnected =
+      typeof window !== "undefined" &&
+      window.location.search.includes("connected");
+    if (hasGmailTokens || urlSaysConnected) {
       setPhase("loading");
       startLoadingSamples();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hasGmailTokens]);
 
   const startLoadingSamples = async () => {
     setPhase("loading");

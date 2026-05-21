@@ -101,7 +101,11 @@ export async function GET(request: Request) {
       .single();
 
     if (!profile) {
-      return NextResponse.redirect(`${origin}/onboarding`);
+      // The "?connected" flag tells the onboarding form Gmail was just
+      // hooked up — it jumps straight to loading samples instead of
+      // showing the intro again. Without it, the user re-runs the OAuth
+      // flow from the intro and lands here in an infinite loop.
+      return NextResponse.redirect(`${origin}/onboarding?connected=true`);
     }
 
     return NextResponse.redirect(`${origin}/dashboard`);

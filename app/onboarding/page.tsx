@@ -19,12 +19,14 @@ export default async function OnboardingPage() {
 
   if (profile) redirect("/dashboard");
 
-  // Check if Gmail is connected
+  // Check if Gmail is connected — pass as a prop so the form skips the
+  // "connect" phase and jumps straight to loading samples. Without this,
+  // a user with tokens but no profile would loop through the OAuth flow.
   const { data: tokens } = await supabase
     .from("user_tokens")
     .select("id")
     .eq("user_id", user.id)
     .single();
 
-  return <OnboardingForm />;
+  return <OnboardingForm hasGmailTokens={!!tokens} />;
 }
