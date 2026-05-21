@@ -66,6 +66,7 @@ interface TodayResponse {
     muted_today: number;
     auto_fulfilled_today: number;
     nudges_sent_today: number;
+    automated_filtered_today: number;
   };
   generated_at: string;
 }
@@ -239,10 +240,13 @@ export async function GET() {
   // ---- 3. High-score unreplied emails waiting on the user ----
   const rawEmails = rawEmailsRes.data;
 
-  // Filter out receipts, verification codes, login alerts, automated
-  // senders — anything where "5d waiting" would be a lie.
+  // Filter out receipts, verification codes, login alerts AND automated
+  // senders (shift reminders, auto-forwarders, calendar bots) — anything
+  // where "X days waiting" would be a lie OR a card the user can't act
+  // on. Count the automated ones we drop so the "quietly handled" footer
+  // can credit Oushi for filtering them.
+  let automatedFilteredCount = 0;
   const emails = (rawEmails || []).filter((e) => {
-    // Build a minimal EmailRow for isWorthSurfacing
     const row = {
       from_name: e.from_name || "",
       from_email: e.from_email || "",
@@ -250,7 +254,14 @@ export async function GET() {
       snippet: e.snippet || "",
       body_preview: e.body_preview || "",
     } as Partial<EmailRow> as EmailRow;
-    return isWorthSurfacing(row);
+    if (!isWorthSurfacing(row)) return false;
+    // Hide automated reminders even when they score high — they don't
+    // belong in a "needs your attention" surface.
+    if (isAutomatedEmail(row)) {
+      automatedFilteredCount++;
+      return false;
+    }
+    return true;
   }).slice(0, 8);
 
   const emailItems: TodayItem[] = (emails || []).map((e) => {
@@ -393,6 +404,7 @@ export async function GET() {
       muted_today: mutedToday || 0,
       auto_fulfilled_today: autoFulfilledToday || 0,
       nudges_sent_today: nudgesSentToday || 0,
+      automated_filtered_today: automatedFilteredCount,
     },
     generated_at: now.toISOString(),
   };

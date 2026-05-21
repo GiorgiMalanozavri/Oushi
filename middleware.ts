@@ -53,9 +53,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Already signed in → typing "oushi.app" shouldn't show them the
+  // marketing landing again. Send them straight to the dashboard.
+  if (user && request.nextUrl.pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
   return supabaseResponse;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/settings/:path*", "/onboarding/:path*", "/login"],
+  matcher: [
+    "/",
+    "/dashboard/:path*",
+    "/settings/:path*",
+    "/onboarding/:path*",
+    "/login",
+  ],
 };

@@ -32,6 +32,13 @@ import {
 import { useToast } from "@/components/toast";
 import { SetupChecklist } from "@/components/setup-checklist";
 
+// Module-level cache for /api/today. Survives component unmount → switching
+// between Today and another view (or clicking the Oushi logo while on
+// another view) repaints instantly from cache, then refreshes in the
+// background. 60s TTL is short enough that stale data is rare.
+let todayCache: { data: TodayResponse; ts: number } | null = null;
+const TODAY_CACHE_TTL_MS = 60_000;
+
 interface TodayItem {
   id: string;
   type: "meeting" | "commitment" | "email";
@@ -63,6 +70,7 @@ interface TodayResponse {
     muted_today: number;
     auto_fulfilled_today: number;
     nudges_sent_today: number;
+    automated_filtered_today?: number;
   };
 }
 
@@ -141,8 +149,15 @@ export function NarrativeToday({
   onDismissEmail,
   rightAdornment,
 }: Props) {
-  const [data, setData] = useState<TodayResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Module-level cache survives component unmount → fast switch back to
+  // Today from another view (e.g., clicking the logo while on Urgent)
+  // skips the loading flash entirely. TTL: 60s. Fetched cache is fresh
+  // enough for navigation, stale for cron-driven updates.
+  const cached = todayCache && Date.now() - todayCache.ts < TODAY_CACHE_TTL_MS
+    ? todayCache.data
+    : null;
+  const [data, setData] = useState<TodayResponse | null>(cached);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [expandedHandled, setExpandedHandled] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -166,6 +181,7 @@ export function NarrativeToday({
       }
       const json = await res.json();
       setData(json);
+      todayCache = { data: json, ts: Date.now() };
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");
     } finally {
@@ -174,6 +190,11 @@ export function NarrativeToday({
   };
 
   useEffect(() => {
+    // If we already painted from the module cache, do a background
+    // refresh but don't show the loading skeleton — keep the page
+    // visible while we update underneath.
+    const hasCachedAtMount =
+      !!todayCache && Date.now() - todayCache.ts < TODAY_CACHE_TTL_MS;
     let cancelled = false;
     (async () => {
       try {
@@ -186,9 +207,14 @@ export function NarrativeToday({
           return;
         }
         const json = await res.json();
-        if (!cancelled) setData(json);
+        if (!cancelled) {
+          setData(json);
+          todayCache = { data: json, ts: Date.now() };
+        }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Network error");
+        if (!cancelled && !hasCachedAtMount) {
+          setError(e instanceof Error ? e.message : "Network error");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -215,7 +241,8 @@ export function NarrativeToday({
   const quietHandledCount =
     (data?.quietly_handled?.muted_today ?? 0) +
     (data?.quietly_handled?.auto_fulfilled_today ?? 0) +
-    (data?.quietly_handled?.nudges_sent_today ?? 0);
+    (data?.quietly_handled?.nudges_sent_today ?? 0) +
+    (data?.quietly_handled?.automated_filtered_today ?? 0);
 
   // Pull out meeting/calendar items separately for the "Coming up" pill.
   // Calendar belongs in its own visual block so users notice they have
@@ -564,6 +591,20 @@ export function NarrativeToday({
                         nudge
                         {data.quietly_handled.nudges_sent_today === 1 ? "" : "s"} so
                         you wouldn&apos;t lose a thread.
+                      </p>
+                    )}
+                    {(data.quietly_handled.automated_filtered_today ?? 0) > 0 && (
+                      <p className="text-[13px] text-[#766E63]">
+                        Filtered{" "}
+                        <span className="font-medium text-[#3F362C]">
+                          {data.quietly_handled.automated_filtered_today}
+                        </span>{" "}
+                        routine reminder
+                        {data.quietly_handled.automated_filtered_today === 1
+                          ? ""
+                          : "s"}{" "}
+                        (auto-forwards, shift reminders) — already in your inbox,
+                        no action needed.
                       </p>
                     )}
                   </div>
