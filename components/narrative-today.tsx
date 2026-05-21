@@ -30,6 +30,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useToast } from "@/components/toast";
+import { SetupChecklist } from "@/components/setup-checklist";
 
 interface TodayItem {
   id: string;
@@ -299,6 +300,16 @@ export function NarrativeToday({
                 <div className="h-3 w-full bg-[#E6DCC4]/50 rounded" />
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Setup checklist — auto-hides when all done or dismissed.
+            Sits BETWEEN the lead paragraph and the email cards so new
+            users discover the feature gates before they get into the
+            inbox triage. */}
+        {!loading && (
+          <div className="mt-10">
+            <SetupChecklist />
           </div>
         )}
 

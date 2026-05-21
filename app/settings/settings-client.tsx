@@ -112,6 +112,29 @@ export function SettingsClient({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Honor ?section=labels|voice|notifications|... so the setup checklist
+  // can deep-link to a specific Settings panel.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get("section");
+    if (!requested) return;
+    const valid: SettingsSection[] = [
+      "profile",
+      "appearance",
+      "voice",
+      "memory",
+      "briefing",
+      "notifications",
+      "labels",
+      "filters",
+      "account",
+    ];
+    if ((valid as string[]).includes(requested)) {
+      setSection(requested as SettingsSection);
+    }
+  }, []);
+
   useEffect(() => {
     const check = () => {
       const mobile = window.innerWidth < 768;
