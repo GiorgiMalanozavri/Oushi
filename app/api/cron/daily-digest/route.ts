@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { createAnthropicClient } from "@/lib/claude";
 import { sendEmailAsUser } from "@/lib/gmail";
+import { isAutomatedEmail, type EmailRow } from "@/lib/outstanding";
 
 export const maxDuration = 300;
 
@@ -19,7 +20,10 @@ Structure:
    <p class="oushi-item"><strong>Sender name</strong> — what they said and why it matters.</p>
 3. If a "Waiting on you to reply" item is included, mention how many days it's been sitting.
 
-Rules:
+CRITICAL RULES:
+- Today's date is given at the top of the user message. Use it to anchor time references. "Tonight" means the evening of today's date — NOT a past day. If an email mentions "Tuesday 5:30pm" and today is Thursday, that shift is in the PAST. Don't say "tonight" about past days.
+- Each email line includes a tag: [REPLIED] means the user already responded — DO NOT mention these as outstanding tasks. Skip them entirely, or only reference if relevant context.
+- Each email line may include a [AUTOMATED] tag — these are auto-forwarded reminders, recurring shift schedules, calendar bots. Don't elevate these to the headline. If multiple are from the same source (e.g., 5 shift reminders), compress them into ONE line at most.
 - No greeting like "Hi Giorgi" — jump straight in.
 - Maximum 4 items. Be ruthless.
 - If there is genuinely nothing important, output ONE paragraph saying so casually.
@@ -127,7 +131,8 @@ function stripCodeFences(input: string): string {
 }
 
 async function sendDigestForUser(userId: string, service: ServiceClient) {
-  // Pull the most-important emails from the last 3 days
+  // Pull the most-important emails from the last 3 days. Filter out
+  // emails the user already replied to — those aren't outstanding.
   const { data: emails } = await service
     .from("emails")
     .select("from_name, from_email, subject, snippet, body_preview, score, received_at, is_unread, user_replied, highlight, suggested_action")
@@ -135,10 +140,29 @@ async function sendDigestForUser(userId: string, service: ServiceClient) {
     .gte("score", 50)
     .gte("received_at", new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString())
     .is("dismissed_at", null)
+    .eq("user_replied", false)
     .order("score", { ascending: false })
     .limit(15);
 
-  const list = emails || [];
+  const allList = emails || [];
+
+  // Tag automated emails so Claude knows to compress / de-emphasize them.
+  // Don't drop them — sometimes the user does need to know "5 shift
+  // reminders" — but Claude shouldn't write a 3-paragraph headline
+  // about them.
+  type EmailLite = {
+    from_name: string | null;
+    from_email: string | null;
+    subject: string | null;
+    snippet: string | null;
+    body_preview: string | null;
+    score: number | null;
+    received_at: string;
+    is_unread: boolean;
+    user_replied: boolean;
+    highlight: string | null;
+  };
+  const list = allList as EmailLite[];
 
   const { data: profile } = await service
     .from("user_profile")
@@ -150,10 +174,24 @@ async function sendDigestForUser(userId: string, service: ServiceClient) {
     ? `User cares about: ${(profile.priorities || []).join(", ")}. Interests: ${(profile.interests || []).join(", ")}.`
     : "";
 
+  const now = new Date();
+  const dateHeader = `Today is ${now.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })} (${now.toISOString().slice(0, 10)}). Local time hint: morning of this date.`;
+
   const emailLines = list.slice(0, 10).map((e, i) => {
     const ageDays = Math.round((Date.now() - new Date(e.received_at).getTime()) / 86400000);
     const ageStr = ageDays === 0 ? "today" : ageDays === 1 ? "1 day ago" : `${ageDays} days ago`;
-    return `${i + 1}. [${e.score}, ${ageStr}, ${e.is_unread ? "unread" : "read"}${e.user_replied ? ", replied" : ""}] ${e.from_name || e.from_email}: ${e.subject}${e.highlight ? ` ${e.highlight}` : ""}${e.snippet ? ` (preview: ${e.snippet.slice(0, 120)})` : ""}`;
+    const tags: string[] = [];
+    tags.push(`${e.score}`);
+    tags.push(ageStr);
+    tags.push(e.is_unread ? "unread" : "read");
+    if (e.user_replied) tags.push("REPLIED");
+    if (isAutomatedEmail(e as unknown as EmailRow)) tags.push("AUTOMATED");
+    return `${i + 1}. [${tags.join(", ")}] ${e.from_name || e.from_email}: ${e.subject}${e.highlight ? ` — ${e.highlight}` : ""}${e.snippet ? ` (preview: ${e.snippet.slice(0, 120)})` : ""}`;
   }).join("\n");
 
   let htmlBody: string;
@@ -171,7 +209,7 @@ async function sendDigestForUser(userId: string, service: ServiceClient) {
       messages: [
         {
           role: "user",
-          content: `${profileLine}\n\nEmails worth flagging:\n${emailLines}\n\nWrite the digest HTML.`,
+          content: `${dateHeader}\n\n${profileLine}\n\nEmails worth flagging:\n${emailLines}\n\nWrite the digest HTML. Remember: "tonight" = the evening of ${now.toLocaleDateString("en-US", { weekday: "long" })}. Skip [REPLIED] items. Compress [AUTOMATED] items.`,
         },
       ],
     });
