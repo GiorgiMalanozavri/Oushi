@@ -352,30 +352,38 @@ export function DashboardClient({
 
   // Auto-sync on dashboard mount — pulls anything new from Gmail since
   // last_history_id, then runs a rank pass on the diff so labels appear
-  // within seconds of the user opening Oushi (not on next polling cron).
-  // Best-effort: doesn't block the UI, doesn't show errors. The
-  // diagnose useEffect below catches "everything still unranked" if
-  // the sync somehow failed.
+  // within seconds of the user opening Oushi.
+  //
+  // Gated by a sessionStorage flag so it runs ONCE per browser tab/session.
+  // Without this gate, every re-mount (e.g., clicking the Oushi logo from
+  // within the dashboard) would re-trigger the sync → reload → fresh
+  // mount → re-trigger → infinite loading-skeleton loop.
   useEffect(() => {
     if (!hasGmail || isFirstSync) return;
+    if (typeof window === "undefined") return;
+    const FLAG_KEY = "oushi.autoSyncFired";
+    try {
+      if (window.sessionStorage.getItem(FLAG_KEY)) return;
+      window.sessionStorage.setItem(FLAG_KEY, String(Date.now()));
+    } catch {
+      // sessionStorage blocked (private mode, etc.) — fall through
+      // and run once; subsequent navigations will re-run but that's
+      // tolerable in the edge case
+    }
     let cancelled = false;
     (async () => {
       try {
         const syncRes = await fetch("/api/gmail/sync", { method: "POST" });
         if (cancelled || !syncRes.ok) return;
         const syncData = await syncRes.json().catch(() => ({}));
-        // Only rank if syncIncremental actually added something.
         const added = Number(syncData?.added) || 0;
         if (added > 0) {
           await fetch("/api/rank", { method: "POST" });
-          // Soft reload — pull the new emails into the rendered state.
-          // Wait 500ms so the rank's label-apply has a head start before
-          // the page paints the bucket counts.
           await new Promise((r) => setTimeout(r, 500));
           if (!cancelled) window.location.reload();
         }
       } catch {
-        // Silent — diagnose effect or manual refresh will catch it
+        // Silent — the every-2-min cron + diagnose effect catch it
       }
     })();
     return () => {
@@ -1764,9 +1772,16 @@ function Sidebar({
       className="sidebar-bg h-full flex flex-col relative"
       style={{ width: 260 }}
     >
-      {/* Top: logo + collapse — serif wordmark, more breathing room */}
+      {/* Top: logo + collapse — serif wordmark, more breathing room.
+          Logo is a button (not a Link) so clicking it from within the
+          dashboard just resets the view to Today instead of triggering
+          a full route navigation (which used to cause a skeleton flash). */}
       <div className="flex items-center justify-between px-5 pt-5 pb-4">
-        <Link href="/dashboard" className="flex items-center gap-2.5 group">
+        <button
+          onClick={() => setView({ type: "today" })}
+          className="flex items-center gap-2.5 group"
+          title="Go to Today"
+        >
           <OushiMark size={26} />
           <span
             className="text-[19px] tracking-[-0.012em] text-[#2A2520] group-hover:text-[#B86B4A] transition-colors font-medium"
@@ -1774,7 +1789,7 @@ function Sidebar({
           >
             Oushi
           </span>
-        </Link>
+        </button>
         <button
           onClick={onCollapse}
           className="text-[#A89F92] hover:text-[#3F362C] p-1.5 rounded-md hover:bg-[#FAF6EB] transition-colors"

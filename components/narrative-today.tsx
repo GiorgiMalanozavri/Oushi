@@ -213,6 +213,16 @@ export function NarrativeToday({
     (data?.quietly_handled?.auto_fulfilled_today ?? 0) +
     (data?.quietly_handled?.nudges_sent_today ?? 0);
 
+  // Pull out meeting/calendar items separately for the "Coming up" pill.
+  // Calendar belongs in its own visual block so users notice they have
+  // an upcoming meeting — currently it gets lost in the email card flow.
+  const meetings = items.filter(
+    (it) => it.type === "meeting" || it.icon === "meeting" || it.icon === "calendar"
+  );
+  const emailLikeItems = items.filter(
+    (it) => !(it.type === "meeting" || it.icon === "meeting" || it.icon === "calendar")
+  );
+
   return (
     <div
       className="min-h-full w-full relative narrative-bg"
@@ -254,7 +264,7 @@ export function NarrativeToday({
           className="font-serif text-[19px] sm:text-[20px] leading-[1.55] text-[#3F362C] mt-5"
           style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
         >
-          {loading ? "Reading your inbox…" : leadParagraph(items.length)}
+          {loading ? "Reading your inbox…" : leadParagraph(emailLikeItems.length)}
         </motion.p>
 
         {data?.summary && !loading && (
@@ -303,6 +313,70 @@ export function NarrativeToday({
           </div>
         )}
 
+        {/* "Coming up" — upcoming meetings as a distinct visual block,
+            so users actually notice they have a meeting today instead
+            of it getting lost in the email card flow. */}
+        {!loading && meetings.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
+            className="mt-10"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar className="w-3.5 h-3.5 text-[#7A5A36]" />
+              <p
+                className="text-[10.5px] font-medium uppercase tracking-[0.18em] text-[#A89F92]"
+              >
+                Coming up
+              </p>
+            </div>
+            <div className="space-y-2">
+              {meetings.slice(0, 3).map((m) => {
+                const isUrgent = m.urgency >= 85;
+                return (
+                  <div
+                    key={m.id}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#FFFCF3] dark:bg-[#25201A] border border-[#E6DCC4]/80 dark:border-[#3A3127]"
+                    style={{
+                      boxShadow:
+                        "0 1px 0 rgba(255,255,255,0.5) inset, 0 4px 16px -6px rgba(106,76,38,0.08)",
+                    }}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: "#E8DDC9" }}
+                    >
+                      <Calendar className="w-4 h-4 text-[#7A5A36]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-semibold text-[#2A2520] dark:text-[#FBF4DF] truncate">
+                        {m.title}
+                      </p>
+                      {m.subtitle && (
+                        <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] truncate">
+                          {m.subtitle}
+                        </p>
+                      )}
+                    </div>
+                    {m.time_label && (
+                      <span
+                        className={`shrink-0 text-[12px] font-mono tabular-nums ${
+                          isUrgent
+                            ? "text-[#B86B4A] font-semibold"
+                            : "text-[#7A5A36] dark:text-[#D9956E]"
+                        }`}
+                      >
+                        {m.time_label}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
         {/* Setup checklist — auto-hides when all done or dismissed.
             Sits BETWEEN the lead paragraph and the email cards so new
             users discover the feature gates before they get into the
@@ -313,12 +387,14 @@ export function NarrativeToday({
           </div>
         )}
 
-        {/* Items — interleaved with narrative connectors */}
-        {!loading && !error && items.length > 0 && (
+        {/* Email-like items — interleaved with narrative connectors.
+            Meetings are rendered separately above in the "Coming up"
+            block, so we use emailLikeItems here to avoid duplication. */}
+        {!loading && !error && emailLikeItems.length > 0 && (
           <div className="mt-12 space-y-7">
             <AnimatePresence>
-              {items.map((item, i) => {
-                const connector = connectorFor(i, items.length);
+              {emailLikeItems.map((item, i) => {
+                const connector = connectorFor(i, emailLikeItems.length);
                 return (
                   <motion.div
                     key={item.id}
@@ -369,7 +445,7 @@ export function NarrativeToday({
         )}
 
         {/* Empty state — calm narrative, not a card */}
-        {!loading && !error && items.length === 0 && (
+        {!loading && !error && emailLikeItems.length === 0 && meetings.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
