@@ -138,6 +138,8 @@ export const LABEL_PREFIX = "Oushi/";
 export function heuristicContentLabel(email: EmailRow): ContentLabel | null {
   const subject = (email.subject || "").toLowerCase();
   const fromEmail = (email.from_email || "").toLowerCase();
+  const snippet = (email.snippet || "").toLowerCase();
+  const body = (email.body_preview || "").toLowerCase();
 
   // Noise category = newsletter / promo / automated. Login alerts and
   // verification codes ride along in here too — split them off as FYI.
@@ -146,14 +148,44 @@ export function heuristicContentLabel(email: EmailRow): ContentLabel | null {
     return "marketing";
   }
 
-  // Receipt — money + confirmation number, or strong subject pattern
+  // Welcome / onboarding / "thanks for signing up" emails are FYI, NOT
+  // receipts. Check before the receipt path so "Thanks for signing up to
+  // Oushi" doesn't get blanket-marked as a receipt.
+  if (
+    /^welcome\s+to\b/i.test(subject) ||
+    /thanks?\s+for\s+(signing\s*up|subscribing|joining|creating|registering)/i.test(subject) ||
+    /your\s+account\s+(is\s+ready|has\s+been\s+created|is\s+set\s+up)/i.test(subject) ||
+    /\bverify\s+your\s+email\b/i.test(subject) ||
+    /\bconfirm\s+your\s+email\b/i.test(subject) ||
+    /\bget\s+started\s+with\b/i.test(subject) ||
+    /\byou'?re\s+(in|all\s+set)\b/i.test(subject)
+  ) {
+    return "fyi";
+  }
+
+  // Receipt — money + confirmation number, OR strong subject pattern.
+  // The pattern list is intentionally permissive on travel/booking since
+  // those are some of the most-mis-classified emails (flight confirmations,
+  // hotel bookings, ride receipts, etc.).
   if (isTrueTransactional(email)) return "receipt";
   if (
-    /^your\s+(receipt|order|invoice|booking|reservation|subscription|statement)/i.test(subject) ||
+    // "Your <thing>" — covers receipts, orders, bookings, AND travel
+    /^your\s+(receipt|order|invoice|booking|reservation|subscription|statement|flight|trip|itinerary|ticket|tickets|delivery|shipment|refund)\b/i.test(subject) ||
+    // Generic confirmations of money / travel
     /receipt\s+from/i.test(subject) ||
-    /payment\s+(received|confirmation|successful)/i.test(subject) ||
-    /order\s+confirmation/i.test(subject) ||
-    /thanks?\s+for\s+(your\s+order|signing\s*up|subscribing|your\s+purchase)/i.test(subject)
+    /payment\s+(received|confirmation|successful|failed|declined)/i.test(subject) ||
+    /\b(order|booking|reservation|flight|hotel|ride|trip|travel)\s+confirmation\b/i.test(subject) ||
+    /\bconfirmation\s+(of|for|number|#)/i.test(subject) ||
+    // Travel-specific
+    /\b(boarding\s+pass|e-?ticket|check[- ]?in)\b/i.test(subject) ||
+    /\b(flight|trip)\s+(to|from)\b/i.test(subject) ||
+    /\bpnr\b/i.test(subject) ||
+    /\bdeparture\s+(reminder|update)\b/i.test(subject) ||
+    // "Thanks for your order/purchase/booking" (NOT signing up — that's above)
+    /thanks?\s+for\s+(your\s+order|your\s+purchase|your\s+booking|your\s+reservation|booking\s+with)/i.test(subject) ||
+    // Body-level signal: "confirmation number" / "booking reference" + actual money
+    (/(confirmation\s+(number|code|#)|booking\s+reference|pnr|reservation\s+code)/i.test(subject + " " + snippet + " " + body) &&
+      /(\$\d|\busd\b|€\d|£\d|\b\d+\.\d{2}\b)/i.test(snippet + " " + body))
   ) {
     return "receipt";
   }

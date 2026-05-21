@@ -43,21 +43,60 @@ const VALID_LABELS: Set<string> = new Set(CONTENT_LABELS);
 
 const SYSTEM_PROMPT = `You classify each email's CONTENT into ONE of:
 - meeting: invitations, scheduling, calendar coordination, RSVP confirmations
-- receipt: order confirmation, invoice, payment receipt, account statement
-- marketing: newsletters, promotions, automated digests, ads, bulk announcements
-- fyi: notifications, status updates, info-only with no reply expected (system alerts, build notifications, social updates, "your X has shipped" tracking)
+- receipt: order confirmation, invoice, payment receipt, account statement, FLIGHT/HOTEL/TRIP confirmation, booking confirmation, shipment tracking
+- marketing: newsletters, promotions, automated digests, ads, bulk announcements, job-aggregator alerts (Lensa/Indeed/etc.)
+- fyi: notifications, status updates, WELCOME / onboarding / "thanks for signing up", info-only with no reply expected (system alerts, build notifications, social updates)
 - communication: real correspondence between people that may require a response
 
-Rules:
-- Be conservative on "marketing" — only pick it if the email is clearly a broadcast/promotional/digest sent to many recipients. A personal email mentioning a product is NOT marketing.
-- Be conservative on "receipt" — only pick it for actual transactional confirmations with order numbers, amounts, statements. A regular email that mentions money is NOT a receipt.
-- When in doubt between "fyi" and "communication", pick "communication". Better to surface for response than to hide as info.
-- A meeting invitation with .ics or explicit RSVP is "meeting". A casual "want to meet?" question between people is "communication".
-- The sender reputation hint is a strong signal:
-    * "trusted" sender (positive reputation) writing about something specific → communication
-    * "unknown" sender (no reputation) sending a digest-like email → marketing
-    * "known automated" sender → fyi (or receipt/marketing if obvious)
-- A "Re:" subject is almost always communication unless the body is clearly a marketing digest or auto-receipt.
+Specific guidance — these are the cases the heuristic gets wrong most often:
+
+1. WELCOME / ONBOARDING emails are FYI, never Receipt.
+   • "Thanks for signing up to Oushi" → fyi
+   • "Welcome to Linear" → fyi
+   • "Verify your email" → fyi
+   • "Get started with Notion" → fyi
+   The word "subscription" alone does not mean receipt — only a paid
+   subscription confirmation with a charge amount is a receipt.
+
+2. TRAVEL is Receipt.
+   • "Your flight to Tokyo" → receipt
+   • "Boarding pass — AA1234" → receipt
+   • "Hotel booking confirmation" → receipt
+   • "Your trip to Boston is tomorrow" → receipt
+   • "Itinerary for your Tokyo trip" → receipt
+   • "Departure reminder — Flight DL204" → receipt
+   Even though airlines/hotels look like "notifications," the user
+   needs these accessible. Treat them as receipts so they live in the
+   reference bucket.
+
+3. JOB AGGREGATORS are Marketing, regardless of how relevant the
+   subject sounds.
+   • Lensa, Indeed, ZipRecruiter, Glassdoor, Monster, Handshake → marketing
+   • "Be the first to apply to X" → marketing
+   • "New jobs near you" → marketing
+   • "Just in: Foo Co has new openings" → marketing
+   A REAL job opportunity comes from an individual recruiter writing
+   personally, not from a broadcast platform.
+
+4. NEWSLETTER PLATFORMS (Substack, Beehiiv, mailchi.mp campaigns) are
+   Marketing unless the sender is clearly an individual writing to the
+   user. Curated personal letters between two people are communication.
+
+5. Be conservative on Receipt:
+   • Real receipts contain money + a confirmation number or order ID.
+   • An email mentioning money in passing ("I'll Venmo you the $20") is
+     communication, not receipt.
+
+6. When in doubt between FYI and communication, pick communication.
+   Better to surface than to hide.
+
+7. A "Re:" subject is almost always communication unless the body is
+   clearly an auto-digest or auto-receipt.
+
+8. Sender reputation hint is a strong signal:
+   • "trusted" sender writing personally → communication
+   • "unknown" sender + digest-shaped email → marketing
+   • "known automated" sender → fyi (or receipt/marketing if obvious)
 
 Output STRICT JSON only, no prose:
 {"results":[{"i":1,"label":"meeting"},{"i":2,"label":"communication"}]}
