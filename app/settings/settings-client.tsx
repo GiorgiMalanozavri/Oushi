@@ -854,6 +854,101 @@ function ProfileSection({
   );
 }
 
+// ===== AUTO-DRAFT TOGGLE (inline inside Voice section) =====
+
+function AutoDraftToggle() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/auto-draft/state");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setEnabled(!!data.enabled);
+      } catch {
+        if (!cancelled) setEnabled(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggle = async () => {
+    if (enabled === null) return;
+    setSaving(true);
+    const next = !enabled;
+    try {
+      const res = await fetch("/api/auto-draft/state", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      if (res.ok) setEnabled(next);
+    } catch {
+      // best-effort
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-[13.5px] font-medium text-[#2A2520]">
+              Auto-draft replies in Gmail
+            </p>
+            <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
+              When a high-priority email arrives, Oushi writes a draft in
+              your voice and saves it to Gmail&apos;s drafts folder — so
+              the reply is already waiting when you open the thread. Like
+              Fyxer.
+            </p>
+            <p className="text-[11px] text-[#A89F92] mt-2 leading-relaxed">
+              Only fires on emails scored &ge; 60 that look like real
+              personal correspondence. Capped at 5 drafts per sync to
+              keep costs bounded.
+            </p>
+          </div>
+          <button
+            onClick={toggle}
+            disabled={saving || enabled === null}
+            role="switch"
+            aria-checked={enabled === true}
+            className={`relative shrink-0 inline-flex items-center w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${
+              enabled
+                ? "bg-gradient-to-br from-[#B86B4A] to-[#A65B3F]"
+                : "bg-[#E6DCC4] dark:bg-[#3A3127]"
+            }`}
+            style={
+              enabled
+                ? {
+                    boxShadow:
+                      "0 2px 8px -2px rgba(184,107,74,0.30), 0 1px 0 rgba(255,255,255,0.15) inset",
+                  }
+                : {}
+            }
+          >
+            <span
+              className={`absolute top-0.5 inline-block w-5 h-5 bg-white rounded-full transition-transform ${
+                enabled ? "translate-x-[22px]" : "translate-x-0.5"
+              }`}
+              style={{
+                boxShadow: "0 1px 2px rgba(0,0,0,0.20)",
+              }}
+            />
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 // ===== APPEARANCE SECTION =====
 
 function AppearanceSection() {
@@ -1058,6 +1153,11 @@ function VoiceSection({
           >
             {learningVoice ? <><RefreshCw className="w-3 h-3 animate-spin" />Re-learning</> : <><RefreshCw className="w-3 h-3" />Re-learn from sent emails</>}
           </button>
+
+          {/* Auto-draft toggle — only meaningful once voice is trained */}
+          <div className="mt-8">
+            <AutoDraftToggle />
+          </div>
         </>
       ) : (
         <Card>

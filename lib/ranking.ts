@@ -8,6 +8,7 @@ import {
   classifyAmbiguousEmails,
   mergeLlmLabels,
 } from "@/lib/gmail-labels-llm";
+import { autoDraftBatch } from "@/lib/auto-draft";
 import { createServiceClient } from "@/lib/supabase/server";
 import { prefilter } from "@/lib/prefilter";
 import {
@@ -563,6 +564,24 @@ export async function rankUnrankedEmails(userId: string) {
       }
       if (decisions.length > 0) {
         await applyLabelsBatch(userId, decisions);
+      }
+
+      // Auto-draft replies for everything we labeled "respond" — only
+      // if the user opted in + trained their voice. Best-effort, won't
+      // block return. Internally bounded to 5 drafts per invocation
+      // so a busy hour doesn't fire 50 LLM calls.
+      const respondCandidates = decisions
+        .filter((d) => d.labelKey === "respond" && d.emailId)
+        .map((d) => d.emailId as string);
+      if (respondCandidates.length > 0) {
+        try {
+          await autoDraftBatch(userId, respondCandidates);
+        } catch (e) {
+          console.error(
+            "[ranking] autoDraftBatch failed",
+            e instanceof Error ? e.message : e
+          );
+        }
       }
     }
   } catch (e) {

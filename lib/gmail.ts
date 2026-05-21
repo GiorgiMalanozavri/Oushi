@@ -117,6 +117,60 @@ export async function sendEmailAsUser(userId: string, opts: SendEmailOptions) {
   });
 }
 
+/**
+ * Create a draft reply in the user's Gmail. Same RFC 2822 message shape
+ * as sendEmailAsUser but posted to drafts.create instead — appears in
+ * the user's Gmail drafts folder, threaded to the original message.
+ *
+ * Returns the Gmail draft ID, which we store on emails.gmail_draft_id
+ * so we don't double-draft the same email and so the UI can show
+ * "Draft ready in Gmail" indicators.
+ */
+export async function createDraftReply(
+  userId: string,
+  opts: {
+    to: string;
+    subject: string;
+    body: string;
+    inReplyTo?: string;
+    references?: string;
+    threadId?: string;
+  }
+): Promise<{ draftId: string; messageId: string | null }> {
+  const oauth2Client = await getAuthenticatedClient(userId);
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+  const profile = await gmail.users.getProfile({ userId: "me" });
+  const fromEmail = profile.data.emailAddress || "me";
+
+  const headers: string[] = [
+    `From: ${fromEmail}`,
+    `To: ${opts.to}`,
+    `Subject: ${encodeMimeHeader(opts.subject)}`,
+    `Content-Type: text/plain; charset=utf-8`,
+    "MIME-Version: 1.0",
+  ];
+  if (opts.inReplyTo) headers.push(`In-Reply-To: ${opts.inReplyTo}`);
+  if (opts.references) headers.push(`References: ${opts.references}`);
+
+  const raw = encodeBase64Url(`${headers.join("\r\n")}\r\n\r\n${opts.body}`);
+
+  const res = await gmail.users.drafts.create({
+    userId: "me",
+    requestBody: {
+      message: {
+        raw,
+        ...(opts.threadId ? { threadId: opts.threadId } : {}),
+      },
+    },
+  });
+
+  return {
+    draftId: res.data.id || "",
+    messageId: res.data.message?.id || null,
+  };
+}
+
 export async function getMessageHeaders(userId: string, gmailMessageId: string) {
   const oauth2Client = await getAuthenticatedClient(userId);
   const gmail = google.gmail({ version: "v1", auth: oauth2Client });
