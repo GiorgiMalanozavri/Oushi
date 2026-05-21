@@ -47,6 +47,8 @@ interface OverviewData {
     llm_cost_estimate_14d_usd: number;
     upvotes_14d: number;
     downvotes_14d: number;
+    feedback_total: number;
+    feedback_24h: number;
   };
   confusion: Array<{
     from: string;
@@ -82,6 +84,14 @@ interface OverviewData {
     feedback: number;
     last_synced_at: string | null;
     gmail_labels_enabled: boolean;
+  }>;
+  recent_feedback: Array<{
+    id: string;
+    user_id: string;
+    message: string;
+    page_url: string | null;
+    emailed: boolean;
+    created_at: string;
   }>;
   generated_at: string;
 }
@@ -254,6 +264,13 @@ export function AdminDashboard({ adminEmail }: { adminEmail: string }) {
             }
             sub="thumbs up / down"
           />
+          <StatCard
+            icon={<ThumbsDown className="w-3.5 h-3.5" />}
+            label="Bug reports"
+            value={ov?.feedback_total ?? "—"}
+            sub={`${ov?.feedback_24h ?? 0} in last 24h`}
+            tone={ov && ov.feedback_24h > 0 ? "warn" : "default"}
+          />
         </div>
 
         {/* ===== Confusion matrix ===== */}
@@ -421,6 +438,56 @@ export function AdminDashboard({ adminEmail }: { adminEmail: string }) {
                 ))}
               </tbody>
             </table>
+          )}
+        </Card>
+
+        {/* ===== In-app feedback reports ===== */}
+        <SectionHeader
+          title="Feedback reports"
+          subtitle="Submitted via the in-app 'Send feedback' widget. Also emailed to support@oushi.app in real time."
+        />
+        <Card className="mb-10">
+          {data && data.recent_feedback.length === 0 ? (
+            <EmptyRow text="No feedback reports yet — testers haven't used the widget." />
+          ) : (
+            <div className="divide-y divide-[#E6DCC4]/50 dark:divide-[#3A3127]/50">
+              {data?.recent_feedback.map((f) => (
+                <div key={f.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3 mb-1.5">
+                    <div className="flex items-center gap-2 text-[10.5px] font-mono">
+                      <span className="text-[#A89F92]">
+                        {formatRelativeTime(f.created_at)}
+                      </span>
+                      <span className="text-[#766E63] dark:text-[#A89F92]">
+                        {f.user_id.slice(0, 8)}…
+                      </span>
+                      <span
+                        className={`uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                          f.emailed
+                            ? "bg-[#E8EFE5] text-[#4F6B4D] dark:bg-[#2E3A2E] dark:text-[#A8C9A1]"
+                            : "bg-[#F5E8E0] text-[#B86B4A] dark:bg-[#3A2F23] dark:text-[#D9956E]"
+                        }`}
+                      >
+                        {f.emailed ? "Emailed" : "DB only"}
+                      </span>
+                    </div>
+                    {f.page_url && (
+                      <a
+                        href={f.page_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10.5px] font-mono text-[#A89F92] hover:text-[#B86B4A] truncate max-w-[260px]"
+                      >
+                        {new URL(f.page_url).pathname}
+                      </a>
+                    )}
+                  </div>
+                  <p className="text-[13.5px] text-[#3F362C] dark:text-[#E8D9B8] leading-relaxed whitespace-pre-wrap">
+                    {f.message}
+                  </p>
+                </div>
+              ))}
+            </div>
           )}
         </Card>
 

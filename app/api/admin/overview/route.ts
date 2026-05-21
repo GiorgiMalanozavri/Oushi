@@ -293,6 +293,20 @@ export async function GET() {
   const llmCostEstimate14d =
     Math.round((llmClassified14d || 0) * 0.0005 * 100) / 100;
 
+  // ── In-app feedback reports ─────────────────────────────────────────
+  const { count: feedbackTotal } = await service
+    .from("feedback_reports")
+    .select("id", { count: "exact", head: true });
+  const { count: feedback24h } = await service
+    .from("feedback_reports")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", since24h);
+  const { data: recentFeedback } = await service
+    .from("feedback_reports")
+    .select("id, user_id, message, page_url, emailed, created_at")
+    .order("created_at", { ascending: false })
+    .limit(25);
+
   return NextResponse.json({
     overview: {
       total_users: totalUsers,
@@ -310,11 +324,14 @@ export async function GET() {
       llm_cost_estimate_14d_usd: llmCostEstimate14d,
       upvotes_14d: upvotes,
       downvotes_14d: downvotes,
+      feedback_total: feedbackTotal || 0,
+      feedback_24h: feedback24h || 0,
     },
     confusion,
     problem_senders: problemSenders,
     recent,
     users,
+    recent_feedback: recentFeedback || [],
     generated_at: new Date().toISOString(),
   });
 }
