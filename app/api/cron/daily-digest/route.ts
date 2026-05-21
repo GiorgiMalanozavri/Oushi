@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { createAnthropicClient } from "@/lib/claude";
-import { sendEmailAsUser } from "@/lib/gmail";
 import { isAutomatedEmail, type EmailRow } from "@/lib/outstanding";
+import { sendEmail } from "@/lib/email/send";
+import { FROM_NOREPLY, REPLY_TO } from "@/lib/email/addresses";
 
 export const maxDuration = 300;
 
@@ -336,10 +337,16 @@ async function sendDigestForUser(userId: string, service: ServiceClient) {
   // The actual email body keeps the brand typography.
   const subject = `Oushi briefing - ${new Date().toLocaleDateString("en-US", { weekday: "long" })}`;
 
-  await sendEmailAsUser(userId, {
+  // Send from Oushi <noreply@oushi.app> via Resend, not from the user's
+  // own Gmail. The previous path used sendEmailAsUser which used the
+  // user's OAuth token → email appeared as "sent by me to myself" in
+  // their inbox. Now it shows up as a proper inbound from Oushi.
+  await sendEmail({
     to: authUser.email,
     subject,
-    body: html,
-    html: true,
+    html,
+    from: FROM_NOREPLY,
+    replyTo: REPLY_TO,
+    tags: [{ name: "type", value: "daily_digest" }],
   });
 }
