@@ -127,6 +127,50 @@ export function getLabelByKey(key: OushiLabelKey): OushiLabelDef | undefined {
 export const LABEL_PREFIX = "Oushi/";
 
 // ─────────────────────────────────────────────────────────────────────────
+// SENDER RULES — "always label sender X as Y" persistent rules
+// ─────────────────────────────────────────────────────────────────────────
+
+export interface SenderRule {
+  sender_pattern: string;
+  pattern_type: "email" | "domain";
+  label_key: OushiLabelKey | null;
+}
+
+/**
+ * Find the most-specific applicable sender rule for an email. Exact email
+ * match wins over domain match. Returns the rule's label_key (or null for
+ * "don't label" overrides). Returns undefined if no rule applies.
+ */
+export function applicableSenderRule(
+  fromEmail: string | null | undefined,
+  rules: SenderRule[]
+): OushiLabelKey | null | undefined {
+  const lower = (fromEmail || "").toLowerCase();
+  if (!lower) return undefined;
+
+  // Exact-email match has priority
+  const exact = rules.find(
+    (r) => r.pattern_type === "email" && r.sender_pattern === lower
+  );
+  if (exact) return exact.label_key;
+
+  // Then domain match — extract domain from email
+  const atIdx = lower.lastIndexOf("@");
+  if (atIdx < 0) return undefined;
+  const domain = lower.slice(atIdx + 1);
+  if (!domain) return undefined;
+
+  // Match either exact domain or any pattern that's a substring of the
+  // domain (so "stripe.com" matches "@anything.stripe.com" too)
+  const domainMatch = rules.find(
+    (r) =>
+      r.pattern_type === "domain" &&
+      (domain === r.sender_pattern || domain.endsWith("." + r.sender_pattern))
+  );
+  return domainMatch?.label_key;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // CONTENT CLASSIFICATION (regex + cached LLM)
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -164,27 +208,55 @@ export function heuristicContentLabel(email: EmailRow): ContentLabel | null {
   }
 
   // Receipt — money + confirmation number, OR strong subject pattern.
-  // The pattern list is intentionally permissive on travel/booking since
-  // those are some of the most-mis-classified emails (flight confirmations,
-  // hotel bookings, ride receipts, etc.).
+  // The pattern list is intentionally permissive on travel/booking/food
+  // since those are some of the most-mis-classified emails.
   if (isTrueTransactional(email)) return "receipt";
+
+  // Sender-domain shortcut — these platforms send PRIMARILY receipts.
+  // Catches them even when the subject is unusually marketing-ish.
+  const RECEIPT_SENDER_DOMAINS = [
+    // Food delivery
+    "ubereats.com", "doordash.com", "grubhub.com", "postmates.com",
+    "seamless.com", "deliveroo.com", "wolt.com", "instacart.com",
+    // Restaurant POS / booking
+    "opentable.com", "resy.com", "yelp.com/reservations",
+    "square.com", "squareup.com", "toasttab.com", "toast.com",
+    "clover.com", "tock.com",
+    // Ride
+    "uber.com", "lyft.com", "lime.bike", "bird.co",
+    // Hotel / travel
+    "booking.com", "airbnb.com", "vrbo.com", "expedia.com", "hotels.com",
+    // Retail receipts
+    "shopify.com", "stripe.com",
+  ];
+  if (RECEIPT_SENDER_DOMAINS.some((d) => fromEmail.includes(d))) {
+    return "receipt";
+  }
+
   if (
     // "Your <thing>" — covers receipts, orders, bookings, AND travel
-    /^your\s+(receipt|order|invoice|booking|reservation|subscription|statement|flight|trip|itinerary|ticket|tickets|delivery|shipment|refund)\b/i.test(subject) ||
+    /^your\s+(receipt|order|invoice|booking|reservation|subscription|statement|flight|trip|itinerary|ticket|tickets|delivery|shipment|refund|food|meal)\b/i.test(subject) ||
     // Generic confirmations of money / travel
-    /receipt\s+from/i.test(subject) ||
+    /receipt\s+(from|for)/i.test(subject) ||
     /payment\s+(received|confirmation|successful|failed|declined)/i.test(subject) ||
-    /\b(order|booking|reservation|flight|hotel|ride|trip|travel)\s+confirmation\b/i.test(subject) ||
+    /\b(order|booking|reservation|flight|hotel|ride|trip|travel|table|meal|food)\s+confirmation\b/i.test(subject) ||
     /\bconfirmation\s+(of|for|number|#)/i.test(subject) ||
     // Travel-specific
     /\b(boarding\s+pass|e-?ticket|check[- ]?in)\b/i.test(subject) ||
     /\b(flight|trip)\s+(to|from)\b/i.test(subject) ||
     /\bpnr\b/i.test(subject) ||
     /\bdeparture\s+(reminder|update)\b/i.test(subject) ||
+    // Food / restaurant receipt patterns
+    /\b(order|meal)\s+from\b/i.test(subject) ||
+    /\b(you\s+got|here'?s)\s+your\s+(receipt|order|food)\b/i.test(subject) ||
+    /\bdelivered\s+(your\s+)?(order|food|meal)\b/i.test(subject) ||
+    /\bthanks?\s+for\s+(dining|eating|ordering\s+from)\b/i.test(subject) ||
+    // Ride-share patterns
+    /\b(trip\s+receipt|ride\s+receipt|your\s+ride\s+with)\b/i.test(subject) ||
     // "Thanks for your order/purchase/booking" (NOT signing up — that's above)
-    /thanks?\s+for\s+(your\s+order|your\s+purchase|your\s+booking|your\s+reservation|booking\s+with)/i.test(subject) ||
+    /thanks?\s+for\s+(your\s+order|your\s+purchase|your\s+booking|your\s+reservation|booking\s+with|dining\s+with|ordering)/i.test(subject) ||
     // Body-level signal: "confirmation number" / "booking reference" + actual money
-    (/(confirmation\s+(number|code|#)|booking\s+reference|pnr|reservation\s+code)/i.test(subject + " " + snippet + " " + body) &&
+    (/(confirmation\s+(number|code|#)|booking\s+reference|pnr|reservation\s+code|order\s+#)/i.test(subject + " " + snippet + " " + body) &&
       /(\$\d|\busd\b|€\d|£\d|\b\d+\.\d{2}\b)/i.test(snippet + " " + body))
   ) {
     return "receipt";
@@ -315,21 +387,34 @@ export function applyStateLogic(
  * Pick the single best Oushi label for an email, or null if no label fits.
  *
  * Order of precedence:
- *   1. Override (if explicitly provided by the caller)
- *   2. Heuristic content label
- *   3. Cached LLM content label
- *   4. Default to "communication" → state logic
+ *   1. Per-email override (if explicitly provided by the caller)
+ *   2. Sender rule (if any matches this from_email)
+ *   3. Heuristic content label
+ *   4. Cached LLM content label
+ *   5. Default to "communication" → state logic
  *
- * The override semantics:
- *   - override === undefined → no override, run heuristic + LLM
- *   - override === null      → user said "don't label this"
+ * Override semantics:
+ *   - override === undefined → no per-email override, fall through
+ *   - override === null      → user said "don't label THIS email"
  *   - override === <key>     → user picked this label manually
+ *
+ * Sender rules: passed via the `rules` array. Same null/key semantics —
+ * null means "don't label any email from this sender". Per-email override
+ * still wins over a sender rule so a user can carve out exceptions.
  */
 export function computeLabelForEmail(
   email: EmailRow,
-  override?: OushiLabelKey | null
+  override?: OushiLabelKey | null,
+  rules?: SenderRule[]
 ): OushiLabelKey | null {
   if (override !== undefined) return override;
+
+  // Sender rules are checked before the classifier — user-declared
+  // ground truth beats whatever the heuristic / LLM thinks.
+  if (rules && rules.length > 0) {
+    const ruleAnswer = applicableSenderRule(email.from_email, rules);
+    if (ruleAnswer !== undefined) return ruleAnswer;
+  }
 
   // Heuristic content → cached LLM → fallback to "communication"
   const contentLabel: ContentLabel = resolvedContentLabel(email) || "communication";

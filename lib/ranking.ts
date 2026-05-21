@@ -451,6 +451,18 @@ export async function rankUnrankedEmails(userId: string) {
         overrides.set(r.email_id, r.override_label_key ?? null);
       }
 
+      // Pre-load sender rules — "always label sender X as Y" persistent
+      // rules. They win over heuristic/LLM but not over per-email overrides.
+      const { data: senderRuleRows } = await supabase
+        .from("label_sender_rules")
+        .select("sender_pattern, pattern_type, label_key")
+        .eq("user_id", userId);
+      const senderRules = (senderRuleRows || []) as Array<{
+        sender_pattern: string;
+        pattern_type: "email" | "domain";
+        label_key: OushiLabelKey | null;
+      }>;
+
       // Collect every candidate row in one place so the LLM pass below
       // sees both newly-ranked emails and stale-self-heal candidates in
       // a single batch. The seenIds set dedupes if the same id shows
@@ -546,7 +558,7 @@ export async function rankUnrankedEmails(userId: string) {
         decisions.push({
           emailId: row.id,
           gmailMessageId: row.gmail_message_id,
-          labelKey: computeLabelForEmail(row, override),
+          labelKey: computeLabelForEmail(row, override, senderRules),
         });
       }
       if (decisions.length > 0) {

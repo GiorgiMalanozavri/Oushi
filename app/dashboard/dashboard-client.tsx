@@ -350,6 +350,39 @@ export function DashboardClient({
     })();
   }, [isFirstSync, hasGmail]);
 
+  // Auto-sync on dashboard mount — pulls anything new from Gmail since
+  // last_history_id, then runs a rank pass on the diff so labels appear
+  // within seconds of the user opening Oushi (not on next polling cron).
+  // Best-effort: doesn't block the UI, doesn't show errors. The
+  // diagnose useEffect below catches "everything still unranked" if
+  // the sync somehow failed.
+  useEffect(() => {
+    if (!hasGmail || isFirstSync) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const syncRes = await fetch("/api/gmail/sync", { method: "POST" });
+        if (cancelled || !syncRes.ok) return;
+        const syncData = await syncRes.json().catch(() => ({}));
+        // Only rank if syncIncremental actually added something.
+        const added = Number(syncData?.added) || 0;
+        if (added > 0) {
+          await fetch("/api/rank", { method: "POST" });
+          // Soft reload — pull the new emails into the rendered state.
+          // Wait 500ms so the rank's label-apply has a head start before
+          // the page paints the bucket counts.
+          await new Promise((r) => setTimeout(r, 500));
+          if (!cancelled) window.location.reload();
+        }
+      } catch {
+        // Silent — diagnose effect or manual refresh will catch it
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasGmail, isFirstSync]);
+
   // Inbox health check — runs once on mount. Detects "all buckets empty
   // because ranking never finished" and auto-triggers a re-rank, so the
   // user isn't stuck staring at empty views.
@@ -2732,12 +2765,32 @@ function LabelChip({ email }: { email: Classified }) {
   const [override, setOverride] = useState<OushiLabelKey | null | undefined>(undefined);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  // "Apply to all from sender?" prompt — appears after a user picks a
+  // non-auto label, lets them turn the one-off correction into a
+  // persistent sender rule with a single click.
+  const [senderPromptFor, setSenderPromptFor] = useState<
+    OushiLabelKey | "none" | null
+  >(null);
+  const [savingRule, setSavingRule] = useState(false);
 
   // Compute the effective label: override wins, else heuristic
   const effective: OushiLabelKey | null =
     override === undefined ? computeLabelForEmail(email) : override;
   const effectiveDef = effective ? getLabelByKey(effective) : null;
   const isManual = override !== undefined;
+
+  // Derive sender pattern for the "apply to all" prompt
+  const senderEmail = (email.from_email || "").toLowerCase();
+  const senderDomain = senderEmail.includes("@")
+    ? senderEmail.slice(senderEmail.indexOf("@") + 1)
+    : "";
+  // For automated-looking senders (noreply, info, etc.) defaulting to a
+  // domain-wide rule is usually what the user actually wants. For
+  // human-looking senders, default to email-exact.
+  const looksAutomated = /^(noreply|no-reply|info|hello|team|notifications?|alerts?|support|donotreply)@/.test(
+    senderEmail
+  );
+  const defaultPatternType: "email" | "domain" = looksAutomated ? "domain" : "email";
 
   // Fetch any persisted override for this email when the modal opens
   useEffect(() => {
@@ -2794,6 +2847,14 @@ function LabelChip({ email }: { email: Classified }) {
         const def = getLabelByKey(value as OushiLabelKey);
         toast.success(`Labeled "${def?.shortLabel || value}"`);
       }
+
+      // After a non-auto pick that REALLY corrected something (the heuristic
+      // was wrong), offer to turn it into a permanent sender rule. Skip
+      // for "auto" (the user just reverted, no rule to make) and skip if
+      // there's no usable sender email.
+      if (value !== "auto" && senderEmail) {
+        setSenderPromptFor(value);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Network error");
     } finally {
@@ -2801,12 +2862,62 @@ function LabelChip({ email }: { email: Classified }) {
     }
   };
 
+  const applySenderRule = async (patternType: "email" | "domain") => {
+    if (!senderPromptFor || !senderEmail) return;
+    setSavingRule(true);
+    const pattern = patternType === "email" ? senderEmail : senderDomain;
+    if (!pattern) {
+      setSavingRule(false);
+      setSenderPromptFor(null);
+      return;
+    }
+    try {
+      const res = await fetch("/api/labels/sender-rule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderPattern: pattern,
+          patternType,
+          labelKey: senderPromptFor,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Couldn't save rule");
+        return;
+      }
+      const def =
+        senderPromptFor === "none"
+          ? null
+          : getLabelByKey(senderPromptFor as OushiLabelKey);
+      const label = def?.shortLabel || (senderPromptFor === "none" ? "no label" : "the label");
+      const scope = patternType === "domain" ? `@${pattern}` : pattern;
+      toast.success(`Always ${label} from ${scope}`, {
+        detail: data.affected
+          ? `Applied to ${data.affected} email${data.affected === 1 ? "" : "s"}.`
+          : undefined,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setSavingRule(false);
+      setSenderPromptFor(null);
+    }
+  };
+
   return (
     <div className="relative inline-block">
+      {/* Helper hint when nothing has been overridden yet — surfaces the
+          "wrong label? click here" affordance prominently for testers
+          who don't realize the chip is interactive. */}
+      {!isManual && !open && !senderPromptFor && (
+        <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#B86B4A] animate-pulse opacity-0 group-hover:opacity-100 pointer-events-none" />
+      )}
       <button
         onClick={() => !saving && setOpen((v) => !v)}
         disabled={saving}
-        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11.5px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+        className="group inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11.5px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+        title="Wrong label? Click to fix."
         style={
           effectiveDef
             ? {
@@ -2881,6 +2992,78 @@ function LabelChip({ email }: { email: Classified }) {
             )}
           </div>
         </>
+      )}
+
+      {/* "Apply to all from sender?" prompt — appears after a correction.
+          Two paths: domain-wide (catches automated senders) or exact
+          email (catches a specific person). Defaults to the sensible
+          choice based on whether the sender looks automated. */}
+      {senderPromptFor && !open && (
+        <div
+          className="absolute left-0 top-full mt-2 z-50 w-[300px] rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] dark:bg-[#25201A] dark:border-[#3A3127] p-3"
+          style={{
+            boxShadow:
+              "0 1px 0 rgba(255,255,255,0.6) inset, 0 12px 32px -10px rgba(106,76,38,0.20)",
+          }}
+        >
+          <p
+            className="text-[12.5px] text-[#2A2520] dark:text-[#FBF4DF] leading-snug mb-2"
+            style={{
+              fontFamily: "var(--font-source-serif), Georgia, serif",
+            }}
+          >
+            Always apply to {looksAutomated ? "this sender's domain" : "this sender"}?
+          </p>
+          <p className="text-[10.5px] text-[#A89F92] font-mono mb-3">
+            {defaultPatternType === "domain"
+              ? `*@${senderDomain}`
+              : senderEmail}
+          </p>
+          <div className="flex items-center gap-1.5">
+            <button
+              disabled={savingRule}
+              onClick={() => applySenderRule(defaultPatternType)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-br from-[#B86B4A] to-[#A65B3F] px-2.5 py-1 text-[11.5px] font-medium text-white hover:from-[#A65B3F] hover:to-[#9C523A] disabled:opacity-50 transition-all"
+              style={{
+                boxShadow:
+                  "0 2px 6px -2px rgba(184,107,74,0.30)",
+              }}
+            >
+              {savingRule ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Check className="w-3 h-3" />
+              )}
+              Yes, always
+            </button>
+            {/* Toggle to the OTHER pattern type — gives the user an out
+                from the default without making the UI complex */}
+            {defaultPatternType === "domain" ? (
+              <button
+                disabled={savingRule}
+                onClick={() => applySenderRule("email")}
+                className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
+              >
+                Just this address
+              </button>
+            ) : (
+              <button
+                disabled={savingRule}
+                onClick={() => applySenderRule("domain")}
+                className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
+              >
+                Whole @{senderDomain}
+              </button>
+            )}
+            <button
+              disabled={savingRule}
+              onClick={() => setSenderPromptFor(null)}
+              className="text-[11px] text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] px-2 py-1 ml-auto transition-colors"
+            >
+              Skip
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

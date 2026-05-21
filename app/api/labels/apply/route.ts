@@ -141,7 +141,7 @@ export async function POST(request: Request) {
         }
         send({ phase: "fetched", count: emails.length });
 
-        // 3. Load overrides so manual decisions win
+        // 3. Load overrides + sender rules so user decisions win
         const { data: overrideRows } = await service
           .from("email_label_overrides")
           .select("email_id, override_label_key")
@@ -153,6 +153,16 @@ export async function POST(request: Request) {
         }>) {
           overrides.set(r.email_id, r.override_label_key ?? null);
         }
+
+        const { data: senderRuleRows } = await service
+          .from("label_sender_rules")
+          .select("sender_pattern, pattern_type, label_key")
+          .eq("user_id", userId);
+        const senderRules = (senderRuleRows || []) as Array<{
+          sender_pattern: string;
+          pattern_type: "email" | "domain";
+          label_key: OushiLabelKey | null;
+        }>;
 
         // 4. LLM-classify ambiguous emails (heuristic-fallthrough that
         //    we haven't already cached). The classifier persists the
@@ -193,7 +203,7 @@ export async function POST(request: Request) {
         for (const e of emails as (EmailRow & { id: string; gmail_message_id: string })[]) {
           if (!e.gmail_message_id) continue;
           const override = overrides.has(e.id) ? overrides.get(e.id) : undefined;
-          const labelKey = computeLabelForEmail(e, override);
+          const labelKey = computeLabelForEmail(e, override, senderRules);
           decisions.push({
             emailId: e.id,
             gmailMessageId: e.gmail_message_id,
