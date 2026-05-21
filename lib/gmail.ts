@@ -5,6 +5,10 @@ import {
   findExtractableAttachments,
   extractAttachmentsForMessage,
 } from "@/lib/attachments";
+import {
+  isAutomatedEmail,
+  isTrueTransactional,
+} from "@/lib/outstanding";
 
 export function getOAuth2Client() {
   return new google.auth.OAuth2(
@@ -398,7 +402,83 @@ export async function syncIncremental(userId: string): Promise<{
     added = newMessageIds.size;
   }
 
-  // Apply label changes to our DB
+  // Apply label changes to our DB.
+  //
+  // The trickiest case is "INBOX removed in Gmail" (i.e. the user
+  // archived). We used to blanket-dismiss in Oushi, which broke the
+  // "won't let you forget" promise: a user with an inbox-zero habit
+  // archives everything in Gmail → every Oushi bucket becomes empty.
+  //
+  // New rule: only mirror Gmail archive as a dismiss if the user has
+  // ALREADY REPLIED to the thread, or the email is genuinely low-signal
+  // (score < 30, automated noise, transactional receipt). Important
+  // unreplied threads stay visible in Oushi even after a Gmail archive
+  // — Oushi is supposed to keep nagging.
+  //
+  // To make that decision we need the current email state, so we batch-
+  // fetch the rows for any messages that have INBOX or TRASH deltas.
+  const messageIdsNeedingState: string[] = [];
+  for (const [gmailMessageId, changes] of labelChanges) {
+    if (
+      changes.removedLabels.has("INBOX") ||
+      changes.addedLabels.has("TRASH")
+    ) {
+      messageIdsNeedingState.push(gmailMessageId);
+    }
+  }
+  type EmailState = {
+    gmail_message_id: string;
+    score: number | null;
+    user_replied: boolean | null;
+    from_email: string | null;
+    subject: string | null;
+    snippet: string | null;
+    body_preview: string | null;
+    category: string | null;
+  };
+  const stateByGmailId = new Map<string, EmailState>();
+  if (messageIdsNeedingState.length > 0) {
+    // Chunk to avoid huge IN clauses
+    const CHUNK = 500;
+    for (let i = 0; i < messageIdsNeedingState.length; i += CHUNK) {
+      const chunk = messageIdsNeedingState.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from("emails")
+        .select(
+          "gmail_message_id, score, user_replied, from_email, subject, snippet, body_preview, category"
+        )
+        .eq("user_id", userId)
+        .in("gmail_message_id", chunk);
+      for (const row of (data || []) as EmailState[]) {
+        if (row.gmail_message_id) stateByGmailId.set(row.gmail_message_id, row);
+      }
+    }
+  }
+
+  // Local helper that decides whether to mirror a Gmail archive as
+  // a dismiss in Oushi. TRASH always dismisses (you deleted it). INBOX
+  // removal is conditional.
+  const shouldMirrorArchive = (state: EmailState | undefined): boolean => {
+    if (!state) return true; // unknown — fall back to old behavior
+    if (state.user_replied) return true; // you replied, you're done
+    if ((state.score ?? 0) < 30) return true; // low-signal noise
+    if (state.category === "noise") return true;
+    // Pure-content noise (newsletters, login alerts, receipts) — treat
+    // as dismissable on archive even if score got bumped artificially.
+    const proxyRow = {
+      from_email: state.from_email || "",
+      subject: state.subject || "",
+      snippet: state.snippet || "",
+      body_preview: state.body_preview,
+      // The classifier helpers only read these fields
+    } as unknown as Parameters<typeof isAutomatedEmail>[0];
+    if (isAutomatedEmail(proxyRow)) return true;
+    if (isTrueTransactional(proxyRow)) return true;
+    // Otherwise: the email is unreplied + scored >= 30 + non-automated.
+    // That's the "Oushi should keep showing this" case.
+    return false;
+  };
+
   for (const [gmailMessageId, changes] of labelChanges) {
     const updates: Record<string, unknown> = {};
 
@@ -414,15 +494,17 @@ export async function syncIncremental(userId: string): Promise<{
       read++;
     }
 
-    // INBOX removed (without TRASH added) => archived. Treat as dismissed.
+    // INBOX removed (without TRASH added) => archived. Conditionally dismiss.
     if (
       changes.removedLabels.has("INBOX") &&
       !changes.addedLabels.has("TRASH")
     ) {
-      updates.dismissed_at = new Date().toISOString();
+      if (shouldMirrorArchive(stateByGmailId.get(gmailMessageId))) {
+        updates.dismissed_at = new Date().toISOString();
+      }
       archived++;
     }
-    // TRASH added => also dismiss
+    // TRASH added => always dismiss (user explicitly deleted it)
     if (changes.addedLabels.has("TRASH")) {
       updates.dismissed_at = new Date().toISOString();
     }

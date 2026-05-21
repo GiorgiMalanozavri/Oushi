@@ -353,8 +353,10 @@ export function DashboardClient({
     total_14d: number;
     unranked_14d: number;
     scored_14d: number;
+    dismissed_14d: number;
   }>(null);
   const [reranking, setReranking] = useState(false);
+  const [undismissing, setUndismissing] = useState(false);
 
   useEffect(() => {
     if (!hasGmail || loading || isFirstSync) return;
@@ -370,6 +372,7 @@ export function DashboardClient({
           total_14d: data.total_14d,
           unranked_14d: data.unranked_14d,
           scored_14d: data.scored_14d,
+          dismissed_14d: data.dismissed_14d,
         });
         // Auto-rank if everything is unranked — this is the silent failure
         // case where onboarding finished but rank didn't (network hiccup,
@@ -400,6 +403,30 @@ export function DashboardClient({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Re-rank failed");
       setReranking(false);
+    }
+  };
+
+  const resurfaceDismissed = async () => {
+    setUndismissing(true);
+    try {
+      // 30 = the same threshold the buckets use to consider an email
+      // "visible" at all. Clearing dismissed_at on these surfaces them
+      // back into the active views.
+      const res = await fetch("/api/email/undismiss-recent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: 14, minScore: 30 }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Couldn't resurface emails");
+        setUndismissing(false);
+        return;
+      }
+      window.location.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't resurface emails");
+      setUndismissing(false);
     }
   };
 
@@ -1247,11 +1274,15 @@ export function DashboardClient({
 
         {/* Inbox health banner — explains "all buckets empty" honestly.
             Auto-rank is already firing for "all_unranked", so the banner
-            here is for the slower failure modes (partial rank, low scores). */}
+            here is for the slower failure modes (partial rank, low scores,
+            or "everything is dismissed because Gmail archive flows through"). */}
         {diagnosis &&
           !reranking &&
+          !undismissing &&
           (diagnosis.diagnosis === "mostly_unranked" ||
-            diagnosis.diagnosis === "low_scores") && (
+            diagnosis.diagnosis === "low_scores" ||
+            diagnosis.diagnosis === "all_dismissed" ||
+            diagnosis.diagnosis === "mostly_dismissed") && (
             <div className="mx-8 mt-6 rounded-xl border border-[#E6DCC4] bg-[#FFFCF3]/70 dark:bg-[#25201A]/70 dark:border-[#3A3127] px-5 py-3.5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -1263,26 +1294,48 @@ export function DashboardClient({
                   >
                     {diagnosis.diagnosis === "mostly_unranked"
                       ? `${diagnosis.unranked_14d} of ${diagnosis.total_14d} emails still need to be ranked.`
-                      : `${diagnosis.total_14d} emails synced — none scored as urgent.`}
+                      : diagnosis.diagnosis === "all_dismissed" ||
+                          diagnosis.diagnosis === "mostly_dismissed"
+                        ? `${diagnosis.dismissed_14d} of ${diagnosis.total_14d} emails are marked dismissed.`
+                        : `${diagnosis.total_14d} emails synced — none scored as urgent.`}
                   </p>
                   <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] leading-relaxed">
                     {diagnosis.diagnosis === "mostly_unranked"
                       ? "Ranking ran but didn't finish — probably timed out. One re-rank should sort it."
-                      : "Either your inbox is genuinely calm, or Oushi doesn't know what matters to you yet. Re-rank with your current profile, or add interests in Settings → Profile to teach it."}
+                      : diagnosis.diagnosis === "all_dismissed" ||
+                          diagnosis.diagnosis === "mostly_dismissed"
+                        ? "Oushi treats Gmail archive as dismiss — so anything you archived in Gmail vanishes from these views, even high-priority threads. Click Resurface to clear that flag for scored emails in the last 14 days."
+                        : "Either your inbox is genuinely calm, or Oushi doesn't know what matters to you yet. Re-rank with your current profile, or add interests in Settings → Profile to teach it."}
                   </p>
                 </div>
-                <button
-                  onClick={manualRerank}
-                  disabled={reranking}
-                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-[#B86B4A] to-[#A65B3F] px-3 py-1.5 text-[12px] font-medium text-white hover:from-[#A65B3F] hover:to-[#9C523A] transition-all disabled:opacity-60"
-                  style={{
-                    boxShadow:
-                      "0 2px 8px -2px rgba(184,107,74,0.30)",
-                  }}
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  Re-rank now
-                </button>
+                {(diagnosis.diagnosis === "all_dismissed" ||
+                  diagnosis.diagnosis === "mostly_dismissed") ? (
+                  <button
+                    onClick={resurfaceDismissed}
+                    disabled={undismissing}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-[#B86B4A] to-[#A65B3F] px-3 py-1.5 text-[12px] font-medium text-white hover:from-[#A65B3F] hover:to-[#9C523A] transition-all disabled:opacity-60"
+                    style={{
+                      boxShadow:
+                        "0 2px 8px -2px rgba(184,107,74,0.30)",
+                    }}
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Resurface
+                  </button>
+                ) : (
+                  <button
+                    onClick={manualRerank}
+                    disabled={reranking}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-[#B86B4A] to-[#A65B3F] px-3 py-1.5 text-[12px] font-medium text-white hover:from-[#A65B3F] hover:to-[#9C523A] transition-all disabled:opacity-60"
+                    style={{
+                      boxShadow:
+                        "0 2px 8px -2px rgba(184,107,74,0.30)",
+                    }}
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Re-rank now
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1294,6 +1347,15 @@ export function DashboardClient({
             <Loader2 className="w-3.5 h-3.5 animate-spin text-[#B86B4A]" />
             <p className="text-[13px] text-[#3F362C] dark:text-[#E8D9B8]">
               Ranking your inbox — this takes about a minute on first run.
+            </p>
+          </div>
+        )}
+
+        {undismissing && (
+          <div className="mx-8 mt-6 rounded-xl border border-[#E6DCC4] bg-[#FFFCF3]/70 dark:bg-[#25201A]/70 dark:border-[#3A3127] px-5 py-3.5 flex items-center gap-3">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#B86B4A]" />
+            <p className="text-[13px] text-[#3F362C] dark:text-[#E8D9B8]">
+              Resurfacing dismissed emails…
             </p>
           </div>
         )}
