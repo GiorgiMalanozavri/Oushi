@@ -10,6 +10,7 @@ import { google } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAnthropicClient, extractJson } from "@/lib/claude";
+import { fireWebhook } from "@/lib/webhook";
 
 /**
  * Phrases that suggest a sent email might contain a commitment.
@@ -310,7 +311,7 @@ export async function autoFulfillByFollowup(
     const differentMessage = newest.gmail_message_id !== c.gmail_message_id;
     if (!newerByTime || !differentMessage) continue;
 
-    const { error } = await service
+    const { data: updated, error } = await service
       .from("commitments")
       .update({
         status: "fulfilled",
@@ -319,8 +320,24 @@ export async function autoFulfillByFollowup(
         updated_at: new Date().toISOString(),
       })
       .eq("id", c.id)
-      .eq("status", "open"); // double-check it hasn't been touched
-    if (!error) fulfilled++;
+      .eq("status", "open") // double-check it hasn't been touched
+      .select(
+        "id, summary, raw_quote, recipient_email, recipient_name, gmail_thread_id"
+      )
+      .maybeSingle();
+    if (!error && updated) {
+      fulfilled++;
+      void fireWebhook(userId, "commitment.fulfilled", {
+        commitment_id: updated.id,
+        summary: updated.summary,
+        raw_quote: updated.raw_quote,
+        recipient_email: updated.recipient_email,
+        recipient_name: updated.recipient_name,
+        gmail_thread_id: updated.gmail_thread_id,
+        fulfilled_gmail_message_id: newest.gmail_message_id,
+        auto: true,
+      });
+    }
   }
 
   return fulfilled;
@@ -352,8 +369,21 @@ export async function autoFulfillForThread(
     .eq("gmail_thread_id", threadId)
     .eq("status", "open")
     .neq("gmail_message_id", fulfillingMessageId)
-    .select("id");
+    .select("id, summary, raw_quote, recipient_email, recipient_name");
 
   if (error) return 0;
+
+  for (const c of data || []) {
+    void fireWebhook(userId, "commitment.fulfilled", {
+      commitment_id: c.id,
+      summary: c.summary,
+      raw_quote: c.raw_quote,
+      recipient_email: c.recipient_email,
+      recipient_name: c.recipient_name,
+      gmail_thread_id: threadId,
+      fulfilled_gmail_message_id: fulfillingMessageId,
+      auto: false,
+    });
+  }
   return data?.length || 0;
 }

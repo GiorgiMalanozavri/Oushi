@@ -36,6 +36,8 @@ import {
   Plug,
   Copy,
   CalendarCheck,
+  Webhook,
+  Zap,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { OushiMark } from "@/components/oushi-mark";
@@ -2603,6 +2605,7 @@ function IntegrationsSection() {
       />
       <div className="space-y-5">
         <ICalIntegration />
+        <WebhookIntegration />
       </div>
     </div>
   );
@@ -2823,6 +2826,340 @@ function ICalIntegration() {
                 Regenerate URL (revokes the current one)
               </button>
             )}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ===== WEBHOOK INTEGRATION =====
+
+interface WebhookState {
+  url: string | null;
+  secret_preview: string | null;
+  enabled: boolean;
+}
+
+/**
+ * Outbound webhook config. The user pastes a URL (from Zapier / Make /
+ * n8n / their own script) and Oushi posts HMAC-signed events:
+ *
+ *   - email.respond_labeled  — new email tagged Respond
+ *   - commitment.created     — Oushi extracted a new promise
+ *   - commitment.fulfilled   — a promise auto-closed (user replied)
+ *   - briefing.sent          — daily digest went out
+ *
+ * Each POST carries an X-Oushi-Signature header — sha256=<hex> of the
+ * raw body, keyed by the shared secret. Receivers verify it before
+ * trusting the payload.
+ */
+function WebhookIntegration() {
+  const [state, setState] = useState<WebhookState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState<"save" | "test" | "disconnect" | null>(
+    null
+  );
+  const [newSecret, setNewSecret] = useState<string | null>(null);
+  const [secretCopied, setSecretCopied] = useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const toast = useToast();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/integrations/webhook");
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as WebhookState;
+        if (!cancelled) {
+          setState(data);
+          setUrl(data.url || "");
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function save() {
+    if (!url.trim()) {
+      toast.error("URL is required");
+      return;
+    }
+    setBusy("save");
+    setNewSecret(null);
+    try {
+      const res = await fetch("/api/integrations/webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim(), enabled: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data?.error || "Couldn't save");
+        return;
+      }
+      setState({
+        url: data.url,
+        secret_preview: data.secret_preview,
+        enabled: data.enabled,
+      });
+      if (data.secret_once) {
+        setNewSecret(data.secret_once);
+      }
+      toast.success("Webhook saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function sendTest() {
+    setBusy("test");
+    try {
+      const res = await fetch("/api/integrations/webhook", { method: "PATCH" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data?.error || "Test failed");
+        return;
+      }
+      if (data.delivered) {
+        toast.success("Test event delivered", { detail: data.detail });
+      } else {
+        toast.error("Test didn't reach the endpoint", { detail: data.detail });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function disconnect() {
+    setBusy("disconnect");
+    try {
+      const res = await fetch("/api/integrations/webhook", { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data?.error || "Couldn't disconnect");
+        return;
+      }
+      setState({ url: null, secret_preview: null, enabled: false });
+      setUrl("");
+      setConfirmDisconnect(false);
+      setNewSecret(null);
+      toast.info("Webhook disconnected");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function copySecret() {
+    if (!newSecret) return;
+    try {
+      await navigator.clipboard.writeText(newSecret);
+      setSecretCopied(true);
+      setTimeout(() => setSecretCopied(false), 1500);
+    } catch {
+      toast.error("Copy failed — select and copy manually");
+    }
+  }
+
+  const isConfigured = !!state?.url;
+
+  return (
+    <Card>
+      <div className="p-5">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F2DDD0]">
+            <Webhook className="h-4 w-4 text-[#B86B4A]" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[14px] font-medium text-[#2A2520]">
+                Outbound webhook
+              </p>
+              {isConfigured && state?.enabled && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#E8EFE5] border border-[#6B8E68]/30 px-1.5 py-0.5 text-[9.5px] font-mono uppercase tracking-[0.14em] text-[#4F6B4D]">
+                  <span className="w-1 h-1 rounded-full bg-[#6B8E68]" />
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
+              Get notified in Zapier / Make / n8n / your own script when
+              Oushi labels a new email Respond, extracts a commitment, or
+              sends your daily briefing. HMAC-signed so you can trust the
+              source.
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="mt-5 flex items-center gap-2 text-[12px] text-[#A89F92]">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Loading…
+          </div>
+        ) : (
+          <div className="mt-5 space-y-4">
+            <div>
+              <label
+                htmlFor="webhook-url"
+                className="block text-[10.5px] font-mono uppercase tracking-[0.14em] text-[#A89F92] mb-1.5"
+              >
+                Webhook URL
+              </label>
+              <input
+                id="webhook-url"
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://hooks.zapier.com/hooks/catch/…"
+                disabled={busy !== null}
+                className="w-full rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-2 text-[13px] font-mono text-[#3F362C] placeholder:text-[#A89F92] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors"
+              />
+            </div>
+
+            {/* Show the freshly-minted secret ONCE so the user can copy
+                it into Zapier. After this re-renders the secret is
+                hidden behind the preview. */}
+            {newSecret && (
+              <div className="rounded-lg border border-[#6B8E68]/30 bg-[#E8EFE5]/40 px-3.5 py-3">
+                <p className="text-[10.5px] font-mono uppercase tracking-[0.14em] text-[#4F6B4D] mb-1.5">
+                  Signing secret — copy this now, we won&rsquo;t show it again
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 min-w-0 truncate rounded-md border border-[#6B8E68]/30 bg-white px-2.5 py-1.5 text-[11.5px] font-mono text-[#3F362C]">
+                    {newSecret}
+                  </code>
+                  <button
+                    onClick={copySecret}
+                    className="shrink-0 inline-flex items-center gap-1 rounded-md border border-[#6B8E68]/30 bg-white px-2.5 py-1.5 text-[11.5px] font-medium text-[#4F6B4D] hover:bg-[#E8EFE5] transition-colors"
+                  >
+                    {secretCopied ? (
+                      <>
+                        <Check className="w-3 h-3" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        Copy
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-[10.5px] text-[#4F6B4D] mt-2 leading-relaxed">
+                  Use this to verify the <code>X-Oushi-Signature</code>{" "}
+                  header (HMAC-SHA256 of the body, hex).
+                </p>
+              </div>
+            )}
+
+            {isConfigured && state?.secret_preview && !newSecret && (
+              <div className="rounded-lg bg-[#FAF6EB]/40 border border-[#E6DCC4]/60 px-3.5 py-2.5 flex items-center gap-2 text-[11.5px] text-[#766E63]">
+                <span className="text-[#A89F92]">Signing secret:</span>
+                <code className="font-mono text-[#3F362C]">
+                  {state.secret_preview}
+                </code>
+                <span className="text-[#A89F92]">
+                  (full secret was shown once at save time)
+                </span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={save}
+                disabled={busy !== null || !url.trim() || url === state?.url}
+                className="inline-flex items-center gap-1.5 rounded-md bg-[#5E8FBF] px-3.5 py-1.5 text-[12px] font-medium text-white shadow-sm hover:bg-[#4A7AAB] hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+              >
+                {busy === "save" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Check className="w-3.5 h-3.5" />
+                )}
+                {isConfigured ? "Update" : "Save"}
+              </button>
+              {isConfigured && (
+                <button
+                  onClick={sendTest}
+                  disabled={busy !== null}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
+                >
+                  {busy === "test" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Zap className="w-3.5 h-3.5" />
+                  )}
+                  Send test event
+                </button>
+              )}
+              {isConfigured && (
+                confirmDisconnect ? (
+                  <div className="inline-flex items-center gap-1.5">
+                    <button
+                      onClick={disconnect}
+                      disabled={busy !== null}
+                      className="inline-flex items-center gap-1 rounded-md bg-[#B86B4A] px-2.5 py-1.5 text-[11.5px] font-medium text-white hover:bg-[#A65B3F] disabled:opacity-60"
+                    >
+                      {busy === "disconnect" ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Check className="w-3 h-3" />
+                      )}
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => setConfirmDisconnect(false)}
+                      className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDisconnect(true)}
+                    className="ml-auto text-[11px] text-[#A89F92] hover:text-[#B86B4A] transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                )
+              )}
+            </div>
+
+            <div className="rounded-lg bg-[#FAF6EB]/40 border border-[#E6DCC4]/60 px-3.5 py-2.5">
+              <p className="text-[10.5px] font-mono uppercase tracking-[0.14em] text-[#A89F92] mb-2">
+                Events you&apos;ll receive
+              </p>
+              <ul className="text-[11.5px] text-[#766E63] space-y-1 leading-relaxed">
+                <li>
+                  <code className="text-[#3F362C]">email.respond_labeled</code>{" "}
+                  — every new email tagged Respond.
+                </li>
+                <li>
+                  <code className="text-[#3F362C]">commitment.created</code>{" "}
+                  — Oushi extracted a new promise from your sent email.
+                </li>
+                <li>
+                  <code className="text-[#3F362C]">commitment.fulfilled</code>{" "}
+                  — a promise auto-closed because you replied.
+                </li>
+                <li>
+                  <code className="text-[#3F362C]">briefing.sent</code> —
+                  your daily digest was emailed.
+                </li>
+              </ul>
+            </div>
           </div>
         )}
       </div>

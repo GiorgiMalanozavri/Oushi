@@ -4,6 +4,7 @@ import { createAnthropicClient } from "@/lib/claude";
 import { isAutomatedEmail, type EmailRow } from "@/lib/outstanding";
 import { sendEmail } from "@/lib/email/send";
 import { FROM_NOREPLY, REPLY_TO } from "@/lib/email/addresses";
+import { fireWebhook } from "@/lib/webhook";
 
 export const maxDuration = 300;
 
@@ -348,5 +349,13 @@ async function sendDigestForUser(userId: string, service: ServiceClient) {
     from: FROM_NOREPLY,
     replyTo: REPLY_TO,
     tags: [{ name: "type", value: "daily_digest" }],
+  });
+
+  // Tell outbound webhook listeners (Zaps, scripts) that today's
+  // briefing went out — useful for "log the briefing to my notes app"
+  // workflows or "ping me on Slack when Oushi sends my brief" recipes.
+  void fireWebhook(userId, "briefing.sent", {
+    subject,
+    sent_to: authUser.email,
   });
 }

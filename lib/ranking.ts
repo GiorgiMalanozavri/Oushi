@@ -9,6 +9,7 @@ import {
   mergeLlmLabels,
 } from "@/lib/gmail-labels-llm";
 import { autoDraftBatch } from "@/lib/auto-draft";
+import { fireWebhook } from "@/lib/webhook";
 import { createServiceClient } from "@/lib/supabase/server";
 import { prefilter } from "@/lib/prefilter";
 import {
@@ -597,6 +598,45 @@ export async function rankUnrankedEmails(userId: string) {
             "[ranking] autoDraftBatch failed",
             e instanceof Error ? e.message : e
           );
+        }
+
+        // Outbound webhook — fires once per newly-labeled "respond"
+        // email so Zaps / scripts can react. We only fire for emails
+        // we just labeled this run (not the self-heal stale candidates,
+        // which were already labeled previously).
+        const newlyRankedSet = new Set([
+          ...prefiltered.map((r) => r.id),
+          ...needsClaude.map((e) => e.id),
+        ]);
+        const fresh = respondCandidates.filter((id) => newlyRankedSet.has(id));
+        if (fresh.length > 0) {
+          try {
+            const { data: hookRows } = await supabase
+              .from("emails")
+              .select(
+                "id, gmail_message_id, gmail_thread_id, from_name, from_email, subject, snippet, score, received_at"
+              )
+              .in("id", fresh);
+            for (const e of hookRows || []) {
+              // Don't await — webhook delivery shouldn't slow down rank.
+              void fireWebhook(userId, "email.respond_labeled", {
+                email_id: e.id,
+                gmail_message_id: e.gmail_message_id,
+                gmail_thread_id: e.gmail_thread_id,
+                from_name: e.from_name,
+                from_email: e.from_email,
+                subject: e.subject,
+                snippet: e.snippet,
+                score: e.score,
+                received_at: e.received_at,
+              });
+            }
+          } catch (e) {
+            console.error(
+              "[ranking] webhook payload fetch failed",
+              e instanceof Error ? e.message : e
+            );
+          }
         }
       }
     }

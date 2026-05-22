@@ -6,6 +6,7 @@ import {
   fetchRecentSent,
   autoFulfillByFollowup,
 } from "@/lib/commitments";
+import { fireWebhook } from "@/lib/webhook";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -70,6 +71,17 @@ export async function GET(request: Request) {
         for (const r of results) {
           if (r.status !== "fulfilled" || !r.value.c) continue;
           const { s, c } = r.value;
+          // Check first whether this is genuinely new — we only want
+          // to fire the webhook on a true insert, not on a re-upsert
+          // of a commitment we extracted last week.
+          const { data: pre } = await service
+            .from("commitments")
+            .select("id")
+            .eq("user_id", user_id)
+            .eq("gmail_message_id", s.gmail_message_id)
+            .eq("summary", c.summary)
+            .maybeSingle();
+          const isNew = !pre;
           await service.from("commitments").upsert(
             {
               user_id,
@@ -89,6 +101,19 @@ export async function GET(request: Request) {
             { onConflict: "user_id,gmail_message_id,summary", ignoreDuplicates: false }
           );
           extracted++;
+          if (isNew) {
+            void fireWebhook(user_id, "commitment.created", {
+              summary: c.summary,
+              raw_quote: c.raw_quote,
+              due_phrase: c.due_phrase,
+              due_at: c.due_at_iso,
+              urgency: c.urgency || "vague",
+              recipient_email: s.to_email,
+              recipient_name: s.to_name,
+              gmail_message_id: s.gmail_message_id,
+              gmail_thread_id: s.gmail_thread_id,
+            });
+          }
         }
       }
 
