@@ -7,6 +7,7 @@ import {
   autoFulfillByFollowup,
 } from "@/lib/commitments";
 import { fireWebhook } from "@/lib/webhook";
+import { upsertCommitmentInDatabase } from "@/lib/notion";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -113,6 +114,40 @@ export async function GET(request: Request) {
               gmail_message_id: s.gmail_message_id,
               gmail_thread_id: s.gmail_thread_id,
             });
+
+            // Mirror to Notion if the user has the integration on with
+            // a database selected. Best-effort — never blocks the cron.
+            try {
+              const { data: integ } = await service
+                .from("user_integrations")
+                .select(
+                  "notion_access_token, notion_database_id, notion_enabled"
+                )
+                .eq("user_id", user_id)
+                .maybeSingle();
+              if (
+                integ?.notion_enabled &&
+                integ.notion_access_token &&
+                integ.notion_database_id
+              ) {
+                void upsertCommitmentInDatabase(
+                  integ.notion_access_token,
+                  integ.notion_database_id,
+                  {
+                    summary: c.summary,
+                    status: "Open",
+                    due_at: c.due_at_iso || null,
+                    recipient: s.to_name || s.to_email || null,
+                    gmail_thread_id: s.gmail_thread_id || null,
+                  }
+                );
+              }
+            } catch (e) {
+              console.error(
+                "[commitments] Notion mirror failed",
+                e instanceof Error ? e.message : e
+              );
+            }
           }
         }
       }

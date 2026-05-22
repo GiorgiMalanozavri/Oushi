@@ -39,6 +39,7 @@ import {
   Webhook,
   Zap,
   Hash,
+  Notebook,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { OushiMark } from "@/components/oushi-mark";
@@ -2607,6 +2608,7 @@ function IntegrationsSection() {
       <div className="space-y-5">
         <ICalIntegration />
         <SlackIntegration />
+        <NotionIntegration />
         <WebhookIntegration />
       </div>
     </div>
@@ -3080,6 +3082,363 @@ function SlackIntegration() {
                   <Zap className="w-3.5 h-3.5" />
                 )}
                 Send test message
+              </button>
+              {confirmDisconnect ? (
+                <div className="inline-flex items-center gap-1.5">
+                  <button
+                    onClick={disconnect}
+                    disabled={busy !== null}
+                    className="inline-flex items-center gap-1 rounded-md bg-[#B86B4A] px-2.5 py-1.5 text-[11.5px] font-medium text-white hover:bg-[#A65B3F] disabled:opacity-60"
+                  >
+                    {busy === "disconnect" ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Check className="w-3 h-3" />
+                    )}
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setConfirmDisconnect(false)}
+                    className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDisconnect(true)}
+                  className="ml-auto text-[11px] text-[#A89F92] hover:text-[#B86B4A] transition-colors"
+                >
+                  Disconnect
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ===== NOTION INTEGRATION =====
+
+interface NotionState {
+  connected: boolean;
+  workspace_name: string | null;
+  page_id: string | null;
+  page_title: string | null;
+  database_id: string | null;
+  database_name: string | null;
+  enabled: boolean;
+  pages: Array<{ id: string; title: string }>;
+  databases: Array<{ id: string; title: string }>;
+}
+
+/**
+ * Notion — save threads to a page + auto-mirror commitments to a
+ * database. OAuth flow connects a workspace; user then picks which
+ * page receives saved threads and which database receives commitments.
+ *
+ * Notion requires the user to explicitly share specific pages/dbs with
+ * the integration (in Notion's UI: "Add connection" → pick Oushi). The
+ * pages + databases dropdowns are populated from that share list.
+ */
+function NotionIntegration() {
+  const [state, setState] = useState<NotionState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<
+    "toggle" | "page" | "database" | "disconnect" | "refresh" | null
+  >(null);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const toast = useToast();
+
+  const refetch = async () => {
+    setBusy("refresh");
+    try {
+      const res = await fetch("/api/integrations/notion");
+      if (!res.ok) return;
+      const data = (await res.json()) as NotionState;
+      setState(data);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/integrations/notion");
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as NotionState;
+        if (!cancelled) {
+          setState(data);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("notion_connected") === "1") {
+        toast.success("Notion connected", {
+          detail: "Now share a page and/or database with Oushi.",
+        });
+        params.delete("notion_connected");
+        const newSearch = params.toString();
+        const newUrl =
+          window.location.pathname +
+          (newSearch ? "?" + newSearch : "?section=integrations");
+        window.history.replaceState(null, "", newUrl);
+      } else if (params.get("notion_error")) {
+        toast.error(`Notion: ${params.get("notion_error")}`);
+        params.delete("notion_error");
+        const newSearch = params.toString();
+        const newUrl =
+          window.location.pathname +
+          (newSearch ? "?" + newSearch : "?section=integrations");
+        window.history.replaceState(null, "", newUrl);
+      }
+    }
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function patch(body: Record<string, unknown>, which: "page" | "database" | "toggle") {
+    setBusy(which);
+    try {
+      const res = await fetch("/api/integrations/notion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data?.error || "Couldn't update");
+        return;
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function pickPage(id: string) {
+    if (!state) return;
+    const page = state.pages.find((p) => p.id === id);
+    setState({ ...state, page_id: id, page_title: page?.title || null });
+    await patch(
+      { page_id: id, page_title: page?.title || null },
+      "page"
+    );
+  }
+
+  async function pickDatabase(id: string) {
+    if (!state) return;
+    const db = state.databases.find((d) => d.id === id);
+    setState({ ...state, database_id: id, database_name: db?.title || null });
+    await patch(
+      { database_id: id, database_name: db?.title || null },
+      "database"
+    );
+  }
+
+  async function toggleEnabled(next: boolean) {
+    if (!state) return;
+    setState({ ...state, enabled: next });
+    await patch({ enabled: next }, "toggle");
+  }
+
+  async function disconnect() {
+    setBusy("disconnect");
+    try {
+      const res = await fetch("/api/integrations/notion", { method: "DELETE" });
+      if (!res.ok) {
+        toast.error("Couldn't disconnect");
+        return;
+      }
+      setState({
+        connected: false,
+        workspace_name: null,
+        page_id: null,
+        page_title: null,
+        database_id: null,
+        database_name: null,
+        enabled: false,
+        pages: [],
+        databases: [],
+      });
+      setConfirmDisconnect(false);
+      toast.info("Notion disconnected");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const connected = !!state?.connected;
+  const hasAnyTarget = !!(state?.page_id || state?.database_id);
+
+  return (
+    <Card>
+      <div className="p-5">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E1D8C2]">
+            <Notebook className="h-4 w-4 text-[#5C5042]" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[14px] font-medium text-[#2A2520]">Notion</p>
+              {connected && state?.enabled && hasAnyTarget && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#E8EFE5] border border-[#6B8E68]/30 px-1.5 py-0.5 text-[9.5px] font-mono uppercase tracking-[0.14em] text-[#4F6B4D]">
+                  <span className="w-1 h-1 rounded-full bg-[#6B8E68]" />
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
+              Save threads to a Notion page with one click, and auto-mirror
+              every commitment Oushi extracts into a database row.
+            </p>
+            {connected && state?.workspace_name && (
+              <p className="text-[11.5px] text-[#766E63] mt-2">
+                Workspace:{" "}
+                <span className="font-medium text-[#3F362C]">
+                  {state.workspace_name}
+                </span>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="mt-5 flex items-center gap-2 text-[12px] text-[#A89F92]">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Loading…
+          </div>
+        ) : !connected ? (
+          <div className="mt-5">
+            <a
+              href="/api/integrations/notion/connect"
+              className="inline-flex items-center gap-2 rounded-md bg-[#2A2520] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#3F362C] transition-colors"
+            >
+              <Notebook className="w-3.5 h-3.5" />
+              Connect Notion
+            </a>
+            <p className="text-[11px] text-[#A89F92] mt-2 leading-relaxed">
+              Opens Notion&apos;s install screen. After connecting, you&apos;ll
+              share a specific page (for saved threads) and/or database
+              (for commitments) with the Oushi integration from Notion&apos;s UI.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-5 space-y-4">
+            {/* Page picker — saved threads */}
+            <div>
+              <label className="block text-[10.5px] font-mono uppercase tracking-[0.14em] text-[#A89F92] mb-1.5">
+                Save threads to page
+              </label>
+              <select
+                value={state?.page_id || ""}
+                onChange={(e) => pickPage(e.target.value)}
+                disabled={busy !== null}
+                className="w-full rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-2 text-[13px] text-[#2A2520] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors disabled:opacity-60"
+              >
+                <option value="">— pick a page —</option>
+                {(state?.pages || []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Database picker — commitments mirror */}
+            <div>
+              <label className="block text-[10.5px] font-mono uppercase tracking-[0.14em] text-[#A89F92] mb-1.5">
+                Mirror commitments to database
+              </label>
+              <select
+                value={state?.database_id || ""}
+                onChange={(e) => pickDatabase(e.target.value)}
+                disabled={busy !== null}
+                className="w-full rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-2 text-[13px] text-[#2A2520] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors disabled:opacity-60"
+              >
+                <option value="">— pick a database —</option>
+                {(state?.databases || []).map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.title}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10.5px] text-[#A89F92] mt-1.5 leading-relaxed">
+                Best with a database that has these columns: <em>Name</em> (title),
+                <em> Status</em> (select), <em>Due</em> (date),
+                <em> Recipient</em> (text), <em>Source</em> (URL). Missing
+                columns are skipped, not errors.
+              </p>
+            </div>
+
+            {/* Empty list hint */}
+            {state?.pages.length === 0 && state?.databases.length === 0 && (
+              <div className="rounded-lg bg-[#FAF1DC]/50 border border-[#C99A50]/30 px-3.5 py-2.5">
+                <p className="text-[11.5px] text-[#8E6A2A] leading-relaxed">
+                  No pages or databases shared yet. In Notion, open a page →
+                  the <strong>•••</strong> menu → <strong>Connections</strong> →
+                  add the Oushi integration. Then click Refresh below.
+                </p>
+              </div>
+            )}
+
+            {/* Enable + actions */}
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-[#FAF6EB]/40 border border-[#E6DCC4]/60 px-3.5 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] font-medium text-[#2A2520]">
+                  Mirror is {state?.enabled ? "active" : "paused"}
+                </p>
+                <p className="text-[11px] text-[#766E63] mt-0.5">
+                  Turn off to stop new threads/commitments from going to Notion.
+                </p>
+              </div>
+              <button
+                onClick={() => toggleEnabled(!state?.enabled)}
+                disabled={busy !== null || !hasAnyTarget}
+                role="switch"
+                aria-checked={!!state?.enabled}
+                className={`relative shrink-0 inline-flex items-center w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${
+                  state?.enabled
+                    ? "bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95]"
+                    : "bg-[#E6DCC4] dark:bg-[#3A3127]"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 inline-block w-5 h-5 bg-white rounded-full transition-transform ${
+                    state?.enabled ? "translate-x-[22px]" : "translate-x-0.5"
+                  }`}
+                  style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.20)" }}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={refetch}
+                disabled={busy !== null}
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
+              >
+                {busy === "refresh" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5" />
+                )}
+                Refresh shared pages
               </button>
               {confirmDisconnect ? (
                 <div className="inline-flex items-center gap-1.5">
