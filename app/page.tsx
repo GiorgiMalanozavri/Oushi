@@ -30,7 +30,7 @@ const stagger: Variants = {
 
 export default function LandingPage() {
   return (
-    <div className="bg-[#FAF6EB] text-[#2A2520] relative overflow-hidden">
+    <div className="oushi-marketing bg-[#FAF6EB] text-[#2A2520] relative overflow-hidden">
       {/* Ambient blobs */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-[10%] -right-[15%] w-[55vw] h-[55vw] rounded-full bg-[#D0E1F0]/25 blur-[140px]" />

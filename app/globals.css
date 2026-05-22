@@ -353,6 +353,18 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Pin marketing/legal pages to light color-scheme. Without this,
+ * Chrome's Auto Dark Mode (Android by default, desktop behind a flag)
+ * and similar browser features will invert our warm cream palette
+ * and break contrast in ways we can't predict. The dashboard and
+ * settings remain fully dark-mode-capable through their dark:
+ * Tailwind variants — this rule only constrains pages that were
+ * designed light-only. */
+.oushi-marketing,
+.oushi-marketing * {
+  color-scheme: light;
+}
+
 /* Orbit animations for the landing-page integration cloud. The ring
  * containers rotate continuously; logos counter-rotate at the same
  * rate so the artwork inside each badge stays upright as the ring
