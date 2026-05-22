@@ -33,11 +33,15 @@ import {
   Gem,
   Lock,
   Infinity as InfinityIcon,
+  Plug,
+  Copy,
+  CalendarCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { OushiMark } from "@/components/oushi-mark";
 import { AmbientBackground } from "@/components/ambient-bg";
 import { UpgradeModal } from "@/components/upgrade-modal";
+import { useToast } from "@/components/toast";
 import {
   TodayModeToggle,
   readStoredTodayMode,
@@ -92,7 +96,7 @@ interface SettingsClientProps {
   memories: Memory[];
 }
 
-type SettingsSection = "profile" | "appearance" | "voice" | "memory" | "briefing" | "notifications" | "labels" | "filters" | "plan" | "account";
+type SettingsSection = "profile" | "appearance" | "voice" | "memory" | "briefing" | "notifications" | "labels" | "filters" | "integrations" | "plan" | "account";
 
 const KIND_LABELS: Record<MemoryKind, string> = {
   person: "People",
@@ -132,6 +136,7 @@ export function SettingsClient({
       "notifications",
       "labels",
       "filters",
+      "integrations",
       "plan",
       "account",
     ];
@@ -359,6 +364,7 @@ export function SettingsClient({
     { key: "notifications", label: "Push notifications", icon: <BellRing className="w-3.5 h-3.5" />, description: "Nudges so you don't forget" },
     { key: "labels", label: "Gmail labels", icon: <Tag className="w-3.5 h-3.5" />, description: "Auto-organize your Gmail" },
     { key: "filters", label: "Filters", icon: <VolumeX className="w-3.5 h-3.5" />, description: "Muted senders & domains" },
+    { key: "integrations", label: "Integrations", icon: <Plug className="w-3.5 h-3.5" />, description: "Calendar feed, Slack, Notion, webhooks" },
     { key: "plan", label: "Plan & usage", icon: <Gem className="w-3.5 h-3.5" />, description: "Free vs Pro, quota left today" },
     { key: "account", label: "Account & data", icon: <Mail className="w-3.5 h-3.5" />, description: "Gmail, exports, delete" },
   ];
@@ -536,6 +542,8 @@ export function SettingsClient({
           {section === "filters" && (
             <FiltersSection mutes={mutes} onRemove={handleRemoveMute} />
           )}
+
+          {section === "integrations" && <IntegrationsSection />}
 
           {section === "plan" && <PlanSection />}
 
@@ -2581,6 +2589,244 @@ function LabelsSection() {
         </div>
       )}
     </div>
+  );
+}
+
+// ===== INTEGRATIONS SECTION =====
+
+function IntegrationsSection() {
+  return (
+    <div>
+      <SectionHeader
+        title="Integrations"
+        description="Pipe Oushi into the tools you already use — your calendar, Slack, Notion, or anything via webhook."
+      />
+      <div className="space-y-5">
+        <ICalIntegration />
+      </div>
+    </div>
+  );
+}
+
+interface ICalState {
+  enabled: boolean;
+  has_token: boolean;
+  feed_url: string | null;
+}
+
+/**
+ * iCal feed — exposes the user's open commitments as a subscribe-able
+ * calendar URL. They paste it into Google Calendar / Apple Calendar
+ * once and from then on every commitment Oushi extracts shows up
+ * alongside their real meetings.
+ *
+ * The URL contains a per-user opaque token (no cookies needed); the
+ * Regenerate button rotates the token if it gets leaked.
+ */
+function ICalIntegration() {
+  const [state, setState] = useState<ICalState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<"toggle" | "regen" | "copy" | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [confirmRegen, setConfirmRegen] = useState(false);
+  const toast = useToast();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/integrations/ical");
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as ICalState;
+        if (!cancelled) {
+          setState(data);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function call(action: "enable" | "disable" | "regenerate") {
+    setBusy(action === "regenerate" ? "regen" : "toggle");
+    try {
+      const res = await fetch("/api/integrations/ical", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data?.error || "Couldn't update feed");
+        return;
+      }
+      setState(data);
+      if (action === "regenerate") {
+        toast.success("New feed URL generated", {
+          detail: "Update the URL in every cal app you subscribed in.",
+        });
+      } else if (action === "enable") {
+        toast.success("Calendar feed enabled");
+      } else {
+        toast.info("Calendar feed disabled");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusy(null);
+      setConfirmRegen(false);
+    }
+  }
+
+  async function copyUrl() {
+    if (!state?.feed_url) return;
+    setBusy("copy");
+    try {
+      await navigator.clipboard.writeText(state.feed_url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Copy failed — select and copy manually");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const enabled = !!state?.enabled;
+
+  return (
+    <Card>
+      <div className="p-5">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E8DDC9]">
+            <CalendarCheck className="h-4 w-4 text-[#7A5A36]" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[14px] font-medium text-[#2A2520]">
+                Calendar feed (iCal)
+              </p>
+              {enabled && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#E8EFE5] border border-[#6B8E68]/30 px-1.5 py-0.5 text-[9.5px] font-mono uppercase tracking-[0.14em] text-[#4F6B4D]">
+                  <span className="w-1 h-1 rounded-full bg-[#6B8E68]" />
+                  Live
+                </span>
+              )}
+            </div>
+            <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
+              Subscribe to a URL in Google or Apple Calendar and every
+              open commitment Oushi tracks shows up alongside your
+              meetings. Updates every hour.
+            </p>
+          </div>
+          {loading ? (
+            <Loader2 className="w-4 h-4 text-[#A89F92] animate-spin shrink-0" />
+          ) : (
+            <button
+              onClick={() => call(enabled ? "disable" : "enable")}
+              disabled={busy !== null}
+              role="switch"
+              aria-checked={enabled}
+              className={`relative shrink-0 inline-flex items-center w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${
+                enabled
+                  ? "bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95]"
+                  : "bg-[#E6DCC4] dark:bg-[#3A3127]"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 inline-block w-5 h-5 bg-white rounded-full transition-transform ${
+                  enabled ? "translate-x-[22px]" : "translate-x-0.5"
+                }`}
+                style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.20)" }}
+              />
+            </button>
+          )}
+        </div>
+
+        {/* Feed URL — only shown when enabled */}
+        {enabled && state?.feed_url && (
+          <div className="mt-5 pt-5 border-t border-[#E6DCC4]/60 space-y-3">
+            <div>
+              <p className="text-[10.5px] font-mono uppercase tracking-[0.14em] text-[#A89F92] mb-1.5">
+                Feed URL
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 min-w-0 truncate rounded-md border border-[#E6DCC4] bg-[#FAF6EB]/50 px-3 py-2 text-[11.5px] font-mono text-[#3F362C]">
+                  {state.feed_url}
+                </code>
+                <button
+                  onClick={copyUrl}
+                  disabled={busy !== null}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-2 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-3 h-3 text-[#6B8E68]" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      Copy
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-[#FAF6EB]/40 border border-[#E6DCC4]/60 px-3.5 py-2.5">
+              <p className="text-[11.5px] text-[#766E63] leading-relaxed">
+                <strong className="text-[#3F362C]">Google Calendar:</strong>{" "}
+                Settings → Add calendar → From URL → paste.
+                <br />
+                <strong className="text-[#3F362C]">Apple Calendar:</strong>{" "}
+                File → New Calendar Subscription → paste.
+              </p>
+            </div>
+
+            {confirmRegen ? (
+              <div className="rounded-lg border border-[#B86B4A]/30 bg-[#F5E8E0]/40 px-3.5 py-2.5 flex items-center justify-between gap-3">
+                <p className="text-[11.5px] text-[#B86B4A] leading-snug">
+                  Regenerate? The current URL stops working — you&apos;ll
+                  need to re-subscribe in every cal app.
+                </p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setConfirmRegen(false)}
+                    className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => call("regenerate")}
+                    disabled={busy !== null}
+                    className="inline-flex items-center gap-1 rounded-md bg-[#B86B4A] px-2.5 py-1 text-[11.5px] font-medium text-white hover:bg-[#A65B3F] disabled:opacity-60"
+                  >
+                    {busy === "regen" ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3" />
+                    )}
+                    Regenerate
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmRegen(true)}
+                className="text-[11px] text-[#A89F92] hover:text-[#B86B4A] transition-colors"
+              >
+                Regenerate URL (revokes the current one)
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 
