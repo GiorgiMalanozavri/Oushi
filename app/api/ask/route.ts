@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createAnthropicClient } from "@/lib/claude";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getActiveMemories, formatMemoriesForPrompt } from "@/lib/memory";
+import { checkAskQuota, incrementAskQuota } from "@/lib/billing";
 
 // Streaming endpoint — needs the Node runtime + force-dynamic so Vercel
 // doesn't try to cache/buffer the response.
@@ -125,16 +126,39 @@ export async function POST(request: Request) {
     );
   }
   // Daily soft cap — protects from a single user accidentally burning a
-  // ton of API credits. Configurable per user later via pricing tiers.
+  // ton of API credits. Hard ceiling for both tiers as a safety net.
   const daily = rateLimit(`ask-daily:${user.id}`, ASK_DAILY_MAX, ASK_DAILY_WINDOW_MS);
   if (!daily.ok) {
     const hours = Math.ceil((daily.retryAfterSeconds || 3600) / 3600);
     return NextResponse.json(
       {
-        error: `You've hit your daily chat limit (${ASK_DAILY_MAX} questions). Resets in ~${hours}h. Pro tier removes the cap.`,
+        error: `You've hit the absolute daily chat limit (${ASK_DAILY_MAX}). Resets in ~${hours}h.`,
       },
       { status: 429, headers: rateLimitHeaders(daily, ASK_DAILY_MAX) }
     );
+  }
+
+  // Per-tier quota (free = 20/day, pro = unlimited). The hourly + daily
+  // limits above stay as absolute safety nets; this is the user-facing
+  // freemium gate.
+  const quota = await checkAskQuota(user.id, user.email || null);
+  if (!quota.allowed) {
+    return NextResponse.json(
+      {
+        error: `You've used all ${quota.limit} of your daily Ask Oushi messages. Upgrade to Pro for unlimited.`,
+        quota,
+        upgrade_required: true,
+      },
+      { status: 429 }
+    );
+  }
+  // Increment up front. If the Claude call fails, the user loses one
+  // message — acceptable for keeping the gate simple. Pro tier has
+  // limit = Infinity so this is a no-op for them.
+  if (quota.limit > 0) {
+    await incrementAskQuota(user.id).catch(() => {
+      /* non-fatal */
+    });
   }
 
   const body = await request.json();

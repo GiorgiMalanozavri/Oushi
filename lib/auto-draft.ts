@@ -28,6 +28,7 @@ import {
 } from "@/lib/gmail";
 import { getActiveMemories, formatMemoriesForPrompt } from "@/lib/memory";
 import type { EmailRow } from "@/lib/outstanding";
+import { getUserTierServerSide, TIER_LIMITS } from "@/lib/billing";
 
 // Same system prompt the manual draft route uses — keeps quality
 // consistent across "user clicked Draft Reply" and "auto-drafted in
@@ -80,6 +81,12 @@ export async function autoDraftBatch(
 
   if (!syncRes.data?.auto_draft_enabled) return 0;
   if (!profileRes.data?.voice_profile) return 0;
+
+  // Pro-only feature. Free-tier users keep manual drafting but auto-
+  // generation is part of the upgrade story. Admin emails (set via
+  // OUSHI_ADMIN_EMAILS) get Pro automatically so testing works.
+  const tier = await getUserTierServerSide(userId);
+  if (!TIER_LIMITS[tier].features.auto_draft) return 0;
 
   const profile = profileRes.data;
   const profileBlock = profile
