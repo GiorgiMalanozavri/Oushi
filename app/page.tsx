@@ -9,7 +9,6 @@ import {
   Sparkles,
   Shield,
   Send,
-  Check,
   BrainCircuit,
   Bell,
   Sunrise,
@@ -19,7 +18,6 @@ import {
   Mail,
   Calendar,
   Clock,
-  Inbox,
   MessageCircle,
   Mic,
   Globe,
@@ -27,7 +25,6 @@ import {
   FileText,
   Users,
   Watch,
-  ShieldCheck,
 } from "lucide-react";
 
 const fadeUp: Variants = {
@@ -66,6 +63,9 @@ export default function LandingPage() {
             <a href="#next" className="text-[13px] font-medium text-[#766E63] hover:text-[#2A2520] transition-colors">
               What&apos;s next
             </a>
+            <Link href="/pricing" className="text-[13px] font-medium text-[#766E63] hover:text-[#2A2520] transition-colors">
+              Pricing
+            </Link>
           </div>
           <Link
             href="/login"
@@ -291,7 +291,7 @@ export default function LandingPage() {
         </section>
 
         {/* ============= FINAL CTA ============= */}
-        <section id="pricing" className="px-6 py-32 sm:py-40 text-center">
+        <section id="get-started" className="px-6 py-32 sm:py-40 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
