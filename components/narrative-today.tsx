@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/toast";
 import { SetupChecklist } from "@/components/setup-checklist";
+import { SnoozePopover, type SnoozePreset } from "@/components/snooze-popover";
 
 // Module-level cache for /api/today. Survives component unmount → switching
 // between Today and another view (or clicking the Oushi logo while on
@@ -201,6 +202,21 @@ export function NarrativeToday({
       setLoading(false);
     }
   };
+
+  // Listen for "refresh-today" events fired by inline actions like the
+  // snooze undo — we hide the card optimistically on snooze, and an undo
+  // needs to bring it back without forcing the user to reload.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onRefresh = () => {
+      // Invalidate the module cache so the next load() actually hits
+      // the network, not a stale in-memory snapshot.
+      todayCache = null;
+      load();
+    };
+    window.addEventListener("oushi:refresh-today", onRefresh);
+    return () => window.removeEventListener("oushi:refresh-today", onRefresh);
+  }, []);
 
   useEffect(() => {
     // If we already painted from the module cache, do a background
@@ -480,10 +496,50 @@ export function NarrativeToday({
                           ? onOpenEmail(item.email_id)
                           : onOpenCommitments()
                       }
-                      onSnooze={() => {
-                        toast.info("Snooze coming to narrative view soon", {
-                          detail: "For now, open the email and snooze from inside.",
-                        });
+                      onSnooze={async (preset, customUntil) => {
+                        if (!item.email_id) {
+                          toast.info("Snooze a meeting from the calendar event.");
+                          return null;
+                        }
+                        try {
+                          const res = await fetch(
+                            `/api/email/${item.email_id}/snooze`,
+                            {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                preset,
+                                custom_until: customUntil,
+                              }),
+                            }
+                          );
+                          if (!res.ok) {
+                            toast.error("Couldn't snooze this email");
+                            return null;
+                          }
+                          const data = await res.json();
+                          toast.success("Snoozed", {
+                            detail: data.reason,
+                            onUndo: async () => {
+                              await fetch(
+                                `/api/email/${item.email_id}/snooze`,
+                                { method: "DELETE" }
+                              );
+                              // Refresh on undo so the card reappears
+                              if (typeof window !== "undefined") {
+                                window.dispatchEvent(
+                                  new CustomEvent("oushi:refresh-today")
+                                );
+                              }
+                            },
+                          });
+                          // Hide the card immediately — matches what archive does.
+                          if (onDismissEmail) onDismissEmail(item.email_id);
+                          return data.reason as string;
+                        } catch {
+                          toast.error("Couldn't snooze this email");
+                          return null;
+                        }
                       }}
                       onArchive={() => {
                         // If this card represents a group, archive every
@@ -660,7 +716,12 @@ function NarrativeCard({
 }: {
   item: TodayItem;
   onOpen: () => void;
-  onSnooze: () => void;
+  /** Called when the user picks a snooze preset. Should return the
+   *  resolved reason (e.g. "Tomorrow at 9 AM") for the toast. */
+  onSnooze: (
+    preset: SnoozePreset,
+    customUntil?: string
+  ) => Promise<string | null>;
   onArchive: () => void;
   onDraft: () => void;
 }) {
@@ -758,14 +819,18 @@ function NarrativeCard({
                 }}
               />
             )}
-            <ActionPill
-              icon={<Clock className="w-3 h-3" />}
-              label="Snooze"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSnooze();
-              }}
-            />
+            <div
+              // The popover itself fires document-level click handlers,
+              // so guard the card's onClick (which would re-open the
+              // email) by stopping propagation at the wrapper.
+              onClick={(e) => e.stopPropagation()}
+            >
+              <SnoozePopover
+                onSnooze={onSnooze}
+                className="rounded-full bg-[#FAF6EB]/80 hover:bg-[#FAF6EB]"
+                label="Snooze"
+              />
+            </div>
             <ActionPill
               icon={<Archive className="w-3 h-3" />}
               label={

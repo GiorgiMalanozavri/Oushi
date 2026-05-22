@@ -13,7 +13,7 @@ export default function TermsPage() {
       <LegalHeader />
       <main className="max-w-2xl mx-auto px-6 py-12 sm:py-16">
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#A89F92] mb-3">
-          Last updated · May 17, 2026 · Effective immediately
+          Last updated · May 22, 2026 · Effective immediately
         </p>
         <h1 className="text-[36px] sm:text-[48px] font-semibold tracking-[-0.02em] leading-[1.05] mb-4">
           Terms of Service
