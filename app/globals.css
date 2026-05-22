@@ -431,43 +431,6 @@
     #1B1813;
 }
 
-/* Dark-mode text + surface overrides for the narrative dashboard.
- * The NarrativeToday component hardcodes the warm-cream palette inline
- * via Tailwind arbitrary-value utilities (text-[#2A2520], bg-[#FFFCF3],
- * etc). When the user is in dark mode, the .narrative-bg background
- * flips dark via the rule above but the inline colors don't — result
- * was dark-brown text on dark-brown bg, unreadable. These rules
- * override the Tailwind utilities in-place when they appear inside
- * .narrative-bg + .dark, so the whole dashboard becomes legible
- * without touching the JSX. Selector specificity (0,0,3,0) beats
- * Tailwind's single-class output (0,0,1,0) so no !important needed. */
-
-/* Headlines + body text */
-.dark .narrative-bg .text-\[\#2A2520\] { color: #FBF4DF; }
-.dark .narrative-bg .text-\[\#3F362C\] { color: #E8D9B8; }
-.dark .narrative-bg .text-\[\#766E63\] { color: #A89F92; }
-.dark .narrative-bg .text-\[\#8A7F70\] { color: #A89F92; }
-.dark .narrative-bg .text-\[\#5C5042\] { color: #A89F92; }
-
-/* Surface backgrounds — cream cards → dark warm cards */
-.dark .narrative-bg .bg-\[\#FFFCF3\] { background-color: #25201A; }
-.dark .narrative-bg .bg-\[\#FFFCF3\]\/60 { background-color: rgb(37 32 26 / 0.6); }
-.dark .narrative-bg .bg-\[\#FFFCF3\]\/80 { background-color: rgb(37 32 26 / 0.8); }
-.dark .narrative-bg .bg-\[\#FFFCF3\]\/95 { background-color: rgb(37 32 26 / 0.95); }
-.dark .narrative-bg .bg-\[\#FAF6EB\]\/40 { background-color: rgb(42 37 32 / 0.4); }
-.dark .narrative-bg .bg-\[\#FAF6EB\]\/60 { background-color: rgb(42 37 32 / 0.6); }
-.dark .narrative-bg .bg-\[\#FAF6EB\]\/80 { background-color: rgb(42 37 32 / 0.8); }
-.dark .narrative-bg .bg-\[\#F5E8E0\]\/40 { background-color: rgb(58 47 35 / 0.4); }
-
-/* Borders */
-.dark .narrative-bg .border-\[\#E6DCC4\] { border-color: #3A3127; }
-.dark .narrative-bg .border-\[\#E6DCC4\]\/60 { border-color: rgb(58 49 39 / 0.6); }
-.dark .narrative-bg .border-\[\#E6DCC4\]\/70 { border-color: rgb(58 49 39 / 0.7); }
-.dark .narrative-bg .border-\[\#E6DCC4\]\/80 { border-color: rgb(58 49 39 / 0.8); }
-
-/* Hover state colors inside narrative cards */
-.dark .narrative-bg .hover\:bg-\[\#FAF6EB\]:hover { background-color: #2A2520; }
-.dark .narrative-bg .hover\:text-\[\#3F362C\]:hover { color: #E8D9B8; }
 
 /* Sidebar — vertical gradient (top → bottom slightly darker) */
 .sidebar-bg {

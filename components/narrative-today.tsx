@@ -310,7 +310,7 @@ export function NarrativeToday({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-          className="font-serif text-[40px] sm:text-[48px] leading-[1.05] tracking-[-0.018em] text-[#2A2520]"
+          className="font-serif text-[40px] sm:text-[48px] leading-[1.05] tracking-[-0.018em] text-[#2A2520] dark:text-[#FBF4DF]"
           style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
         >
           {greeting}
@@ -321,7 +321,7 @@ export function NarrativeToday({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
-          className="font-serif text-[19px] sm:text-[20px] leading-[1.55] text-[#3F362C] mt-5"
+          className="font-serif text-[19px] sm:text-[20px] leading-[1.55] text-[#3F362C] dark:text-[#E8D9B8] mt-5"
           style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
         >
           {loading
@@ -345,7 +345,7 @@ export function NarrativeToday({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-[14px] text-[#766E63] mt-3 leading-relaxed"
+            className="text-[14px] text-[#766E63] dark:text-[#A89F92] mt-3 leading-relaxed"
           >
             {data.summary}
           </motion.p>
@@ -373,7 +373,7 @@ export function NarrativeToday({
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="rounded-3xl bg-[#FFFCF3]/60 border border-[#E6DCC4]/60 p-6 animate-pulse"
+                className="rounded-3xl bg-[#FFFCF3]/60 dark:bg-[#25201A]/60 border border-[#E6DCC4]/60 dark:border-[#3A3127]/60 p-6 animate-pulse"
                 style={{
                   boxShadow: "0 1px 0 rgba(255,255,255,0.5) inset, 0 8px 32px -8px rgba(106,76,38,0.06)",
                 }}
@@ -410,7 +410,7 @@ export function NarrativeToday({
                 return (
                   <div
                     key={m.id}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#FFFCF3] dark:bg-[#25201A] border border-[#E6DCC4]/80 dark:border-[#3A3127]"
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#FFFCF3] dark:bg-[#25201A] dark:bg-[#25201A] border border-[#E6DCC4]/80 dark:border-[#3A3127]/80 dark:border-[#3A3127]"
                     style={{
                       boxShadow:
                         "0 1px 0 rgba(255,255,255,0.5) inset, 0 4px 16px -6px rgba(106,76,38,0.08)",
@@ -481,7 +481,7 @@ export function NarrativeToday({
                   >
                     {connector && (
                       <p
-                        className="font-serif text-[15px] italic text-[#8A7F70] mb-2.5 ml-1"
+                        className="font-serif text-[15px] italic text-[#8A7F70] dark:text-[#9D9183] mb-2.5 ml-1"
                         style={{
                           fontFamily: "var(--font-source-serif), Georgia, serif",
                         }}
@@ -571,7 +571,7 @@ export function NarrativeToday({
             className="mt-14"
           >
             <p
-              className="font-serif text-[16px] italic text-[#8A7F70] leading-relaxed"
+              className="font-serif text-[16px] italic text-[#8A7F70] dark:text-[#9D9183] leading-relaxed"
               style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
             >
               You can close this tab. I&apos;ll let you know.
@@ -588,17 +588,17 @@ export function NarrativeToday({
         >
           <button
             onClick={() => onOpenSpotlight()}
-            className="group w-full flex items-center gap-3 px-5 py-4 rounded-2xl bg-[#FFFCF3]/80 border border-[#E6DCC4] hover:border-[#B86B4A]/40 transition-all text-left backdrop-blur-sm"
+            className="group w-full flex items-center gap-3 px-5 py-4 rounded-2xl bg-[#FFFCF3]/80 dark:bg-[#25201A]/80 border border-[#E6DCC4] dark:border-[#3A3127] hover:border-[#B86B4A]/40 transition-all text-left backdrop-blur-sm"
             style={{
               boxShadow:
                 "0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 24px -8px rgba(106,76,38,0.07)",
             }}
           >
             <Sparkles className="w-4 h-4 text-[#B86B4A] shrink-0" />
-            <span className="flex-1 text-[14px] text-[#8A7F70] group-hover:text-[#3F362C] transition-colors">
+            <span className="flex-1 text-[14px] text-[#8A7F70] dark:text-[#9D9183] group-hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] transition-colors">
               Ask anything about your inbox…
             </span>
-            <kbd className="text-[10.5px] font-mono text-[#A89F92] bg-[#FAF6EB] rounded px-1.5 py-0.5 border border-[#E6DCC4]">
+            <kbd className="text-[10.5px] font-mono text-[#A89F92] dark:text-[#9D9183] bg-[#FAF6EB] dark:bg-[#2A2520] rounded px-1.5 py-0.5 border border-[#E6DCC4] dark:border-[#3A3127]">
               ⌘K
             </kbd>
           </button>
@@ -610,7 +610,7 @@ export function NarrativeToday({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.65 }}
-            className="mt-10 pt-8 border-t border-[#E6DCC4]/70"
+            className="mt-10 pt-8 border-t border-[#E6DCC4]/70 dark:border-[#3A3127]/70"
           >
             <button
               onClick={() => setExpandedHandled((v) => !v)}
@@ -620,7 +620,7 @@ export function NarrativeToday({
                 <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#A89F92]">
                   Quietly handled
                 </p>
-                <p className="font-serif text-[15px] italic text-[#766E63] mt-1">
+                <p className="font-serif text-[15px] italic text-[#766E63] dark:text-[#A89F92] mt-1">
                   {quietHandledCount} action{quietHandledCount === 1 ? "" : "s"} taken
                   on your behalf today.
                 </p>
@@ -643,9 +643,9 @@ export function NarrativeToday({
                 >
                   <div className="pt-4 space-y-1.5">
                     {data.quietly_handled.muted_today > 0 && (
-                      <p className="text-[13px] text-[#766E63]">
+                      <p className="text-[13px] text-[#766E63] dark:text-[#A89F92]">
                         Muted{" "}
-                        <span className="font-medium text-[#3F362C]">
+                        <span className="font-medium text-[#3F362C] dark:text-[#E8D9B8]">
                           {data.quietly_handled.muted_today}
                         </span>{" "}
                         sender
@@ -654,9 +654,9 @@ export function NarrativeToday({
                       </p>
                     )}
                     {data.quietly_handled.auto_fulfilled_today > 0 && (
-                      <p className="text-[13px] text-[#766E63]">
+                      <p className="text-[13px] text-[#766E63] dark:text-[#A89F92]">
                         Closed{" "}
-                        <span className="font-medium text-[#3F362C]">
+                        <span className="font-medium text-[#3F362C] dark:text-[#E8D9B8]">
                           {data.quietly_handled.auto_fulfilled_today}
                         </span>{" "}
                         promise
@@ -665,9 +665,9 @@ export function NarrativeToday({
                       </p>
                     )}
                     {data.quietly_handled.nudges_sent_today > 0 && (
-                      <p className="text-[13px] text-[#766E63]">
+                      <p className="text-[13px] text-[#766E63] dark:text-[#A89F92]">
                         Sent{" "}
-                        <span className="font-medium text-[#3F362C]">
+                        <span className="font-medium text-[#3F362C] dark:text-[#E8D9B8]">
                           {data.quietly_handled.nudges_sent_today}
                         </span>{" "}
                         nudge
@@ -676,9 +676,9 @@ export function NarrativeToday({
                       </p>
                     )}
                     {(data.quietly_handled.automated_filtered_today ?? 0) > 0 && (
-                      <p className="text-[13px] text-[#766E63]">
+                      <p className="text-[13px] text-[#766E63] dark:text-[#A89F92]">
                         Filtered{" "}
-                        <span className="font-medium text-[#3F362C]">
+                        <span className="font-medium text-[#3F362C] dark:text-[#E8D9B8]">
                           {data.quietly_handled.automated_filtered_today}
                         </span>{" "}
                         routine reminder
@@ -736,7 +736,7 @@ function NarrativeCard({
       onMouseLeave={() => setHover(false)}
       whileHover={{ y: -2 }}
       transition={{ type: "spring", stiffness: 380, damping: 28 }}
-      className="rounded-3xl bg-[#FFFCF3] border border-[#E6DCC4]/80 overflow-hidden cursor-pointer"
+      className="rounded-3xl bg-[#FFFCF3] dark:bg-[#25201A] borderborder-[#E6DCC4]/80 dark:border-[#3A3127]/80 overflow-hidden cursor-pointer"
       style={{
         boxShadow: hover
           ? "0 1px 0 rgba(255,255,255,0.7) inset, 0 12px 36px -10px rgba(106,76,38,0.16), 0 2px 8px -2px rgba(106,76,38,0.06)"
@@ -757,7 +757,7 @@ function NarrativeCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline justify-between gap-3 mb-1">
               <h2
-                className="font-serif text-[19px] leading-[1.3] text-[#2A2520] font-semibold"
+                className="font-serif text-[19px] leading-[1.3] text-[#2A2520] dark:text-[#FBF4DF] font-semibold"
                 style={{
                   fontFamily: "var(--font-source-serif), Georgia, serif",
                 }}
@@ -776,11 +776,11 @@ function NarrativeCard({
               )}
             </div>
             {item.subtitle && (
-              <p className="text-[13px] text-[#766E63] mb-2">{item.subtitle}</p>
+              <p className="text-[13px] text-[#766E63] dark:text-[#A89F92] mb-2">{item.subtitle}</p>
             )}
             {item.detail && (
               <p
-                className="font-serif text-[15px] leading-[1.55] text-[#3F362C] line-clamp-3"
+                className="font-serif text-[15px] leading-[1.55] text-[#3F362C] dark:text-[#E8D9B8] line-clamp-3"
                 style={{
                   fontFamily: "var(--font-source-serif), Georgia, serif",
                 }}
@@ -827,7 +827,7 @@ function NarrativeCard({
             >
               <SnoozePopover
                 onSnooze={onSnooze}
-                className="rounded-full bg-[#FAF6EB]/80 hover:bg-[#FAF6EB]"
+                className="rounded-full bg-[#FAF6EB]/80 dark:bg-[#2A2520]/80 hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520]"
                 label="Snooze"
               />
             </div>
@@ -878,8 +878,8 @@ function ActionPill({
     tone === "primary"
       ? "bg-[#B86B4A] text-white border-[#A65B3F] hover:bg-[#A65B3F]"
       : tone === "ghost"
-        ? "bg-transparent text-[#766E63] border-transparent hover:bg-[#FAF6EB] hover:text-[#3F362C]"
-        : "bg-[#FAF6EB]/80 text-[#766E63] border-[#E6DCC4] hover:bg-[#FAF6EB] hover:text-[#3F362C]";
+        ? "bg-transparent text-[#766E63] dark:text-[#A89F92] border-transparent hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8]"
+        : "bg-[#FAF6EB]/80 dark:bg-[#2A2520]/80 text-[#766E63] dark:text-[#A89F92] border-[#E6DCC4] dark:border-[#3A3127] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8]";
 
   return (
     <motion.button

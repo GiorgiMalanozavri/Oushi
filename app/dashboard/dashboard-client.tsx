@@ -1191,7 +1191,7 @@ export function DashboardClient({
               href={errorMessage.actionLink.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-block text-[12px] text-[#766E63] hover:text-[#B86B4A] dark:text-[#A89F92] dark:hover:text-[#D9956E] underline-offset-2 hover:underline transition-colors"
+              className="mt-3 inline-block text-[12px] text-[#766E63] dark:text-[#A89F92] hover:text-[#B86B4A] dark:text-[#A89F92] dark:hover:text-[#D9956E] underline-offset-2 hover:underline transition-colors"
             >
               {errorMessage.actionLink.label} →
             </a>
@@ -1241,7 +1241,7 @@ export function DashboardClient({
             animate={isMobile ? { x: 0, opacity: 1 } : { width: 260, opacity: 1 }}
             exit={isMobile ? { x: -260, opacity: 1 } : { width: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-            className={`shrink-0 h-full flex flex-col border-r border-[#E6DCC4] overflow-hidden relative z-10 ${
+            className={`shrink-0 h-full flex flex-col border-r border-[#E6DCC4] dark:border-[#3A3127] overflow-hidden relative z-10 ${
               isMobile ? "fixed z-40 w-[260px] shadow-2xl" : ""
             }`}
             style={isMobile ? {} : { width: 260 }}
@@ -1276,7 +1276,7 @@ export function DashboardClient({
         {!sidebarOpen && (
           <button
             onClick={() => setSidebarOpen(true)}
-            className="fixed top-3 left-3 z-30 rounded-md p-2 bg-[#FFFCF3] border border-[#E6DCC4] text-[#766E63] hover:text-[#2A2520] shadow-sm"
+            className="fixed top-3 left-3 z-30 rounded-md p-2 bg-[#FFFCF3] dark:bg-[#25201A]border border-[#E6DCC4] dark:border-[#3A3127] text-[#766E63] dark:text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] shadow-sm"
             title="Open menu"
           >
             <PanelLeft className="w-4 h-4" />
@@ -1288,17 +1288,17 @@ export function DashboardClient({
           <div className="fixed top-3 right-3 z-30 flex items-center gap-2">
             <button
               onClick={() => setAskOpen(true)}
-              className="group flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-full bg-[#FFFCF3]/90 backdrop-blur-md border border-[#E6DCC4] hover:border-[#5E8FBF] text-[#766E63] hover:text-[#3D6A95] shadow-[0_4px_24px_-4px_rgba(42,37,32,0.12)] hover:shadow-[0_8px_32px_-4px_rgba(94,143,191,0.25)] transition-all"
+              className="group flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-full bg-[#FFFCF3]/90 backdrop-blur-md border border-[#E6DCC4] dark:border-[#3A3127] hover:border-[#5E8FBF] text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] shadow-[0_4px_24px_-4px_rgba(42,37,32,0.12)] hover:shadow-[0_8px_32px_-4px_rgba(94,143,191,0.25)] transition-all"
               title="Ask Oushi (⌘K)"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#5E8FBF]" />
               <span className="text-[13px] font-medium">Ask Oushi anything</span>
-              <kbd className="text-[10px] font-mono text-[#A89F92] bg-[#FAF6EB] rounded px-1.5 py-0.5 border border-[#E6DCC4] group-hover:border-[#5E8FBF]/30">⌘K</kbd>
+              <kbd className="text-[10px] font-mono text-[#A89F92] bg-[#FAF6EB] rounded px-1.5 py-0.5 border border-[#E6DCC4] dark:border-[#3A3127]group-hover:border-[#5E8FBF]/30">⌘K</kbd>
             </button>
             <button
               onClick={() => setKbdHelpOpen(true)}
               title="Keyboard shortcuts (?)"
-              className="w-7 h-7 rounded-full bg-[#FFFCF3]/90 backdrop-blur-md border border-[#E6DCC4] hover:border-[#5E8FBF] text-[#A89F92] hover:text-[#3D6A95] text-[12.5px] font-mono shadow-[0_4px_24px_-4px_rgba(42,37,32,0.12)] flex items-center justify-center transition-all"
+              className="w-7 h-7 rounded-full bg-[#FFFCF3]/90 backdrop-blur-md border border-[#E6DCC4] dark:border-[#3A3127] hover:border-[#5E8FBF] text-[#A89F92] hover:text-[#3D6A95] text-[12.5px] font-mono shadow-[0_4px_24px_-4px_rgba(42,37,32,0.12)] flex items-center justify-center transition-all"
               aria-label="Keyboard shortcuts"
             >
               ?
@@ -1329,7 +1329,7 @@ export function DashboardClient({
             diagnosis.diagnosis === "low_scores" ||
             diagnosis.diagnosis === "all_dismissed" ||
             diagnosis.diagnosis === "mostly_dismissed") && (
-            <div className="mx-8 mt-6 rounded-xl border border-[#E6DCC4] bg-[#FFFCF3]/70 dark:bg-[#25201A]/70 dark:border-[#3A3127] px-5 py-3.5">
+            <div className="mx-8 mt-6 rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3]/70 dark:bg-[#25201A]/70 dark:border-[#3A3127] px-5 py-3.5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <p
@@ -1389,7 +1389,7 @@ export function DashboardClient({
         {/* Auto-rank in progress — visible feedback while the diagnose
             useEffect's defensive re-rank is firing. */}
         {reranking && (
-          <div className="mx-8 mt-6 rounded-xl border border-[#E6DCC4] bg-[#FFFCF3]/70 dark:bg-[#25201A]/70 dark:border-[#3A3127] px-5 py-3.5 flex items-center gap-3">
+          <div className="mx-8 mt-6 rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3]/70 dark:bg-[#25201A]/70 dark:border-[#3A3127] px-5 py-3.5 flex items-center gap-3">
             <Loader2 className="w-3.5 h-3.5 animate-spin text-[#B86B4A]" />
             <p className="text-[13px] text-[#3F362C] dark:text-[#E8D9B8]">
               Ranking your inbox — this takes about a minute on first run.
@@ -1398,7 +1398,7 @@ export function DashboardClient({
         )}
 
         {undismissing && (
-          <div className="mx-8 mt-6 rounded-xl border border-[#E6DCC4] bg-[#FFFCF3]/70 dark:bg-[#25201A]/70 dark:border-[#3A3127] px-5 py-3.5 flex items-center gap-3">
+          <div className="mx-8 mt-6 rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3]/70 dark:bg-[#25201A]/70 dark:border-[#3A3127] px-5 py-3.5 flex items-center gap-3">
             <Loader2 className="w-3.5 h-3.5 animate-spin text-[#B86B4A]" />
             <p className="text-[13px] text-[#3F362C] dark:text-[#E8D9B8]">
               Resurfacing dismissed emails…
@@ -1588,7 +1588,7 @@ export function DashboardClient({
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
             <Inbox className="w-10 h-10 text-[#A89F92] mx-auto mb-3" />
-            <p className="text-[14px] text-[#766E63]">First sync in progress…</p>
+            <p className="text-[14px] text-[#766E63] dark:text-[#A89F92]">First sync in progress…</p>
           </div>
         </div>
       )}
@@ -1623,7 +1623,7 @@ function scoreShade(score: number): { bg: string; text: string; ring: string } {
   if (score >= 90) return { bg: "bg-[#3D6A95]", text: "text-white", ring: "ring-[#3D6A95]/20" };
   if (score >= 70) return { bg: "bg-[#5E8FBF]", text: "text-white", ring: "ring-[#5E8FBF]/20" };
   if (score >= 50) return { bg: "bg-[#D0E1F0]", text: "text-[#3D6A95]", ring: "ring-[#5E8FBF]/15" };
-  if (score >= 30) return { bg: "bg-[#F0E9D6]", text: "text-[#766E63]", ring: "ring-[#E6DCC4]" };
+  if (score >= 30) return { bg: "bg-[#F0E9D6]", text: "text-[#766E63] dark:text-[#A89F92]", ring: "ring-[#E6DCC4]" };
   return { bg: "bg-[#F0E9D6]/60", text: "text-[#A89F92]", ring: "ring-[#E6DCC4]/50" };
 }
 
@@ -1647,7 +1647,7 @@ function ReadableBody({ body }: { body: string }) {
   return (
     <div>
       <div
-        className="text-[14.5px] leading-[1.7] text-[#2A2520] whitespace-pre-wrap break-words"
+        className="text-[14.5px] leading-[1.7] text-[#2A2520] dark:text-[#FBF4DF] whitespace-pre-wrap break-words"
         style={{ fontFamily: "var(--font-source-serif), Georgia, serif", maxWidth: "62ch" }}
       >
         {cleanAndRender(visible)}
@@ -1784,7 +1784,7 @@ function Sidebar({
         >
           <OushiMark size={26} />
           <span
-            className="text-[19px] tracking-[-0.012em] text-[#2A2520] group-hover:text-[#B86B4A] transition-colors font-medium"
+            className="text-[19px] tracking-[-0.012em] text-[#2A2520] dark:text-[#FBF4DF] group-hover:text-[#B86B4A] transition-colors font-medium"
             style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
           >
             Oushi
@@ -1792,7 +1792,7 @@ function Sidebar({
         </button>
         <button
           onClick={onCollapse}
-          className="text-[#A89F92] hover:text-[#3F362C] p-1.5 rounded-md hover:bg-[#FAF6EB] transition-colors"
+          className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] p-1.5 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors"
           aria-label="Collapse sidebar"
         >
           <PanelLeftClose className="w-4 h-4" />
@@ -1884,7 +1884,7 @@ function SidebarFooter({
       </div>
 
       <div
-        className="flex items-center gap-2.5 px-2 py-2 rounded-xl bg-[#FFFCF3]/60"
+        className="flex items-center gap-2.5 px-2 py-2 rounded-xl bg-[#FFFCF3]/60 dark:bg-[#25201A]/60"
         style={{
           boxShadow:
             "0 1px 0 rgba(255,255,255,0.7) inset, 0 1px 3px rgba(106,76,38,0.05)",
@@ -1908,7 +1908,7 @@ function SidebarFooter({
         </div>
         <div className="min-w-0 flex-1">
           <p
-            className="text-[12.5px] font-medium text-[#2A2520] truncate leading-tight"
+            className="text-[12.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF] truncate leading-tight"
             title={userEmail}
           >
             {displayName}
@@ -1934,7 +1934,7 @@ function SidebarFooter({
         <Link
           href="/settings"
           title="Settings"
-          className="text-[#A89F92] hover:text-[#3F362C] p-1.5 rounded-md hover:bg-[#FAF6EB] transition-colors"
+          className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] p-1.5 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors"
         >
           <Settings className="w-4 h-4" />
         </Link>
@@ -1983,13 +1983,13 @@ function SidebarNav({
       {/* More views — bucket nav tucked away */}
       <button
         onClick={() => setExpanded((p) => !p)}
-        className="mt-5 w-full flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10.5px] text-[#A89F92] hover:text-[#766E63] transition-colors group"
+        className="mt-5 w-full flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10.5px] text-[#A89F92] hover:text-[#766E63] dark:text-[#A89F92] transition-colors group"
       >
         <ChevronRight
           className={`w-2.5 h-2.5 transition-transform ${expanded ? "rotate-90" : ""}`}
         />
         <span
-          className="italic text-[#A89F92] group-hover:text-[#766E63] transition-colors"
+          className="italic text-[#A89F92] group-hover:text-[#766E63] dark:text-[#A89F92] transition-colors"
           style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
         >
           {expanded ? "Fewer views" : "More views"}
@@ -2107,14 +2107,14 @@ function NavItem({
       ? "text-[#B86B4A]"
       : countColor === "ink"
         ? "text-[#3D6A95]"
-        : "text-[#766E63]";
+        : "text-[#766E63] dark:text-[#A89F92]";
   return (
     <button
       onClick={onClick}
       className={`group relative w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] mb-0.5 transition-all ${
         active
-          ? "text-[#2A2520] font-medium"
-          : "text-[#766E63] hover:text-[#3F362C]"
+          ? "text-[#2A2520] dark:text-[#FBF4DF] font-medium"
+          : "text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8]"
       }`}
     >
       {/* Sliding active pill — framer-motion layoutId animates it between
@@ -2132,13 +2132,13 @@ function NavItem({
       )}
       {/* Subtle hover wash — sits below the active pill */}
       {!active && (
-        <span className="absolute inset-0 rounded-lg bg-[#FAF6EB]/0 group-hover:bg-[#FAF6EB] transition-colors" />
+        <span className="absolute inset-0 rounded-lg bg-[#FAF6EB]/0 group-hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors" />
       )}
 
       {/* Content (above the pill) */}
       <span
         className={`relative shrink-0 ${
-          active ? "text-[#B86B4A]" : "text-[#A89F92] group-hover:text-[#766E63]"
+          active ? "text-[#B86B4A]" : "text-[#A89F92] group-hover:text-[#766E63] dark:text-[#A89F92]"
         } transition-colors`}
       >
         {dot ? (
@@ -2154,7 +2154,7 @@ function NavItem({
       {count !== undefined && count > 0 && (
         <span
           className={`relative text-[11px] font-mono font-medium tabular-nums ${
-            active ? "text-[#3F362C]" : countClass
+            active ? "text-[#3F362C] dark:text-[#E8D9B8]" : countClass
           }`}
         >
           {count}
@@ -2188,7 +2188,7 @@ function ListView({
   emptyMessage: string;
   focusedEmailId?: string | null;
 }) {
-  const accentText = accent === "terracotta" ? "text-[#B86B4A]" : accent === "ink" ? "text-[#3D6A95]" : accent === "sky" ? "text-[#5E8FBF]" : "text-[#766E63]";
+  const accentText = accent === "terracotta" ? "text-[#B86B4A]" : accent === "ink" ? "text-[#3D6A95]" : accent === "sky" ? "text-[#5E8FBF]" : "text-[#766E63] dark:text-[#A89F92]";
   const accentBg = accent === "terracotta" ? "bg-[#F5E8E0]" : accent === "muted" ? "bg-[#F0E9D6]" : "bg-[#D0E1F0]";
 
   return (
@@ -2200,7 +2200,7 @@ function ListView({
         <h1 className="text-[24px] font-semibold tracking-tight">{title}</h1>
         <span className="text-[16px] text-[#A89F92] font-mono">{emails.length}</span>
       </div>
-      <p className="text-[13px] text-[#766E63] mb-6 ml-10">{subtitle}</p>
+      <p className="text-[13px] text-[#766E63] dark:text-[#A89F92] mb-6 ml-10">{subtitle}</p>
 
       {emails.length === 0 ? (
         <FeedbackEmptyState
@@ -2272,7 +2272,7 @@ function BoardView({
                   onChange={(e) => setEditName(e.target.value)}
                   onBlur={() => { setEditing(false); setEditName(topic.name); }}
                   maxLength={40}
-                  className="w-full text-[24px] font-semibold tracking-tight bg-transparent border-b border-[#5E8FBF]/40 outline-none text-[#2A2520]"
+                  className="w-full text-[24px] font-semibold tracking-tight bg-transparent border-b border-[#5E8FBF]/40 outline-none text-[#2A2520] dark:text-[#FBF4DF]"
                 />
               </form>
             ) : (
@@ -2281,7 +2281,7 @@ function BoardView({
             <span className="text-[16px] text-[#A89F92] font-mono shrink-0">{emails.length}</span>
           </div>
           {topic.description && !editing && (
-            <p className="text-[13px] text-[#766E63] ml-7">{topic.description}</p>
+            <p className="text-[13px] text-[#766E63] dark:text-[#A89F92] ml-7">{topic.description}</p>
           )}
         </div>
         <div className="relative shrink-0 flex items-center gap-1">
@@ -2289,22 +2289,22 @@ function BoardView({
             onClick={onRematch}
             disabled={rematching}
             title="Re-sort emails into boards"
-            className="text-[11px] font-medium text-[#A89F92] hover:text-[#3D6A95] inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-[#FAF6EB] transition-colors disabled:opacity-50"
+            className="text-[11px] font-medium text-[#A89F92] hover:text-[#3D6A95] inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-3 h-3 ${rematching ? "animate-spin" : ""}`} />
             {rematching ? "Re-sorting" : "Re-sort"}
           </button>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="text-[#A89F92] hover:text-[#2A2520] p-1.5 rounded transition-colors"
+            className="text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] p-1.5 rounded transition-colors"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-32 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] shadow-lg overflow-hidden z-20">
+            <div className="absolute right-0 top-full mt-1 w-32 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] shadow-lg overflow-hidden z-20">
               <button
                 onClick={() => { setEditing(true); setMenuOpen(false); }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-[#2A2520] hover:bg-[#FAF6EB] text-left"
+                className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-[#2A2520] dark:text-[#FBF4DF] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] text-left"
               >
                 <Pencil className="w-3 h-3" />Rename
               </button>
@@ -2323,8 +2323,8 @@ function BoardView({
         {emails.length === 0 ? (
           <Card>
             <div className="px-5 py-12 text-center">
-              <p className="text-[14px] text-[#2A2520] mb-1">No matches yet.</p>
-              <p className="text-[12px] text-[#766E63]">Oushi will route emails here as they arrive.</p>
+              <p className="text-[14px] text-[#2A2520] dark:text-[#FBF4DF] mb-1">No matches yet.</p>
+              <p className="text-[12px] text-[#766E63] dark:text-[#A89F92]">Oushi will route emails here as they arrive.</p>
             </div>
           </Card>
         ) : (
@@ -2394,7 +2394,7 @@ function EmailRow({
       className={`group relative flex w-full items-start gap-3 text-left px-4 py-3 transition-colors cursor-pointer ${
         focused
           ? "bg-[#D0E1F0]/40 ring-1 ring-[#5E8FBF]/40 ring-inset"
-          : "hover:bg-[#FAF6EB]/60"
+          : "hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520]/60"
       }`}
     >
       <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${score.bg} ${score.text} text-[11px] font-semibold mt-0.5 ring-1 ${score.ring}`}>
@@ -2402,7 +2402,7 @@ function EmailRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2 mb-0.5">
-          <span className={`truncate text-[13px] ${email.is_unread ? "font-semibold text-[#2A2520]" : "font-medium text-[#766E63]"}`}>
+          <span className={`truncate text-[13px] ${email.is_unread ? "font-semibold text-[#2A2520] dark:text-[#FBF4DF]" : "font-medium text-[#766E63] dark:text-[#A89F92]"}`}>
             {email.from_name || email.from_email}
           </span>
           <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] text-[#A89F92] font-mono tabular-nums">
@@ -2412,7 +2412,7 @@ function EmailRow({
             {ageText}
           </span>
         </div>
-        <p className={`truncate text-[13px] ${email.is_unread ? "text-[#2A2520]" : "text-[#766E63]"} leading-snug`}>
+        <p className={`truncate text-[13px] ${email.is_unread ? "text-[#2A2520] dark:text-[#FBF4DF]" : "text-[#766E63] dark:text-[#A89F92]"} leading-snug`}>
           {email.subject}
         </p>
         {email.highlight && (
@@ -2489,7 +2489,7 @@ function EmailRow({
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg border border-[#E6DCC4] bg-[#FFFCF3] overflow-hidden ${className}`}>
+    <div className={`rounded-lg border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] overflow-hidden ${className}`}>
       {children}
     </div>
   );
@@ -2528,11 +2528,11 @@ function AddTopicModal({
         exit={{ opacity: 0, scale: 0.96, y: 12 }}
         transition={{ duration: 0.2 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-[#FFFCF3] rounded-lg shadow-2xl border border-[#E6DCC4] overflow-hidden"
+        className="w-full max-w-md bg-[#FFFCF3] dark:bg-[#25201A] rounded-lg shadow-2xl border border-[#E6DCC4] dark:border-[#3A3127] overflow-hidden"
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-[#E6DCC4]">
-          <h2 className="text-[14px] font-semibold text-[#2A2520]">New board</h2>
-          <button onClick={onClose} className="text-[#A89F92] hover:text-[#2A2520]"><X className="w-4 h-4" /></button>
+          <h2 className="text-[14px] font-semibold text-[#2A2520] dark:text-[#FBF4DF]">New board</h2>
+          <button onClick={onClose} className="text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF]"><X className="w-4 h-4" /></button>
         </div>
 
         <form
@@ -2548,7 +2548,7 @@ function AddTopicModal({
             onChange={(e) => setValue(e.target.value)}
             placeholder="Engineering, Family, Conferences…"
             maxLength={40}
-            className="w-full rounded-md border border-[#E6DCC4] bg-[#FAF6EB]/30 px-3 py-2 text-[14px] text-[#2A2520] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15"
+            className="w-full rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/30 dark:bg-[#2A2520]/30 px-3 py-2 text-[14px] text-[#2A2520] dark:text-[#FBF4DF] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15"
           />
           <p className="mt-1.5 text-[11px] text-[#A89F92]">
             Oushi will sort matching emails into this board automatically.
@@ -2581,7 +2581,7 @@ function AddTopicModal({
             <button
               type="button"
               onClick={onClose}
-              className="text-[13px] text-[#766E63] hover:text-[#2A2520] px-3 py-1.5"
+              className="text-[13px] text-[#766E63] dark:text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] px-3 py-1.5"
             >
               Cancel
             </button>
@@ -2655,15 +2655,15 @@ function SuggestedActionButton({
   return (
     <button
       onClick={handle}
-      className="w-full mb-5 group flex items-center gap-3 rounded-xl border border-[#5E8FBF]/30 bg-[#FFFCF3] hover:bg-[#D0E1F0]/20 hover:border-[#5E8FBF]/60 px-3.5 py-2.5 text-left transition-all"
+      className="w-full mb-5 group flex items-center gap-3 rounded-xl border border-[#5E8FBF]/30 bg-[#FFFCF3] dark:bg-[#25201A] hover:bg-[#D0E1F0]/20 hover:border-[#5E8FBF]/60 px-3.5 py-2.5 text-left transition-all"
     >
       <div className="w-8 h-8 rounded-lg bg-[#D0E1F0] flex items-center justify-center shrink-0 group-hover:bg-[#5E8FBF] group-hover:text-white transition-colors">
         <Icon className="w-3.5 h-3.5 text-[#3D6A95] group-hover:text-white" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-semibold text-[#2A2520]">{action.label}</p>
+        <p className="text-[13px] font-semibold text-[#2A2520] dark:text-[#FBF4DF]">{action.label}</p>
         {action.detail && (
-          <p className="text-[11.5px] text-[#766E63] truncate">{action.detail}</p>
+          <p className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] truncate">{action.detail}</p>
         )}
       </div>
       <ArrowRight className="w-3.5 h-3.5 text-[#A89F92] group-hover:text-[#3D6A95] transition-colors shrink-0" />
@@ -2723,7 +2723,7 @@ function FeedbackButtons({
   };
 
   return (
-    <div className="mt-3 pt-3 border-t border-[#E6DCC4] flex items-center gap-2">
+    <div className="mt-3 pt-3 border-t border-[#E6DCC4] dark:border-[#3A3127] flexitems-center gap-2">
       <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#A89F92] mr-1">
         Train Oushi
       </p>
@@ -2734,8 +2734,8 @@ function FeedbackButtons({
           voted === "up"
             ? "border-[#6B8E68]/40 bg-[#E8EFE5] text-[#4F6B4D] cursor-default"
             : voted === "down"
-              ? "border-[#E6DCC4] bg-[#FFFCF3] text-[#D6CDB8] cursor-not-allowed"
-              : "border-[#E6DCC4] bg-[#FFFCF3] text-[#766E63] hover:border-[#6B8E68] hover:text-[#6B8E68] hover:bg-[#E8EFE5]/40"
+              ? "border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] text-[#D6CDB8] cursor-not-allowed"
+              : "border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] text-[#766E63] dark:text-[#A89F92] hover:border-[#6B8E68] hover:text-[#6B8E68] hover:bg-[#E8EFE5]/40"
         }`}
       >
         {voted === "up" ? (
@@ -2752,8 +2752,8 @@ function FeedbackButtons({
           voted === "down"
             ? "border-[#B86B4A]/40 bg-[#F5E8E0] text-[#B86B4A] cursor-default"
             : voted === "up"
-              ? "border-[#E6DCC4] bg-[#FFFCF3] text-[#D6CDB8] cursor-not-allowed"
-              : "border-[#E6DCC4] bg-[#FFFCF3] text-[#766E63] hover:border-[#B86B4A] hover:text-[#B86B4A] hover:bg-[#F5E8E0]/40"
+              ? "border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] text-[#D6CDB8] cursor-not-allowed"
+              : "border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] text-[#766E63] dark:text-[#A89F92] hover:border-[#B86B4A] hover:text-[#B86B4A] hover:bg-[#F5E8E0]/40"
         }`}
       >
         {voted === "down" ? (
@@ -2962,7 +2962,7 @@ function LabelChip({ email }: { email: Classified }) {
         <>
           {/* Click-outside catcher */}
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-50 w-56 rounded-lg border border-[#E6DCC4] bg-white shadow-lg py-1.5 overflow-hidden">
+          <div className="absolute left-0 top-full mt-1 z-50 w-56 rounded-lg border border-[#E6DCC4] dark:border-[#3A3127] bg-white shadow-lg py-1.5 overflow-hidden">
             <p className="px-2.5 py-1 text-[9.5px] font-medium uppercase tracking-[0.14em] text-[#A89F92]">
               Set label
             </p>
@@ -2970,7 +2970,7 @@ function LabelChip({ email }: { email: Classified }) {
               <button
                 key={l.key}
                 onClick={() => choose(l.key)}
-                className={`w-full text-left px-2.5 py-1.5 text-[12px] hover:bg-[#FAF6EB] transition-colors flex items-center gap-2 ${
+                className={`w-full text-left px-2.5 py-1.5 text-[12px] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors flex items-center gap-2 ${
                   effective === l.key ? "bg-[#FAF6EB]" : ""
                 }`}
               >
@@ -2978,19 +2978,19 @@ function LabelChip({ email }: { email: Classified }) {
                   className="w-2.5 h-2.5 rounded-sm shrink-0"
                   style={{ backgroundColor: l.color.backgroundColor }}
                 />
-                <span className="flex-1 truncate text-[#2A2520]">{l.shortLabel}</span>
+                <span className="flex-1 truncate text-[#2A2520] dark:text-[#FBF4DF]">{l.shortLabel}</span>
                 {effective === l.key && <Check className="w-3 h-3 text-[#6B8E68]" />}
               </button>
             ))}
             <div className="my-1 border-t border-[#E6DCC4]" />
             <button
               onClick={() => choose("none")}
-              className={`w-full text-left px-2.5 py-1.5 text-[12px] hover:bg-[#FAF6EB] transition-colors flex items-center gap-2 ${
+              className={`w-full text-left px-2.5 py-1.5 text-[12px] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors flex items-center gap-2 ${
                 override === null ? "bg-[#FAF6EB]" : ""
               }`}
             >
-              <span className="w-2.5 h-2.5 rounded-sm border border-[#E6DCC4] shrink-0" />
-              <span className="flex-1 text-[#766E63]">Don&apos;t label</span>
+              <span className="w-2.5 h-2.5 rounded-sm border border-[#E6DCC4] dark:border-[#3A3127] shrink-0" />
+              <span className="flex-1 text-[#766E63] dark:text-[#A89F92]">Don&apos;t label</span>
               {override === null && <Check className="w-3 h-3 text-[#6B8E68]" />}
             </button>
             {isManual && (
@@ -2998,7 +2998,7 @@ function LabelChip({ email }: { email: Classified }) {
                 <div className="my-1 border-t border-[#E6DCC4]" />
                 <button
                   onClick={() => choose("auto")}
-                  className="w-full text-left px-2.5 py-1.5 text-[12px] hover:bg-[#FAF6EB] transition-colors flex items-center gap-2 text-[#5E8FBF]"
+                  className="w-full text-left px-2.5 py-1.5 text-[12px] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors flex items-center gap-2 text-[#5E8FBF]"
                 >
                   <Sparkles className="w-3 h-3" />
                   <span className="flex-1">Use Oushi&apos;s choice</span>
@@ -3015,7 +3015,7 @@ function LabelChip({ email }: { email: Classified }) {
           choice based on whether the sender looks automated. */}
       {senderPromptFor && !open && (
         <div
-          className="absolute left-0 top-full mt-2 z-50 w-[300px] rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] dark:bg-[#25201A] dark:border-[#3A3127] p-3"
+          className="absolute left-0 top-full mt-2 z-50 w-[300px] rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] p-3"
           style={{
             boxShadow:
               "0 1px 0 rgba(255,255,255,0.6) inset, 0 12px 32px -10px rgba(106,76,38,0.20)",
@@ -3057,7 +3057,7 @@ function LabelChip({ email }: { email: Classified }) {
               <button
                 disabled={savingRule}
                 onClick={() => applySenderRule("email")}
-                className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
+                className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
               >
                 Just this address
               </button>
@@ -3065,7 +3065,7 @@ function LabelChip({ email }: { email: Classified }) {
               <button
                 disabled={savingRule}
                 onClick={() => applySenderRule("domain")}
-                className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
+                className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
               >
                 Whole @{senderDomain}
               </button>
@@ -3073,7 +3073,7 @@ function LabelChip({ email }: { email: Classified }) {
             <button
               disabled={savingRule}
               onClick={() => setSenderPromptFor(null)}
-              className="text-[11px] text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] px-2 py-1 ml-auto transition-colors"
+              className="text-[11px] text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] dark:hover:text-[#FBF4DF] px-2 py-1 ml-auto transition-colors"
             >
               Skip
             </button>
@@ -3236,7 +3236,7 @@ function EmailPanel({
         <div className="flex items-center justify-between gap-3 px-5 py-3 shrink-0 relative">
           <button
             onClick={onClose}
-            className="text-[#766E63] hover:text-[#3F362C] inline-flex items-center gap-1.5 text-[12px] font-medium px-2 py-1 rounded-md hover:bg-[#FAF6EB]/60 transition-colors"
+            className="text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] inline-flex items-center gap-1.5 text-[12px] font-medium px-2 py-1 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520]/60 transition-colors"
           >
             <X className="w-3.5 h-3.5" />
             Close
@@ -3275,13 +3275,13 @@ function EmailPanel({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="text-[14.5px] font-semibold text-[#2A2520] truncate">
+                  <p className="text-[14.5px] font-semibold text-[#2A2520] dark:text-[#FBF4DF] truncate">
                     {email.from_name || email.from_email}
                   </p>
                   <ScorePill score={email.score} />
                 </div>
                 <p
-                  className="text-[11.5px] text-[#766E63] truncate font-mono"
+                  className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] truncate font-mono"
                   title={email.from_email}
                 >
                   {email.from_email}
@@ -3291,7 +3291,7 @@ function EmailPanel({
 
             {/* Serif subject — manuscript-feel */}
             <h1
-              className="text-[26px] tracking-[-0.012em] text-[#2A2520] mb-3 leading-[1.18]"
+              className="text-[26px] tracking-[-0.012em] text-[#2A2520] dark:text-[#FBF4DF] mb-3 leading-[1.18]"
               style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
             >
               {email.subject}
@@ -3317,7 +3317,7 @@ function EmailPanel({
                   <Sparkles className="w-3 h-3" /> Oushi
                 </p>
                 <p
-                  className="text-[15px] text-[#3F362C] leading-[1.55] italic"
+                  className="text-[15px] text-[#3F362C] dark:text-[#E8D9B8] leading-[1.55] italic"
                   style={{
                     fontFamily: "var(--font-source-serif), Georgia, serif",
                   }}
@@ -3342,11 +3342,11 @@ function EmailPanel({
                 usually the actually-useful content, so it goes ABOVE the noisy
                 body. */}
             {email.attachments_text && (
-              <div className="mb-6 rounded-xl border border-[#E6DCC4] bg-[#FAF6EB]/40 p-4">
+              <div className="mb-6 rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 p-4">
                 <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-2 inline-flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3" /> From the attachment
                 </p>
-                <pre className="text-[12.5px] leading-[1.6] text-[#2A2520] whitespace-pre-wrap break-words font-sans">
+                <pre className="text-[12.5px] leading-[1.6] text-[#2A2520] dark:text-[#FBF4DF] whitespace-pre-wrap break-words font-sans">
                   {email.attachments_text}
                 </pre>
               </div>
@@ -3361,7 +3361,7 @@ function EmailPanel({
                 <button
                   onClick={saveToCal}
                   disabled={savingCal}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-[#E6DCC4] bg-transparent px-3 py-2 text-[12px] text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 hover:bg-[#FAF6EB] transition-colors disabled:opacity-50"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-transparent px-3 py-2 text-[12px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors disabled:opacity-50"
                 >
                   {savingCal ? <><RefreshCw className="w-3 h-3 animate-spin" />Saving…</> : <><Calendar className="w-3 h-3" />Add to calendar</>}
                 </button>
@@ -3402,7 +3402,7 @@ function EmailPanel({
           {draftLoading && (
             <div className="rounded-md bg-[#D0E1F0]/30 px-3 py-2.5 flex items-center gap-2.5">
               <ThinkingDots large />
-              <p className="text-[12px] text-[#766E63]">Oushi is drafting…</p>
+              <p className="text-[12px] text-[#766E63] dark:text-[#A89F92]">Oushi is drafting…</p>
             </div>
           )}
 
@@ -3414,16 +3414,16 @@ function EmailPanel({
           )}
 
           {notReplyable && (
-            <div className="rounded-md border border-[#E6DCC4] px-3 py-2 text-[12px] text-[#766E63]">
+            <div className="rounded-md border border-[#E6DCC4] dark:border-[#3A3127] px-3 py-2 text-[12px] text-[#766E63] dark:text-[#A89F92]">
               This isn&apos;t really replyable — automated notification.
             </div>
           )}
 
           {draft !== null && !notReplyable && !sent && (
-            <div className="rounded-md border border-[#5E8FBF]/30 bg-[#FFFCF3] overflow-hidden">
+            <div className="rounded-md border border-[#5E8FBF]/30 bg-[#FFFCF3] dark:bg-[#25201A] overflow-hidden">
               <div className="px-3 py-1.5 border-b border-[#5E8FBF]/15 bg-[#D0E1F0]/20 flex items-center justify-between">
                 <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#3D6A95]">Suggested reply</p>
-                <button onClick={requestDraft} disabled={sending} className="text-[10px] text-[#766E63] hover:text-[#3D6A95] disabled:opacity-40 uppercase tracking-wider">
+                <button onClick={requestDraft} disabled={sending} className="text-[10px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] disabled:opacity-40 uppercase tracking-wider">
                   Regenerate
                 </button>
               </div>
@@ -3432,7 +3432,7 @@ function EmailPanel({
                 onChange={(e) => setDraft(e.target.value)}
                 rows={5}
                 disabled={sending}
-                className="w-full bg-transparent px-3 py-2 text-[13px] leading-[1.5] text-[#2A2520] outline-none resize-y disabled:opacity-60"
+                className="w-full bg-transparent px-3 py-2 text-[13px] leading-[1.5] text-[#2A2520] dark:text-[#FBF4DF] outline-none resize-y disabled:opacity-60"
               />
               {sendError && (
                 <div className="px-3 py-1.5 border-t border-[#B86B4A]/30 bg-[#F5E8E0]/40 text-[11px] text-[#B86B4A] flex items-center justify-between">
@@ -3442,8 +3442,8 @@ function EmailPanel({
                   )}
                 </div>
               )}
-              <div className="px-3 py-2 border-t border-[#5E8FBF]/15 flex items-center justify-end gap-2 bg-[#FAF6EB]/30">
-                <button onClick={copyDraft} disabled={sending} className="text-[11px] text-[#766E63] hover:text-[#3D6A95] disabled:opacity-40">
+              <div className="px-3 py-2 border-t border-[#5E8FBF]/15 flex items-center justify-end gap-2 bg-[#FAF6EB]/30 dark:bg-[#2A2520]/30">
+                <button onClick={copyDraft} disabled={sending} className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] disabled:opacity-40">
                   {copied ? "Copied ✓" : "Copy"}
                 </button>
                 <button
@@ -3470,7 +3470,7 @@ function EmailPanel({
           )}
 
           {/* Snooze + dismiss row */}
-          <div className="mt-4 pt-3 border-t border-[#E6DCC4] flex items-center justify-between gap-2">
+          <div className="mt-4 pt-3 border-t border-[#E6DCC4] dark:border-[#3A3127] flexitems-center justify-between gap-2">
             <SnoozePopover
               onSnooze={async (preset, customUntil) => {
                 try {
