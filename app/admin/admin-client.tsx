@@ -28,6 +28,11 @@ import {
   ThumbsUp,
   ThumbsDown,
   ArrowDownUp,
+  Search,
+  Sparkles,
+  Check,
+  X,
+  Loader2,
 } from "lucide-react";
 
 interface OverviewData {
@@ -491,6 +496,13 @@ export function AdminDashboard({ adminEmail }: { adminEmail: string }) {
           )}
         </Card>
 
+        {/* ===== Plan management ===== */}
+        <SectionHeader
+          title="Plan management"
+          subtitle="Search a beta tester by email and flip them to Pro. No payment processing yet — this is the manual grant flow."
+        />
+        <PlanManagement />
+
         {/* ===== Per-user breakdown ===== */}
         <SectionHeader
           title="Users"
@@ -800,4 +812,286 @@ function formatRelativeTime(iso: string): string {
   if (hr < 24) return `${hr}h`;
   const d = Math.floor(hr / 24);
   return `${d}d`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Plan management — search by email, grant/revoke Pro
+// ─────────────────────────────────────────────────────────────────────────
+
+interface PlanUserRow {
+  user_id: string;
+  email: string | null;
+  name: string | null;
+  created_at: string | null;
+  tier: "free" | "pro";
+  subscription_active_until: string | null;
+  subscription_updated_at: string | null;
+  last_synced_at: string | null;
+  email_count: number;
+}
+
+function PlanManagement() {
+  const [query, setQuery] = useState("");
+  const [users, setUsers] = useState<PlanUserRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
+  const [lastFlash, setLastFlash] = useState<{
+    user_id: string;
+    tier: "free" | "pro";
+  } | null>(null);
+
+  // Debounced search — fires 250ms after the last keystroke so each
+  // letter doesn't hit Supabase's admin listUsers. Initial mount fires
+  // immediately with an empty query (gets the 20 most recent users).
+  useEffect(() => {
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(
+          `/api/admin/grant-pro?q=${encodeURIComponent(query)}`
+        );
+        if (cancelled) return;
+        if (!res.ok) {
+          const j = await res.json().catch(() => null);
+          setError(j?.error || `Couldn't search (HTTP ${res.status})`);
+          setUsers([]);
+          return;
+        }
+        const json = (await res.json()) as { users: PlanUserRow[] };
+        if (cancelled) return;
+        setUsers(json.users);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Network error");
+          setUsers([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, query ? 250 : 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [query]);
+
+  // Flash highlight fades after a moment. Visual confirmation that the
+  // flip actually persisted.
+  useEffect(() => {
+    if (!lastFlash) return;
+    const t = setTimeout(() => setLastFlash(null), 1800);
+    return () => clearTimeout(t);
+  }, [lastFlash]);
+
+  async function flip(userId: string, action: "grant" | "revoke") {
+    setBusyId(userId);
+    setConfirmRevokeId(null);
+    try {
+      const res = await fetch("/api/admin/grant-pro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, action }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json?.error || `Couldn't update (HTTP ${res.status})`);
+        return;
+      }
+      // Optimistically update the row in-place so the table doesn't blink.
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.user_id === userId
+            ? {
+                ...u,
+                tier: json.tier === "pro" ? "pro" : "free",
+                subscription_active_until: null,
+                subscription_updated_at: new Date().toISOString(),
+              }
+            : u
+        )
+      );
+      setLastFlash({ user_id: userId, tier: json.tier });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <Card className="mb-10">
+      {/* Search bar */}
+      <div className="px-4 py-3 border-b border-[#E6DCC4]/60 dark:border-[#3A3127]/60 flex items-center gap-2.5">
+        <Search className="w-3.5 h-3.5 text-[#A89F92] shrink-0" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by email or name…"
+          className="flex-1 bg-transparent text-[13.5px] text-[#2A2520] dark:text-[#FBF4DF] placeholder:text-[#A89F92] outline-none"
+        />
+        {loading && (
+          <Loader2 className="w-3.5 h-3.5 text-[#A89F92] animate-spin shrink-0" />
+        )}
+        {!loading && users.length > 0 && (
+          <span className="text-[10.5px] font-mono text-[#A89F92] shrink-0">
+            {users.length} {users.length === 1 ? "result" : "results"}
+          </span>
+        )}
+      </div>
+
+      {error && (
+        <div className="px-4 py-2.5 border-b border-[#B86B4A]/20 bg-[#F5E8E0]/40 flex items-center gap-2 text-[12px] text-[#B86B4A]">
+          <AlertCircle className="w-3 h-3 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {users.length === 0 ? (
+        <EmptyRow
+          text={
+            loading
+              ? "Searching…"
+              : query
+                ? `No users matching "${query}"`
+                : "No users yet."
+          }
+        />
+      ) : (
+        <table className="w-full text-[12.5px]">
+          <thead className="text-[10px] font-mono uppercase tracking-[0.14em] text-[#A89F92] border-b border-[#E6DCC4] dark:border-[#3A3127]">
+            <tr>
+              <th className="text-left px-4 py-2.5">User</th>
+              <th className="text-left px-4 py-2.5">Tier</th>
+              <th className="text-right px-4 py-2.5">Activity</th>
+              <th className="text-right px-4 py-2.5 w-[160px]">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u, i) => {
+              const isFlashing = lastFlash?.user_id === u.user_id;
+              const isBusy = busyId === u.user_id;
+              const isConfirmingRevoke = confirmRevokeId === u.user_id;
+              return (
+                <tr
+                  key={u.user_id}
+                  className={`border-b border-[#E6DCC4]/50 dark:border-[#3A3127]/50 transition-colors ${
+                    isFlashing
+                      ? "bg-[#E8EFE5] dark:bg-[#2E3A2E]/40"
+                      : i % 2 === 1
+                        ? "bg-[#FAF6EB]/30 dark:bg-[#25201A]/30"
+                        : ""
+                  }`}
+                >
+                  <td className="px-4 py-3 align-top min-w-0">
+                    <div className="flex flex-col">
+                      <span className="text-[13px] font-medium text-[#2A2520] dark:text-[#FBF4DF] truncate max-w-[280px]">
+                        {u.email || "(no email)"}
+                      </span>
+                      {u.name && (
+                        <span className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] truncate max-w-[280px]">
+                          {u.name}
+                        </span>
+                      )}
+                      <span className="mt-0.5 text-[10.5px] font-mono text-[#A89F92] truncate">
+                        {u.user_id}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 align-top">
+                    <TierBadge tier={u.tier} />
+                    {u.subscription_updated_at && (
+                      <p className="mt-1 text-[10.5px] text-[#A89F92]">
+                        Changed{" "}
+                        {formatRelativeTime(u.subscription_updated_at)} ago
+                      </p>
+                    )}
+                  </td>
+                  <td className="text-right px-4 py-3 align-top">
+                    <p className="text-[12px] font-mono tabular-nums text-[#2A2520] dark:text-[#FBF4DF]">
+                      {u.email_count} emails
+                    </p>
+                    <p className="mt-0.5 text-[10.5px] text-[#A89F92]">
+                      {u.last_synced_at
+                        ? `synced ${formatRelativeTime(u.last_synced_at)} ago`
+                        : "never synced"}
+                    </p>
+                  </td>
+                  <td className="text-right px-4 py-3 align-top">
+                    {u.tier === "pro" ? (
+                      isConfirmingRevoke ? (
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={() => flip(u.user_id, "revoke")}
+                            disabled={isBusy}
+                            className="inline-flex items-center gap-1 rounded-md bg-[#B86B4A] px-2.5 py-1 text-[11.5px] font-medium text-white hover:bg-[#A65B3F] disabled:opacity-60"
+                          >
+                            {isBusy ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Check className="w-3 h-3" />
+                            )}
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => setConfirmRevokeId(null)}
+                            disabled={isBusy}
+                            className="inline-flex items-center rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-2 py-1 text-[11.5px] font-medium text-[#766E63] hover:text-[#2A2520]"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmRevokeId(u.user_id)}
+                          disabled={isBusy}
+                          className="inline-flex items-center gap-1 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-2.5 py-1 text-[11.5px] font-medium text-[#766E63] hover:text-[#B86B4A] hover:border-[#B86B4A]/40 disabled:opacity-60"
+                        >
+                          <X className="w-3 h-3" />
+                          Revoke Pro
+                        </button>
+                      )
+                    ) : (
+                      <button
+                        onClick={() => flip(u.user_id, "grant")}
+                        disabled={isBusy}
+                        className="inline-flex items-center gap-1 rounded-md bg-[#5E8FBF] px-2.5 py-1 text-[11.5px] font-medium text-white shadow-sm hover:bg-[#4A7AAB] hover:shadow-md disabled:opacity-60 transition-all"
+                      >
+                        {isBusy ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3 h-3" />
+                        )}
+                        Grant Pro
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </Card>
+  );
+}
+
+function TierBadge({ tier }: { tier: "free" | "pro" }) {
+  if (tier === "pro") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#D0E1F0]/60 border border-[#5E8FBF]/30 px-2 py-0.5 text-[10.5px] font-mono uppercase tracking-[0.14em] text-[#3D6A95]">
+        <Sparkles className="w-2.5 h-2.5" />
+        Pro
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-[#FAF6EB] border border-[#E6DCC4] px-2 py-0.5 text-[10.5px] font-mono uppercase tracking-[0.14em] text-[#766E63] dark:text-[#A89F92]">
+      Free
+    </span>
+  );
 }

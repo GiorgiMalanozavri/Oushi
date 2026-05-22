@@ -109,7 +109,7 @@ export function UpgradeModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#2A2520]/30 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#2A2520]/30 backdrop-blur-sm p-4"
           onClick={onClose}
         >
           <motion.div
