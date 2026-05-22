@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion, type Variants, useInView } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { OushiMark } from "@/components/oushi-mark";
+import { IntegrationsOrbit } from "@/components/integrations-orbit";
 import {
   ArrowRight,
   Sparkles,
@@ -262,6 +263,30 @@ export default function LandingPage() {
               desc="Tell Oushi 'nudge them if no reply in 3 days.' It sends the follow-up in your voice. Stops the moment they reply."
             />
           </div>
+        </section>
+
+        {/* ============= INTEGRATIONS ORBIT ============= */}
+        <section className="px-6 py-24 sm:py-32 bg-[#F0E9D6]/30 border-y border-[#E6DCC4]/60 overflow-hidden">
+          <div className="max-w-2xl mx-auto text-center mb-12 sm:mb-16">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#5E8FBF] mb-4">
+              Lives where you do
+            </p>
+            <h2 className="text-[34px] sm:text-[48px] font-semibold tracking-[-0.02em] leading-[1.1]">
+              Plays with your <span className="text-[#5E8FBF]">whole stack</span>.
+            </h2>
+            <p className="mt-5 text-[15px] leading-[1.55] text-[#766E63] max-w-lg mx-auto">
+              Oushi connects to the tools you already work in — your inbox is
+              just where it starts.
+            </p>
+          </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <IntegrationsOrbit />
+          </motion.div>
         </section>
 
         {/* ============= VALUE GRID ============= */}

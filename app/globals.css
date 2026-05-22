@@ -353,6 +353,28 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Orbit animations for the landing-page integration cloud. The ring
+ * containers rotate continuously; logos counter-rotate at the same
+ * rate so the artwork inside each badge stays upright as the ring
+ * spins. Hovering anywhere in the orbit pauses everything, so the
+ * user can read a specific logo. */
+@keyframes oushi-orbit-cw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes oushi-orbit-ccw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+.oushi-orbit-ring {
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.oushi-orbit-container:hover .oushi-orbit-ring,
+.oushi-orbit-container:hover .oushi-orbit-counter {
+  animation-play-state: paused;
+}
+
 .oushi-page-enter {
   animation: oushi-page-fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
