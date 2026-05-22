@@ -61,6 +61,10 @@ interface TodayResponse {
     gmail: boolean;
     calendar: boolean;
     push_enabled: boolean;
+    /** Count of emails ever synced — used to detect brand-new users
+     *  whose initial sync is still in flight (0) vs established users
+     *  with a calm day (> 0 but no items today). */
+    total_emails_synced: number;
   };
   quietly_handled: {
     muted_today: number;
@@ -101,6 +105,7 @@ export async function GET() {
     mutedTodayRes,
     autoFulfilledTodayRes,
     nudgesSentTodayRes,
+    syncedEmailsCountRes,
   ] = await Promise.all([
     service
       .from("calendar_events")
@@ -159,6 +164,14 @@ export async function GET() {
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
       .gte("sent_at", dayStartISO),
+    // Total emails this user has ever synced. The narrative dashboard
+    // uses this to tell a brand-new user ("first sync in progress")
+    // apart from an established user with a quiet day — both render an
+    // empty list but need very different copy.
+    service
+      .from("emails")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id),
   ]);
 
   const meetings = meetingsRes.data;
@@ -399,6 +412,7 @@ export async function GET() {
       gmail: !!tokens,
       calendar: !!tokens, // assumed scoped together
       push_enabled: (push?.length ?? 0) > 0,
+      total_emails_synced: syncedEmailsCountRes.count ?? 0,
     },
     quietly_handled: {
       muted_today: mutedToday || 0,

@@ -65,6 +65,10 @@ interface TodayResponse {
     gmail: boolean;
     calendar: boolean;
     push_enabled: boolean;
+    /** Count of emails ever synced. Older API versions may omit this —
+     *  treat undefined as "unknown" rather than zero, so we don't show
+     *  the brand-new-user copy to people on an older client cache. */
+    total_emails_synced?: number;
   };
   quietly_handled: {
     muted_today: number;
@@ -123,14 +127,14 @@ function connectorFor(index: number, total: number): string | null {
 }
 
 // Open-line that picks the right narrative based on what's on the plate.
-// totalEmailCount lets us tell apart "you have no email yet" (brand-new
-// account, the system is still warming up) from "you have email but
-// nothing's urgent" (genuinely calm inbox). These need different copy
-// because the former feels broken if it says "your inbox is calm."
-function leadParagraph(count: number, totalEmailCount: number): string {
+// `everSynced` tells us whether this user has any emails in our DB at all
+// — that's the real "are you a brand-new user?" signal. Don't confuse it
+// with "items today" (a calm Sunday for an established user) which used
+// to fire the brand-new copy and never disappear.
+function leadParagraph(count: number, everSynced: boolean): string {
   if (count === 0) {
     // Truly empty system — first-time user, no synced emails yet
-    if (totalEmailCount === 0) {
+    if (!everSynced) {
       return "I'm reading your inbox right now. The first sync takes about a minute — Oushi catalogs the last 30 days, scores what matters, and labels everything in your Gmail. Stay on this page; new cards will appear as I work through them.";
     }
     // Has synced email, just nothing urgent today
@@ -308,11 +312,15 @@ export function NarrativeToday({
             ? "Reading your inbox…"
             : leadParagraph(
                 emailLikeItems.length,
-                // If we have nothing in any bucket — no email cards, no
-                // meetings, no "quietly handled" — this is almost certainly
-                // a brand-new user whose inbox hasn't synced yet. Tell them
-                // the system is working, not that their inbox is "calm."
-                emailLikeItems.length + meetings.length + quietHandledCount
+                // The brand-new copy ("I'm reading your inbox right now")
+                // only fires for users with literally zero synced emails.
+                // Anyone past their initial sync — even on a quiet day
+                // with no urgent items — gets the "calm inbox" message.
+                // Default to `true` (i.e., assume established) if the
+                // server didn't return the count, so an older client
+                // cache or a transient API hiccup never strands an
+                // existing user on the first-time copy.
+                (data?.sources?.total_emails_synced ?? 1) > 0
               )}
         </motion.p>
 
