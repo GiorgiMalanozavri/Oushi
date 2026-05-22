@@ -5,6 +5,7 @@ import { isAutomatedEmail, type EmailRow } from "@/lib/outstanding";
 import { sendEmail } from "@/lib/email/send";
 import { FROM_NOREPLY, REPLY_TO } from "@/lib/email/addresses";
 import { fireWebhook } from "@/lib/webhook";
+import { postMessage, briefingBlocks } from "@/lib/slack";
 
 export const maxDuration = 300;
 
@@ -351,6 +352,37 @@ async function sendDigestForUser(userId: string, service: ServiceClient) {
     tags: [{ name: "type", value: "daily_digest" }],
   });
 
+  // Also post to Slack if the user has the integration on. The HTML
+  // body is too rich for Slack's mrkdwn, so we strip tags down to a
+  // plain prose digest that Block Kit can render cleanly.
+  try {
+    const { data: integ } = await service
+      .from("user_integrations")
+      .select(
+        "slack_access_token, slack_channel_id, slack_briefing_enabled"
+      )
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (
+      integ?.slack_briefing_enabled &&
+      integ.slack_access_token &&
+      integ.slack_channel_id
+    ) {
+      const plain = htmlToPlainText(htmlBody);
+      await postMessage(
+        integ.slack_access_token,
+        integ.slack_channel_id,
+        subject,
+        briefingBlocks(subject, plain || "Your Oushi briefing is ready in your inbox.")
+      );
+    }
+  } catch (e) {
+    console.error(
+      "[daily-digest] Slack post failed",
+      e instanceof Error ? e.message : e
+    );
+  }
+
   // Tell outbound webhook listeners (Zaps, scripts) that today's
   // briefing went out — useful for "log the briefing to my notes app"
   // workflows or "ping me on Slack when Oushi sends my brief" recipes.
@@ -358,4 +390,27 @@ async function sendDigestForUser(userId: string, service: ServiceClient) {
     subject,
     sent_to: authUser.email,
   });
+}
+
+/**
+ * Strip HTML tags + collapse whitespace into a plain-text version we
+ * can post to Slack. Not a general-purpose HTML parser — this is
+ * tightly coupled to the digest's structure (headlines + paragraphs).
+ */
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<h2[^>]*>/gi, "*")
+    .replace(/<\/h2>/gi, "*\n\n")
+    .replace(/<p[^>]*>/gi, "")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, "$2 ($1)")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }

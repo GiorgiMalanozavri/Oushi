@@ -38,6 +38,7 @@ import {
   CalendarCheck,
   Webhook,
   Zap,
+  Hash,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { OushiMark } from "@/components/oushi-mark";
@@ -2605,6 +2606,7 @@ function IntegrationsSection() {
       />
       <div className="space-y-5">
         <ICalIntegration />
+        <SlackIntegration />
         <WebhookIntegration />
       </div>
     </div>
@@ -2826,6 +2828,289 @@ function ICalIntegration() {
                 Regenerate URL (revokes the current one)
               </button>
             )}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ===== SLACK INTEGRATION =====
+
+interface SlackState {
+  connected: boolean;
+  team_name: string | null;
+  channel_name: string | null;
+  briefing_enabled: boolean;
+}
+
+/**
+ * Slack — get your daily briefing as a DM from Oushi. One-click OAuth
+ * to install the Oushi Slack app to a workspace, after which we open
+ * a DM channel and post the same morning briefing we email you.
+ *
+ * Reads ?slack_connected and ?slack_error query params on mount so a
+ * post-OAuth redirect can show success/error feedback.
+ */
+function SlackIntegration() {
+  const [state, setState] = useState<SlackState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<"toggle" | "test" | "disconnect" | null>(
+    null
+  );
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const toast = useToast();
+
+  const refetch = async () => {
+    try {
+      const res = await fetch("/api/integrations/slack");
+      if (!res.ok) return;
+      const data = (await res.json()) as SlackState;
+      setState(data);
+    } catch {
+      // best-effort
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/integrations/slack");
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as SlackState;
+        if (!cancelled) {
+          setState(data);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    // Handle the post-callback flash. Strip the params from the URL
+    // so a refresh doesn't repeat the toast.
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("slack_connected") === "1") {
+        toast.success("Slack connected — briefings will start tomorrow");
+        params.delete("slack_connected");
+        params.delete("section"); // keep visual URL clean
+        const newSearch = params.toString();
+        const newUrl =
+          window.location.pathname +
+          (newSearch ? "?" + newSearch : "?section=integrations");
+        window.history.replaceState(null, "", newUrl);
+      } else if (params.get("slack_error")) {
+        toast.error(
+          `Slack connection failed: ${params.get("slack_error")}`
+        );
+        params.delete("slack_error");
+        const newSearch = params.toString();
+        const newUrl =
+          window.location.pathname +
+          (newSearch ? "?" + newSearch : "?section=integrations");
+        window.history.replaceState(null, "", newUrl);
+      }
+    }
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function toggleBriefing(next: boolean) {
+    setBusy("toggle");
+    try {
+      const res = await fetch("/api/integrations/slack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ briefing_enabled: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data?.error || "Couldn't update");
+        return;
+      }
+      await refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function sendTest() {
+    setBusy("test");
+    try {
+      const res = await fetch("/api/integrations/slack", { method: "PATCH" });
+      const data = await res.json();
+      if (data.delivered) {
+        toast.success("Test sent — check your Slack DMs");
+      } else {
+        toast.error(data?.detail || data?.error || "Test failed");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function disconnect() {
+    setBusy("disconnect");
+    try {
+      const res = await fetch("/api/integrations/slack", { method: "DELETE" });
+      if (!res.ok) {
+        toast.error("Couldn't disconnect");
+        return;
+      }
+      setState({
+        connected: false,
+        team_name: null,
+        channel_name: null,
+        briefing_enabled: false,
+      });
+      setConfirmDisconnect(false);
+      toast.info("Slack disconnected");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const connected = !!state?.connected;
+
+  return (
+    <Card>
+      <div className="p-5">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F2E1F0]">
+            <Hash className="h-4 w-4 text-[#7E4F87]" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[14px] font-medium text-[#2A2520]">
+                Slack briefings
+              </p>
+              {connected && state?.briefing_enabled && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#E8EFE5] border border-[#6B8E68]/30 px-1.5 py-0.5 text-[9.5px] font-mono uppercase tracking-[0.14em] text-[#4F6B4D]">
+                  <span className="w-1 h-1 rounded-full bg-[#6B8E68]" />
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
+              Get your daily Oushi briefing as a Slack DM in addition to
+              email. Less inbox-tab-switching, more "Oushi already told
+              me on Slack at 8am."
+            </p>
+            {connected && state?.team_name && (
+              <p className="text-[11.5px] text-[#766E63] mt-2">
+                Connected to{" "}
+                <span className="font-medium text-[#3F362C]">
+                  {state.team_name}
+                </span>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="mt-5 flex items-center gap-2 text-[12px] text-[#A89F92]">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Loading…
+          </div>
+        ) : !connected ? (
+          <div className="mt-5">
+            <a
+              href="/api/integrations/slack/connect"
+              className="inline-flex items-center gap-2 rounded-md bg-[#4A154B] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#5D1B5E] transition-colors"
+            >
+              <Hash className="w-3.5 h-3.5" />
+              Connect Slack
+            </a>
+            <p className="text-[11px] text-[#A89F92] mt-2">
+              Opens Slack&apos;s install screen. You pick the workspace; we
+              ask for one scope (chat:write) so Oushi can DM you.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-5 space-y-4">
+            {/* Briefing toggle */}
+            <div className="flex items-center justify-between gap-4 rounded-lg bg-[#FAF6EB]/40 border border-[#E6DCC4]/60 px-3.5 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] font-medium text-[#2A2520]">
+                  Send daily briefing to Slack
+                </p>
+                <p className="text-[11px] text-[#766E63] mt-0.5">
+                  Posts the same morning prose Oushi emails you, every day.
+                </p>
+              </div>
+              <button
+                onClick={() => toggleBriefing(!state?.briefing_enabled)}
+                disabled={busy !== null}
+                role="switch"
+                aria-checked={!!state?.briefing_enabled}
+                className={`relative shrink-0 inline-flex items-center w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${
+                  state?.briefing_enabled
+                    ? "bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95]"
+                    : "bg-[#E6DCC4] dark:bg-[#3A3127]"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 inline-block w-5 h-5 bg-white rounded-full transition-transform ${
+                    state?.briefing_enabled ? "translate-x-[22px]" : "translate-x-0.5"
+                  }`}
+                  style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.20)" }}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={sendTest}
+                disabled={busy !== null}
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
+              >
+                {busy === "test" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Zap className="w-3.5 h-3.5" />
+                )}
+                Send test message
+              </button>
+              {confirmDisconnect ? (
+                <div className="inline-flex items-center gap-1.5">
+                  <button
+                    onClick={disconnect}
+                    disabled={busy !== null}
+                    className="inline-flex items-center gap-1 rounded-md bg-[#B86B4A] px-2.5 py-1.5 text-[11.5px] font-medium text-white hover:bg-[#A65B3F] disabled:opacity-60"
+                  >
+                    {busy === "disconnect" ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Check className="w-3 h-3" />
+                    )}
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setConfirmDisconnect(false)}
+                    className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDisconnect(true)}
+                  className="ml-auto text-[11px] text-[#A89F92] hover:text-[#B86B4A] transition-colors"
+                >
+                  Disconnect
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
