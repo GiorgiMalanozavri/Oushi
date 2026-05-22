@@ -226,15 +226,15 @@ export function IntegrationsOrbit() {
   return (
     <div
       className="oushi-orbit-container relative mx-auto"
-      // Container scales with viewport: 420px on mobile up to 640px on desktop.
-      // The orbit math uses CSS variables so radii scale with the container.
+      // Container scales with viewport: 360px on mobile up to 640px on desktop.
+      // Radii are pixel values via clamp() — percentages don't work in
+      // translateY transforms because they resolve against the element's
+      // own size (the chip, ~60px), not the parent container.
       style={{
         width: "clamp(360px, 88vw, 640px)",
         aspectRatio: "1 / 1",
-        // Two CSS vars the children use to compute their position. They're
-        // expressed as % of the container, so resizing scales the orbit.
-        ["--inner-radius" as string]: "27%",
-        ["--outer-radius" as string]: "44%",
+        ["--inner-radius" as string]: "clamp(95px, 23vw, 165px)",
+        ["--outer-radius" as string]: "clamp(155px, 38vw, 275px)",
       }}
     >
       {/* Soft halo behind the center — gives the rings something visual to
@@ -250,13 +250,15 @@ export function IntegrationsOrbit() {
       />
 
       {/* Outer ring — slower, counter-clockwise */}
-      <OrbitRing items={OUTER} radiusVar="var(--outer-radius)" durationSec={110} direction="ccw" size={56} />
+      <OrbitRing items={OUTER} radiusVar="var(--outer-radius)" durationSec={110} direction="ccw" size={52} />
 
       {/* Inner ring — faster, clockwise */}
-      <OrbitRing items={INNER} radiusVar="var(--inner-radius)" durationSec={70} direction="cw" size={64} />
+      <OrbitRing items={INNER} radiusVar="var(--inner-radius)" durationSec={70} direction="cw" size={60} />
 
-      {/* Center — the Oushi mark, with a subtle breath */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
+      {/* Center — the Oushi mark, with a subtle breath. z-10 keeps it
+          on top of the orbit halo but below any chip the user happens
+          to be hovering. */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2 z-10 pointer-events-none">
         <div
           className="flex items-center justify-center rounded-full bg-[#FFFCF3] oushi-breathe"
           style={{

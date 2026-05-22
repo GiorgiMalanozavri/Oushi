@@ -11,20 +11,11 @@ import {
   Shield,
   Send,
   BrainCircuit,
-  Bell,
   Sunrise,
-  Coffee,
-  Sun,
-  Moon,
   Mail,
   Calendar,
   Clock,
   MessageCircle,
-  Mic,
-  Globe,
-  FileText,
-  Users,
-  Watch,
 } from "lucide-react";
 
 const fadeUp: Variants = {
@@ -56,12 +47,6 @@ export default function LandingPage() {
           <div className="hidden sm:flex items-center gap-7">
             <a href="#how" className="text-[13px] font-medium text-[#766E63] hover:text-[#2A2520] transition-colors">
               How it works
-            </a>
-            <a href="#day" className="text-[13px] font-medium text-[#766E63] hover:text-[#2A2520] transition-colors">
-              A day with it
-            </a>
-            <a href="#next" className="text-[13px] font-medium text-[#766E63] hover:text-[#2A2520] transition-colors">
-              What&apos;s next
             </a>
             <Link href="/pricing" className="text-[13px] font-medium text-[#766E63] hover:text-[#2A2520] transition-colors">
               Pricing
@@ -121,25 +106,6 @@ export default function LandingPage() {
               </a>
             </motion.div>
 
-            {/* Trust copy — above the fold, more visible than the previous
-                one-line strip. Investors + skeptics need this loud, not
-                buried two clicks deep in the privacy policy. */}
-            <motion.div
-              variants={fadeUp}
-              className="mt-7 inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#FFFCF3]/80 backdrop-blur-sm border border-[#E6DCC4] text-[11.5px] text-[#766E63]"
-              style={{
-                boxShadow:
-                  "0 1px 0 rgba(255,255,255,0.5) inset, 0 4px 16px -8px rgba(106,76,38,0.08)",
-              }}
-            >
-              <Shield className="w-3 h-3 text-[#6B8E68]" />
-              <span>
-                <strong className="text-[#3F362C] font-semibold">
-                  Your email stays yours.
-                </strong>{" "}
-                We never sell, share, or train on your data. Disconnect anytime.
-              </span>
-            </motion.div>
           </motion.div>
 
           {/* Hero product mock */}
@@ -200,68 +166,6 @@ export default function LandingPage() {
             >
               <BriefingCardDemo />
             </HowCard>
-          </div>
-        </section>
-
-        {/* ============= A DAY ============= */}
-        <section id="day" className="px-6 py-24 sm:py-32 bg-[#F0E9D6]/30 border-y border-[#E6DCC4]/60">
-          <div className="max-w-2xl mx-auto text-center mb-16">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#5E8FBF] mb-4">
-              A typical day
-            </p>
-            <h2 className="text-[34px] sm:text-[48px] font-semibold tracking-[-0.02em] leading-[1.1]">
-              You stop checking email.<br />
-              <span className="text-[#5E8FBF]">Oushi tells you when.</span>
-            </h2>
-          </div>
-          <DayTimeline />
-        </section>
-
-        {/* ============= WHAT'S NEXT ============= */}
-        <section id="next" className="px-6 py-24 sm:py-32">
-          <div className="max-w-2xl mx-auto text-center mb-14 sm:mb-20">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#5E8FBF] mb-4">
-              Coming next
-            </p>
-            <h2 className="text-[34px] sm:text-[48px] font-semibold tracking-[-0.02em] leading-[1.1]">
-              The roadmap, basically.
-            </h2>
-            <p className="mt-5 text-[15px] leading-[1.55] text-[#766E63] max-w-lg mx-auto">
-              Where Oushi is headed. Most of this ships this year.
-            </p>
-          </div>
-
-          <div className="max-w-6xl mx-auto grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
-            <NextCard
-              eyebrow="This summer"
-              icon={<FileText className="w-4 h-4" />}
-              title="Reads attachments"
-              desc="PDF flight confirmations. Image receipts. Contracts. Oushi reads inside them and remembers what matters."
-            />
-            <NextCard
-              eyebrow="Late summer"
-              icon={<Globe className="w-4 h-4" />}
-              title="Across every inbox"
-              desc="Outlook, iCloud, and eventually Slack DMs and iMessage. One layer between you and every channel."
-            />
-            <NextCard
-              eyebrow="This fall"
-              icon={<Watch className="w-4 h-4" />}
-              title="iOS app + Apple Watch"
-              desc="On your wrist. Glance the 3 things, swipe to dismiss, tap to hear. Built for the elevator."
-            />
-            <NextCard
-              eyebrow="Late 2026"
-              icon={<Mic className="w-4 h-4" />}
-              title="Voice mode"
-              desc="'Hey Oushi, what's important today?' Headphones reply with a 15-second summary. Or ask it anything about anyone."
-            />
-            <NextCard
-              eyebrow="2027"
-              icon={<Users className="w-4 h-4" />}
-              title="Sends follow-ups for you"
-              desc="Tell Oushi 'nudge them if no reply in 3 days.' It sends the follow-up in your voice. Stops the moment they reply."
-            />
           </div>
         </section>
 
@@ -368,6 +272,20 @@ export default function LandingPage() {
             </p>
           </div>
 
+          {/* A quiet line on what Oushi does (and doesn't do) with the
+              inbox it reads. Plain language, not the bullet-list /
+              "we never X, never Y" cadence that reads as AI boilerplate. */}
+          <div className="mb-6 pb-6 border-b border-[#E6DCC4]/60 flex items-start gap-2.5">
+            <Shield className="w-3.5 h-3.5 text-[#6B8E68] mt-0.5 shrink-0" />
+            <p className="text-[12.5px] text-[#766E63] leading-relaxed max-w-[560px]">
+              Oushi reads your inbox so it can do its job. That&apos;s the only
+              reason we have access. Nothing is sold, nothing trains a public
+              model, nothing leaves the systems that serve you. You can
+              disconnect from your Google account in two clicks and we&apos;re
+              gone.
+            </p>
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-3 text-[12px] text-[#A89F92]">
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 rounded bg-[#5E8FBF]/30 flex items-center justify-center">
@@ -447,37 +365,6 @@ function HowCard({
 }
 
 // ============= NEXT CARD (coming soon) =============
-
-function NextCard({
-  eyebrow,
-  icon,
-  title,
-  desc,
-}: {
-  eyebrow: string;
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.55 }}
-      className="rounded-2xl border border-[#E6DCC4] bg-[#FFFCF3] p-6 hover:border-[#5E8FBF]/30 transition-all"
-    >
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-7 h-7 rounded-md bg-[#D0E1F0] flex items-center justify-center text-[#3D6A95] [&>svg]:w-3.5 [&>svg]:h-3.5">
-          {icon}
-        </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#A89F92]">{eyebrow}</span>
-      </div>
-      <h3 className="text-[20px] sm:text-[22px] font-semibold tracking-tight text-[#2A2520]">{title}</h3>
-      <p className="mt-2 text-[14px] leading-[1.55] text-[#766E63]">{desc}</p>
-    </motion.div>
-  );
-}
 
 // ============= VALUE CARD =============
 
@@ -800,55 +687,3 @@ function BriefingCardDemo() {
   );
 }
 
-// ============= DAY TIMELINE =============
-
-const DAY = [
-  { time: "8:00 AM", icon: <Sunrise className="w-3.5 h-3.5" />, title: "Morning brief lands in your inbox", body: "The 2-3 things that need you today, in plain prose. Not a list." },
-  { time: "10:30 AM", icon: <Coffee className="w-3.5 h-3.5" />, title: "Drafts ready when you sit down", body: "Maya's reply is pre-written. Tweak one word, hit send." },
-  { time: "1:00 PM", icon: <Sun className="w-3.5 h-3.5" />, title: "LinkedIn spam never reached you", body: "Muted weeks ago. Never appeared in your inbox today." },
-  { time: "3:00 PM", icon: <Bell className="w-3.5 h-3.5" />, title: "Sarah is waiting (5 days)", body: "Oushi surfaces the nudge with a draft already in your voice." },
-  { time: "6:00 PM", icon: <Calendar className="w-3.5 h-3.5" />, title: "Flight saved to your calendar", body: "United confirmation came in. Already on Thursday at 4:15 PM." },
-  { time: "10:00 PM", icon: <Moon className="w-3.5 h-3.5" />, title: "Wind-down summary", body: "14 emails handled. 6 replies sent in your voice. Nothing else needs you." },
-];
-
-function DayTimeline() {
-  return (
-    <div className="max-w-2xl mx-auto">
-      <div className="space-y-8 sm:space-y-10">
-        {DAY.map((m, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.5, delay: i * 0.04 }}
-            className="flex gap-5"
-          >
-            <div className="shrink-0 w-[64px] sm:w-[80px] text-right pt-1">
-              <p className="text-[11px] font-mono font-medium uppercase tracking-[0.14em] text-[#A89F92]">{m.time}</p>
-            </div>
-            <div className="relative shrink-0 flex flex-col items-center">
-              <div className="w-8 h-8 rounded-full bg-[#FFFCF3] border-2 border-[#5E8FBF]/40 flex items-center justify-center text-[#5E8FBF] shadow-sm z-10">
-                {m.icon}
-              </div>
-              {i < DAY.length - 1 && <div className="flex-1 w-px bg-[#E6DCC4] mt-1" />}
-            </div>
-            <div className="flex-1 min-w-0 pt-1 pb-1">
-              <h4 className="text-[15px] sm:text-[16px] font-semibold tracking-tight text-[#2A2520]">{m.title}</h4>
-              <p className="mt-1 text-[13px] leading-[1.55] text-[#766E63]">{m.body}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-      <motion.p
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.6 }}
-        className="mt-14 text-center text-[14px] italic text-[#766E63] max-w-md mx-auto"
-      >
-        You never opened Gmail once.
-      </motion.p>
-    </div>
-  );
-}
