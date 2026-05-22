@@ -944,8 +944,8 @@ function AutoDraftToggle() {
               <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
                 When a high-priority email arrives, Oushi writes a draft in
                 your voice and saves it to Gmail&apos;s drafts folder — so
-                the reply is already waiting when you open the thread. Like
-                Fyxer.
+                the reply is already waiting when you open the thread. One
+                tap to send.
               </p>
               <p className="text-[11px] text-[#A89F92] mt-2 leading-relaxed">
                 Only fires on emails scored &ge; 60 that look like real
@@ -2052,6 +2052,212 @@ interface ApplyProgress {
 const WINDOW_OPTIONS = [14, 30, 60] as const;
 type WindowDays = (typeof WINDOW_OPTIONS)[number];
 
+interface LabelsStatus {
+  enabled: boolean;
+  watch_active: boolean;
+  watch_expires_at: string | null;
+  last_synced_at: string | null;
+  last_applied_at: string | null;
+  unlabeled_count: number;
+  labeled_count: number;
+}
+
+/**
+ * Live status + manual trigger for Gmail labels.
+ *
+ * Surfaces three signals the user cares about — "is real-time labeling
+ * even on?", "when did we last sync?", "how many emails are still
+ * unlabeled?" — and a one-click "Sync now" button that hits
+ * /api/gmail/sync (which we just fixed to also rank+label inline).
+ *
+ * Sits at the top of the Gmail labels section so when someone's
+ * complaint is "new emails aren't getting labels," this is the first
+ * thing they see.
+ */
+function LabelsLiveStatus() {
+  const [status, setStatus] = useState<LabelsStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [lastResult, setLastResult] = useState<{
+    added: number;
+    ranked: number;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refetch = async () => {
+    try {
+      const res = await fetch("/api/labels/status");
+      if (!res.ok) return;
+      const data = (await res.json()) as LabelsStatus;
+      setStatus(data);
+    } catch {
+      // best-effort
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/labels/status");
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as LabelsStatus;
+        if (!cancelled) {
+          setStatus(data);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const syncNow = async () => {
+    setSyncing(true);
+    setError(null);
+    setLastResult(null);
+    try {
+      const res = await fetch("/api/gmail/sync", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.error || "Sync failed");
+        return;
+      }
+      setLastResult({
+        added: typeof data.added === "number" ? data.added : 0,
+        ranked: typeof data.ranked === "number" ? data.ranked : 0,
+      });
+      // Refresh the status numbers (last_synced_at, unlabeled_count)
+      await refetch();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] p-4 mb-3">
+        <div className="flex items-center gap-2 text-[12px] text-[#A89F92]">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          Checking label status…
+        </div>
+      </div>
+    );
+  }
+
+  if (!status || !status.enabled) {
+    // Not enabled yet → nothing to diagnose. The Apply button below
+    // turns this on, so don't clutter the UI with a "not enabled" pill
+    // — the empty-state copy is enough.
+    return null;
+  }
+
+  // ── Compute the headline status ────────────────────────────────────
+  // Three states the user cares about:
+  //   1. Real-time on (watch active) → "Real-time labeling: on"
+  //   2. Real-time off but cron-only (watch null/expired) → "Cron-only
+  //      labeling — new emails may take up to an hour"
+  //   3. Real-time on but emails are piling up → "Sync now" to clear
+  const watchActive = status.watch_active;
+  const unlabeled = status.unlabeled_count;
+  // A single Date.now() during render is fine here — staleness is
+  // intrinsically time-dependent, the alternative (a state-backed tick)
+  // is more code than the display earns.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  const staleSync = !!(
+    status.last_synced_at &&
+    now - new Date(status.last_synced_at).getTime() > 30 * 60 * 1000
+  );
+
+  // Tone of the headline pill — green when healthy, amber when there's a
+  // visible gap, terra when real-time is off entirely.
+  let pillTone: "ok" | "warn" | "muted" = "ok";
+  let pillText = "Real-time labeling: on";
+  let detailText =
+    unlabeled > 0
+      ? `${unlabeled} unlabeled email${unlabeled === 1 ? "" : "s"} waiting — usually clears in seconds when Gmail push fires.`
+      : `Every synced email is labeled. Last sync ${formatRelative(status.last_synced_at)}.`;
+
+  if (!watchActive) {
+    pillTone = "warn";
+    pillText = "Cron-only labeling";
+    detailText = unlabeled > 0
+      ? `${unlabeled} email${unlabeled === 1 ? "" : "s"} unlabeled. Without a Gmail push watch, new emails wait for the hourly cron — or you can sync now.`
+      : "Real-time push isn't active. The hourly cron will catch new emails — or you can sync now.";
+  } else if (staleSync && unlabeled > 5) {
+    pillTone = "warn";
+    pillText = "Sync stale";
+    detailText = `Last sync was ${formatRelative(status.last_synced_at)} and ${unlabeled} email${unlabeled === 1 ? " is" : "s are"} unlabeled. One click below fixes it.`;
+  }
+
+  const pillClasses =
+    pillTone === "ok"
+      ? "bg-[#E8EFE5] border-[#6B8E68]/30 text-[#4F6B4D]"
+      : pillTone === "warn"
+        ? "bg-[#FAF1DC] border-[#C99A50]/30 text-[#8E6A2A]"
+        : "bg-[#FAF6EB] border-[#E6DCC4] text-[#766E63]";
+
+  return (
+    <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] p-4 mb-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10.5px] font-mono uppercase tracking-[0.14em] mb-2 ${pillClasses}`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${pillTone === "ok" ? "bg-[#6B8E68]" : pillTone === "warn" ? "bg-[#C99A50]" : "bg-[#A89F92]"}`}
+            />
+            {pillText}
+          </span>
+          <div className="mt-2" />
+          <p className="text-[12.5px] text-[#2A2520] leading-relaxed">
+            {detailText}
+          </p>
+          {lastResult && (
+            <p className="mt-2 text-[11.5px] text-[#4F6B4D] bg-[#E8EFE5]/60 rounded-md px-2.5 py-1.5 inline-block">
+              Synced {lastResult.added} new email{lastResult.added === 1 ? "" : "s"} ·
+              labeled {lastResult.ranked} just now
+            </p>
+          )}
+          {error && (
+            <p className="mt-2 text-[11.5px] text-[#B86B4A]">{error}</p>
+          )}
+        </div>
+        <button
+          onClick={syncNow}
+          disabled={syncing}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] text-[12px] font-medium text-[#3D6A95] hover:border-[#5E8FBF]/40 hover:bg-[#FAF6EB] disabled:opacity-60 transition-colors"
+        >
+          {syncing ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="w-3.5 h-3.5" />
+          )}
+          {syncing ? "Syncing…" : "Sync now"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function formatRelative(iso: string | null): string {
+  if (!iso) return "never";
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const d = Math.floor(hr / 24);
+  return `${d}d ago`;
+}
+
 function LabelsSection() {
   const [busy, setBusy] = useState<null | "apply" | "reset">(null);
   const [result, setResult] = useState<null | {
@@ -2216,6 +2422,10 @@ function LabelsSection() {
         title="Gmail labels"
         description="Oushi categorizes every email and adds a colored label in your Gmail sidebar — so your inbox stays organized even when you're not in Oushi."
       />
+
+      {/* Live status + manual sync — surfaces "are new emails actually
+          getting labeled in real time?" plus a one-click fix. */}
+      <LabelsLiveStatus />
 
       {/* Preview of the label set */}
       <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] p-4 mb-5">

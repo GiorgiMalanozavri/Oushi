@@ -226,10 +226,11 @@ export function PricingClient() {
                   months free once billing turns on, and we&apos;ll email you
                   before anything is charged. Cancel anytime, no questions.
                 </FaqRow>
-                <FaqRow q="Why $15? Fyxer and Superhuman are $30.">
-                  Because Oushi shouldn&apos;t feel like a luxury good. The
-                  goal is &ldquo;cheaper than dinner.&rdquo; If we can keep
-                  costs down we&apos;ll keep it there.
+                <FaqRow q="Why $15 a month?">
+                  Because Oushi shouldn&apos;t feel like a luxury good.
+                  Most AI inbox tools land in the $25-$30 range — the goal
+                  here is &ldquo;cheaper than dinner.&rdquo; If we can keep
+                  our costs down we&apos;ll keep it there.
                 </FaqRow>
                 <FaqRow q="What happens to my data if I cancel?">
                   Your data stays with you. Cancel Pro and you drop back to the

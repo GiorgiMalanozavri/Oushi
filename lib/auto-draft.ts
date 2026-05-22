@@ -1,10 +1,10 @@
 /**
  * Auto-draft replies.
  *
- * Fyxer's killer feature: when a high-priority email lands, write the
- * reply for the user in their voice and stage it in Gmail's drafts
- * folder. When the user opens the thread, the reply is already there —
- * one tap to send, or a quick edit if they want to tweak.
+ * When a high-priority email lands, write the reply for the user in
+ * their voice and stage it in Gmail's drafts folder. When the user
+ * opens the thread, the reply is already there — one tap to send, or
+ * a quick edit if they want to tweak.
  *
  * Pipeline:
  *   1. Ranking labels an email as "respond"

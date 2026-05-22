@@ -1,9 +1,9 @@
 /**
  * Subtle audio + haptic feedback for high-confidence success/dismiss moments.
  *
- * Goal: like Superhuman's tiny "tick" on archive or Linear's soft chime on
- * action completion — present but never loud. The point is the product
- * feels alive on success, not silent.
+ * Goal: a tiny "tick" on archive, a soft chime on action completion —
+ * present but never loud. The point is the product feels alive on
+ * success, not silent.
  *
  * - Sound uses the Web Audio API (no asset files; we synthesize a short
  *   sine + envelope) so there's no network cost and no permission prompt.

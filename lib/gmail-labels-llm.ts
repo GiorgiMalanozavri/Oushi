@@ -4,10 +4,10 @@
  * The heuristic in `lib/gmail-labels-shared.ts` handles clear cases —
  * calendar invites, transactional receipts, noise-category newsletters,
  * login alerts — but falls back to null on real correspondence and
- * ambiguous auto-updates. That's exactly where Fyxer-class accuracy
- * shows up: distinguishing "weekly Stripe digest" (marketing) from
- * "Stripe support reply" (communication), or "Meeting confirmed by Cal"
- * (meeting) from "Can we meet tomorrow?" (communication).
+ * ambiguous auto-updates. That's where the accuracy bar matters most:
+ * distinguishing "weekly Stripe digest" (marketing) from "Stripe support
+ * reply" (communication), or "Meeting confirmed by Cal" (meeting) from
+ * "Can we meet tomorrow?" (communication).
  *
  * This module batches the ambiguous ones to claude-haiku-4-5 and caches
  * the verdict on `emails.gmail_label_llm_key` so we never pay twice
