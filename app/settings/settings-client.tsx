@@ -3132,6 +3132,10 @@ interface NotionState {
   enabled: boolean;
   pages: Array<{ id: string; title: string }>;
   databases: Array<{ id: string; title: string }>;
+  /** True when the server has NOTION_CLIENT_ID + SECRET set — i.e. the
+   *  OAuth "Connect" button will actually work. When false, only the
+   *  paste-token path is available. */
+  oauth_available: boolean;
 }
 
 /**
@@ -3263,7 +3267,7 @@ function NotionIntegration() {
         toast.error("Couldn't disconnect");
         return;
       }
-      setState({
+      setState((prev) => ({
         connected: false,
         workspace_name: null,
         page_id: null,
@@ -3273,7 +3277,10 @@ function NotionIntegration() {
         enabled: false,
         pages: [],
         databases: [],
-      });
+        // Preserve whatever OAuth-availability we already learned from
+        // the server — disconnecting doesn't change server config.
+        oauth_available: prev?.oauth_available ?? false,
+      }));
       setConfirmDisconnect(false);
       toast.info("Notion disconnected");
     } catch (e) {
@@ -3324,20 +3331,10 @@ function NotionIntegration() {
             Loading…
           </div>
         ) : !connected ? (
-          <div className="mt-5">
-            <a
-              href="/api/integrations/notion/connect"
-              className="inline-flex items-center gap-2 rounded-md bg-[#2A2520] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#3F362C] transition-colors"
-            >
-              <Notebook className="w-3.5 h-3.5" />
-              Connect Notion
-            </a>
-            <p className="text-[11px] text-[#A89F92] mt-2 leading-relaxed">
-              Opens Notion&apos;s install screen. After connecting, you&apos;ll
-              share a specific page (for saved threads) and/or database
-              (for commitments) with the Oushi integration from Notion&apos;s UI.
-            </p>
-          </div>
+          <NotionConnectPanel
+            oauthAvailable={state?.oauth_available || false}
+            onConnected={refetch}
+          />
         ) : (
           <div className="mt-5 space-y-4">
             {/* Page picker — saved threads */}
@@ -3474,6 +3471,161 @@ function NotionIntegration() {
         )}
       </div>
     </Card>
+  );
+}
+
+/**
+ * Pre-connect panel — choose between OAuth ("Connect Notion") and
+ * pasting an internal-integration token. We default-show OAuth when
+ * it's configured server-side; the token path is one click away under
+ * a disclosure so it's discoverable without being noisy.
+ *
+ * When OAuth isn't configured (no NOTION_CLIENT_ID), we flip the order:
+ * paste-token is the primary CTA, with a hint about Public-integration
+ * mode being the future once the operator sets it up.
+ */
+function NotionConnectPanel({
+  oauthAvailable,
+  onConnected,
+}: {
+  oauthAvailable: boolean;
+  onConnected: () => Promise<void> | void;
+}) {
+  const [showTokenForm, setShowTokenForm] = useState(!oauthAvailable);
+  const [token, setToken] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const toast = useToast();
+
+  async function submitToken() {
+    if (!token.trim()) {
+      toast.error("Paste a token first");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/integrations/notion/manual-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data?.error || "Couldn't validate that token");
+        return;
+      }
+      toast.success("Notion connected", {
+        detail: data.workspace_name
+          ? `Workspace: ${data.workspace_name}`
+          : undefined,
+      });
+      setToken("");
+      await onConnected();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="mt-5 space-y-4">
+      {oauthAvailable && (
+        <div>
+          <a
+            href="/api/integrations/notion/connect"
+            className="inline-flex items-center gap-2 rounded-md bg-[#2A2520] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#3F362C] transition-colors"
+          >
+            <Notebook className="w-3.5 h-3.5" />
+            Connect Notion
+          </a>
+          <p className="text-[11px] text-[#A89F92] mt-2 leading-relaxed">
+            One-click OAuth — pick the pages you want to share when prompted.
+          </p>
+        </div>
+      )}
+
+      {oauthAvailable && !showTokenForm && (
+        <button
+          onClick={() => setShowTokenForm(true)}
+          className="text-[11.5px] text-[#A89F92] hover:text-[#3D6A95] transition-colors"
+        >
+          Or paste an internal integration token →
+        </button>
+      )}
+
+      {showTokenForm && (
+        <div
+          className={`rounded-lg border ${
+            oauthAvailable
+              ? "border-[#E6DCC4] bg-[#FAF6EB]/40"
+              : "border-[#5E8FBF]/30 bg-[#D0E1F0]/15"
+          } px-4 py-4`}
+        >
+          {!oauthAvailable && (
+            <p className="text-[10.5px] font-mono uppercase tracking-[0.14em] text-[#3D6A95] mb-2">
+              Recommended path
+            </p>
+          )}
+          <p className="text-[12.5px] font-medium text-[#2A2520] mb-1">
+            Paste an internal integration token
+          </p>
+          <p className="text-[11.5px] text-[#766E63] leading-relaxed mb-3">
+            Faster than OAuth, no Notion review needed. Three steps:
+          </p>
+          <ol className="text-[11.5px] text-[#766E63] leading-relaxed list-decimal pl-4 space-y-1 mb-4">
+            <li>
+              Open{" "}
+              <a
+                href="https://www.notion.so/profile/integrations"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#3D6A95] underline underline-offset-2"
+              >
+                notion.so/profile/integrations
+              </a>{" "}
+              → New integration → name it &ldquo;Oushi.&rdquo;
+            </li>
+            <li>
+              Capabilities: check <strong>Read</strong>, <strong>Update</strong>
+              , <strong>Insert</strong> content. Save.
+            </li>
+            <li>
+              Copy the &ldquo;Internal integration token&rdquo; and paste it
+              below. Then in Notion, open the page or database you want
+              Oushi to use → ••• → <strong>Connections</strong> →
+              add Oushi.
+            </li>
+          </ol>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="ntn_••• or secret_•••"
+              disabled={submitting}
+              className="flex-1 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-2 text-[13px] font-mono text-[#3F362C] placeholder:text-[#A89F92] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors"
+            />
+            <button
+              onClick={submitToken}
+              disabled={submitting || !token.trim()}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-[#5E8FBF] px-3.5 py-2 text-[12.5px] font-medium text-white hover:bg-[#4A7AAB] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            >
+              {submitting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Check className="w-3.5 h-3.5" />
+              )}
+              Save & verify
+            </button>
+          </div>
+          <p className="text-[10.5px] text-[#A89F92] mt-2 leading-relaxed">
+            Token stays in your Oushi account, encrypted on the server.
+            Revoke anytime from notion.so/profile/integrations.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 

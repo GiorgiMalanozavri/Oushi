@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { listSharedTargets } from "@/lib/notion";
+import { listSharedTargets, isNotionConfigured } from "@/lib/notion";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +56,9 @@ export async function GET() {
     enabled: !!data?.notion_enabled,
     pages,
     databases,
+    // Tells the UI which connection methods are available. OAuth needs
+    // server-side env vars; token-paste works regardless.
+    oauth_available: isNotionConfigured(),
   });
 }
 
