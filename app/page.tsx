@@ -21,7 +21,6 @@ import {
   MessageCircle,
   Mic,
   Globe,
-  Zap,
   FileText,
   Users,
   Watch,
@@ -227,7 +226,7 @@ export default function LandingPage() {
               The roadmap, basically.
             </h2>
             <p className="mt-5 text-[15px] leading-[1.55] text-[#766E63] max-w-lg mx-auto">
-              Where Oushi is headed. Some of this ships this year. The rest in the next 2-3.
+              Where Oushi is headed. Most of this ships this year.
             </p>
           </div>
 
@@ -261,12 +260,6 @@ export default function LandingPage() {
               icon={<Users className="w-4 h-4" />}
               title="Sends follow-ups for you"
               desc="Tell Oushi 'nudge them if no reply in 3 days.' It sends the follow-up in your voice. Stops the moment they reply."
-            />
-            <NextCard
-              eyebrow="2027–28"
-              icon={<Zap className="w-4 h-4" />}
-              title="One sentence, many actions"
-              desc="'Book the flight, add to calendar, expense to work, tell Maya I'll be in NYC that week.' Five things, one line."
             />
           </div>
         </section>

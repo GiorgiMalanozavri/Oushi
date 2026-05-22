@@ -30,10 +30,14 @@ import {
   Menu,
   Loader2,
   Palette,
+  Gem,
+  Lock,
+  Infinity as InfinityIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { OushiMark } from "@/components/oushi-mark";
 import { AmbientBackground } from "@/components/ambient-bg";
+import { UpgradeModal } from "@/components/upgrade-modal";
 import {
   TodayModeToggle,
   readStoredTodayMode,
@@ -88,7 +92,7 @@ interface SettingsClientProps {
   memories: Memory[];
 }
 
-type SettingsSection = "profile" | "appearance" | "voice" | "memory" | "briefing" | "notifications" | "labels" | "filters" | "account";
+type SettingsSection = "profile" | "appearance" | "voice" | "memory" | "briefing" | "notifications" | "labels" | "filters" | "plan" | "account";
 
 const KIND_LABELS: Record<MemoryKind, string> = {
   person: "People",
@@ -128,6 +132,7 @@ export function SettingsClient({
       "notifications",
       "labels",
       "filters",
+      "plan",
       "account",
     ];
     if ((valid as string[]).includes(requested)) {
@@ -354,6 +359,7 @@ export function SettingsClient({
     { key: "notifications", label: "Push notifications", icon: <BellRing className="w-3.5 h-3.5" />, description: "Nudges so you don't forget" },
     { key: "labels", label: "Gmail labels", icon: <Tag className="w-3.5 h-3.5" />, description: "Auto-organize your Gmail" },
     { key: "filters", label: "Filters", icon: <VolumeX className="w-3.5 h-3.5" />, description: "Muted senders & domains" },
+    { key: "plan", label: "Plan & usage", icon: <Gem className="w-3.5 h-3.5" />, description: "Free vs Pro, quota left today" },
     { key: "account", label: "Account & data", icon: <Mail className="w-3.5 h-3.5" />, description: "Gmail, exports, delete" },
   ];
 
@@ -530,6 +536,8 @@ export function SettingsClient({
           {section === "filters" && (
             <FiltersSection mutes={mutes} onRemove={handleRemoveMute} />
           )}
+
+          {section === "plan" && <PlanSection />}
 
           {section === "account" && (
             <AccountSection
@@ -859,17 +867,32 @@ function ProfileSection({
 function AutoDraftToggle() {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
+  const [tier, setTier] = useState<"free" | "pro" | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Two requests, one shot — billing state tells us tier, auto-draft
+      // state tells us whether the toggle is on. Both are cheap.
       try {
-        const res = await fetch("/api/auto-draft/state");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) setEnabled(!!data.enabled);
+        const [stateRes, billingRes] = await Promise.all([
+          fetch("/api/auto-draft/state"),
+          fetch("/api/billing/state"),
+        ]);
+        if (stateRes.ok) {
+          const data = await stateRes.json();
+          if (!cancelled) setEnabled(!!data.enabled);
+        } else if (!cancelled) setEnabled(false);
+        if (billingRes.ok) {
+          const data = await billingRes.json();
+          if (!cancelled) setTier(data.tier === "pro" ? "pro" : "free");
+        }
       } catch {
-        if (!cancelled) setEnabled(false);
+        if (!cancelled) {
+          setEnabled(false);
+          setTier("free");
+        }
       }
     })();
     return () => {
@@ -877,8 +900,16 @@ function AutoDraftToggle() {
     };
   }, []);
 
+  const isLocked = tier === "free";
+
   const toggle = async () => {
     if (enabled === null) return;
+    // Free users can't flip this — open the upgrade modal instead so the
+    // path forward is one click, not a hunt for the pricing page.
+    if (isLocked) {
+      setUpgradeOpen(true);
+      return;
+    }
     setSaving(true);
     const next = !enabled;
     try {
@@ -896,57 +927,402 @@ function AutoDraftToggle() {
   };
 
   return (
-    <Card>
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <p className="text-[13.5px] font-medium text-[#2A2520]">
-              Auto-draft replies in Gmail
-            </p>
-            <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
-              When a high-priority email arrives, Oushi writes a draft in
-              your voice and saves it to Gmail&apos;s drafts folder — so
-              the reply is already waiting when you open the thread. Like
-              Fyxer.
-            </p>
-            <p className="text-[11px] text-[#A89F92] mt-2 leading-relaxed">
-              Only fires on emails scored &ge; 60 that look like real
-              personal correspondence. Capped at 5 drafts per sync to
-              keep costs bounded.
-            </p>
-          </div>
-          <button
-            onClick={toggle}
-            disabled={saving || enabled === null}
-            role="switch"
-            aria-checked={enabled === true}
-            className={`relative shrink-0 inline-flex items-center w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${
-              enabled
-                ? "bg-gradient-to-br from-[#B86B4A] to-[#A65B3F]"
-                : "bg-[#E6DCC4] dark:bg-[#3A3127]"
-            }`}
-            style={
-              enabled
-                ? {
-                    boxShadow:
-                      "0 2px 8px -2px rgba(184,107,74,0.30), 0 1px 0 rgba(255,255,255,0.15) inset",
-                  }
-                : {}
-            }
-          >
-            <span
-              className={`absolute top-0.5 inline-block w-5 h-5 bg-white rounded-full transition-transform ${
-                enabled ? "translate-x-[22px]" : "translate-x-0.5"
+    <>
+      <Card>
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-[13.5px] font-medium text-[#2A2520]">
+                  Auto-draft replies in Gmail
+                </p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#D0E1F0]/60 border border-[#5E8FBF]/25 px-1.5 py-0.5 text-[9.5px] font-mono uppercase tracking-[0.14em] text-[#3D6A95]">
+                  <Sparkles className="w-2.5 h-2.5" />
+                  Pro
+                </span>
+              </div>
+              <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
+                When a high-priority email arrives, Oushi writes a draft in
+                your voice and saves it to Gmail&apos;s drafts folder — so
+                the reply is already waiting when you open the thread. Like
+                Fyxer.
+              </p>
+              <p className="text-[11px] text-[#A89F92] mt-2 leading-relaxed">
+                Only fires on emails scored &ge; 60 that look like real
+                personal correspondence. Capped at 5 drafts per sync to
+                keep costs bounded.
+              </p>
+              {isLocked && (
+                <button
+                  onClick={() => setUpgradeOpen(true)}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-[#5E8FBF]/30 bg-[#D0E1F0]/30 px-2.5 py-1 text-[11.5px] font-medium text-[#3D6A95] hover:bg-[#D0E1F0]/50 hover:border-[#5E8FBF]/50 transition-colors"
+                >
+                  <Lock className="w-3 h-3" />
+                  Upgrade to unlock
+                </button>
+              )}
+            </div>
+            <button
+              onClick={toggle}
+              disabled={saving || enabled === null}
+              role="switch"
+              aria-checked={enabled === true && !isLocked}
+              aria-label={
+                isLocked
+                  ? "Auto-draft is Pro-only — click to upgrade"
+                  : "Toggle auto-draft"
+              }
+              className={`relative shrink-0 inline-flex items-center w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${
+                isLocked
+                  ? "bg-[#E6DCC4] dark:bg-[#3A3127] cursor-pointer"
+                  : enabled
+                  ? "bg-gradient-to-br from-[#B86B4A] to-[#A65B3F]"
+                  : "bg-[#E6DCC4] dark:bg-[#3A3127]"
               }`}
-              style={{
-                boxShadow: "0 1px 2px rgba(0,0,0,0.20)",
-              }}
-            />
-          </button>
+              style={
+                !isLocked && enabled
+                  ? {
+                      boxShadow:
+                        "0 2px 8px -2px rgba(184,107,74,0.30), 0 1px 0 rgba(255,255,255,0.15) inset",
+                    }
+                  : {}
+              }
+            >
+              <span
+                className={`absolute top-0.5 inline-flex items-center justify-center w-5 h-5 bg-white rounded-full transition-transform ${
+                  !isLocked && enabled ? "translate-x-[22px]" : "translate-x-0.5"
+                }`}
+                style={{
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.20)",
+                }}
+              >
+                {isLocked && (
+                  <Lock className="w-2.5 h-2.5 text-[#A89F92]" strokeWidth={2.5} />
+                )}
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        source="settings-auto-draft"
+        headline="Auto-draft is the Pro flagship"
+        subhead="Turn it on and Oushi writes your replies before you open the thread. Pre-Stripe, so we flip Pro on manually — usually within a few hours."
+      />
+    </>
   );
+}
+
+// ===== PLAN SECTION =====
+
+interface BillingState {
+  tier: "free" | "pro";
+  features: Record<string, boolean>;
+  limits: {
+    ask_messages_per_day: number;
+    boards_max: number;
+    sender_rules_max: number;
+  };
+  ask_quota: {
+    allowed: boolean;
+    used: number;
+    /** -1 means unlimited (Pro). */
+    limit: number;
+    tier: "free" | "pro";
+    resets_at: string | null;
+  };
+}
+
+function PlanSection() {
+  const [billing, setBilling] = useState<BillingState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/billing/state");
+        if (!res.ok) {
+          if (!cancelled) setLoading(false);
+          return;
+        }
+        const data = (await res.json()) as BillingState;
+        if (!cancelled) {
+          setBilling(data);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const isPro = billing?.tier === "pro";
+  const askUsed = billing?.ask_quota.used ?? 0;
+  const askLimit = billing?.ask_quota.limit ?? 20;
+  const askUnlimited = askLimit === -1;
+  const askPct = askUnlimited
+    ? 100
+    : askLimit > 0
+    ? Math.min(100, Math.round((askUsed / askLimit) * 100))
+    : 0;
+  const askResetsAt = billing?.ask_quota.resets_at
+    ? new Date(billing.ask_quota.resets_at)
+    : null;
+
+  return (
+    <div>
+      <SectionHeader
+        title="Plan & usage"
+        description="What you're on and what's left in today's quota."
+      />
+
+      {loading ? (
+        <Card>
+          <div className="p-6 flex items-center justify-center text-[12px] text-[#A89F92] gap-2">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Loading…
+          </div>
+        </Card>
+      ) : (
+        <div className="space-y-5">
+          {/* Current plan + price */}
+          <Card>
+            <div
+              className={`p-6 ${
+                isPro
+                  ? "bg-gradient-to-br from-[#D0E1F0]/40 to-[#FFFCF3]"
+                  : ""
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#A89F92] mb-2">
+                    Current plan
+                  </p>
+                  <div className="flex items-center gap-2.5">
+                    <h3
+                      className="text-[24px] tracking-[-0.012em] text-[#2A2520]"
+                      style={{
+                        fontFamily:
+                          "var(--font-source-serif), Georgia, serif",
+                      }}
+                    >
+                      {isPro ? "Pro" : "Free"}
+                    </h3>
+                    {isPro && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#5E8FBF]/15 border border-[#5E8FBF]/30 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.14em] text-[#3D6A95]">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-[13px] text-[#766E63] leading-relaxed max-w-[420px]">
+                    {isPro
+                      ? "You're on Pro — every feature unlocked, no daily caps. Thanks for backing the beta."
+                      : "Honest free tier: most features, with a 20-message Ask Oushi cap and no auto-draft. Pro turns everything on."}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="flex items-baseline gap-1 justify-end">
+                    <span
+                      className="text-[28px] tracking-tight text-[#2A2520]"
+                      style={{
+                        fontFamily:
+                          "var(--font-source-serif), Georgia, serif",
+                      }}
+                    >
+                      {isPro ? "$15" : "$0"}
+                    </span>
+                    <span className="text-[11px] text-[#A89F92]">
+                      {isPro ? "/ mo" : ""}
+                    </span>
+                  </div>
+                  <p className="text-[10.5px] text-[#A89F92] mt-0.5">
+                    {isPro ? "Free during beta" : "forever"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 pt-5 border-t border-[#E6DCC4]/70 flex flex-wrap items-center gap-3">
+                {isPro ? (
+                  <>
+                    <span className="inline-flex items-center gap-1.5 text-[12px] text-[#6B8E68]">
+                      <Check className="w-3 h-3" strokeWidth={3} />
+                      Auto-drafts, unlimited Ask, all features
+                    </span>
+                    <a
+                      href="mailto:hello@oushi.app?subject=Pro%20question"
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors"
+                    >
+                      <Mail className="w-3 h-3" />
+                      Manage / cancel
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/pricing"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors"
+                    >
+                      Compare plans
+                    </Link>
+                    <button
+                      onClick={() => setUpgradeOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-[#5E8FBF] px-3.5 py-1.5 text-[12px] font-medium text-white shadow-sm hover:bg-[#4A7AAB] hover:shadow-md transition-all"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Request Pro
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* Ask Oushi usage */}
+          <Card>
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-[13.5px] font-medium text-[#2A2520]">
+                    Ask Oushi · today
+                  </p>
+                  <p className="text-[11.5px] text-[#766E63] mt-0.5">
+                    Plain-English questions about your inbox.
+                  </p>
+                </div>
+                <div className="text-right">
+                  {askUnlimited ? (
+                    <div className="inline-flex items-baseline gap-1">
+                      <InfinityIcon
+                        className="w-4 h-4 text-[#3D6A95]"
+                        strokeWidth={2.5}
+                      />
+                      <span className="text-[12px] font-mono text-[#3D6A95]">
+                        unlimited
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-[14px] font-mono text-[#2A2520]">
+                      <span className="font-semibold">{askUsed}</span>
+                      <span className="text-[#A89F92]"> / {askLimit}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {!askUnlimited && (
+                <>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#F0E9D6]">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        askPct >= 90
+                          ? "bg-[#B86B4A]"
+                          : askPct >= 70
+                          ? "bg-[#C99A50]"
+                          : "bg-[#5E8FBF]"
+                      }`}
+                      style={{ width: `${askPct}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[11px] text-[#A89F92] flex items-center justify-between gap-2">
+                    <span>
+                      {askLimit - askUsed > 0
+                        ? `${askLimit - askUsed} left today`
+                        : "Out of messages until reset"}
+                    </span>
+                    {askResetsAt && (
+                      <span>Resets {formatRelativeReset(askResetsAt)}</span>
+                    )}
+                  </p>
+                </>
+              )}
+            </div>
+          </Card>
+
+          {/* Other caps — boards, sender rules */}
+          {!isPro && billing && (
+            <Card>
+              <div className="p-5">
+                <p className="text-[13.5px] font-medium text-[#2A2520] mb-3">
+                  Other free-tier caps
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <CapTile
+                    label="Topic boards"
+                    cap={billing.limits.boards_max}
+                  />
+                  <CapTile
+                    label="Sender rules"
+                    cap={billing.limits.sender_rules_max}
+                  />
+                </div>
+                <p className="mt-3 text-[11px] text-[#A89F92] leading-relaxed">
+                  Pro removes every cap. We&apos;ll never silently downgrade
+                  you mid-week.
+                </p>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        source="settings-plan"
+      />
+    </div>
+  );
+}
+
+function CapTile({ label, cap }: { label: string; cap: number }) {
+  const unlimited = cap === -1 || cap === Number.POSITIVE_INFINITY;
+  return (
+    <div className="rounded-lg border border-[#E6DCC4] bg-[#FAF6EB]/40 px-3.5 py-3">
+      <p className="text-[11px] text-[#766E63] leading-tight">{label}</p>
+      <div className="mt-1.5 flex items-baseline gap-1">
+        {unlimited ? (
+          <>
+            <InfinityIcon className="w-4 h-4 text-[#3D6A95]" strokeWidth={2.5} />
+            <span className="text-[12px] font-mono text-[#3D6A95]">
+              unlimited
+            </span>
+          </>
+        ) : (
+          <>
+            <span
+              className="text-[18px] text-[#2A2520]"
+              style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
+            >
+              {cap}
+            </span>
+            <span className="text-[11px] text-[#A89F92]">max</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Render "in 4h 12m" / "tomorrow morning" for the quota reset hint. Kept
+// inline because it's only used in one place.
+function formatRelativeReset(resetAt: Date): string {
+  const now = Date.now();
+  const diffMs = resetAt.getTime() - now;
+  if (diffMs <= 0) return "now";
+  const hours = Math.floor(diffMs / (60 * 60 * 1000));
+  const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000));
+  if (hours >= 12) return "tomorrow";
+  if (hours >= 1) return `in ${hours}h ${minutes}m`;
+  return `in ${minutes}m`;
 }
 
 // ===== APPEARANCE SECTION =====

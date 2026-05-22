@@ -14,11 +14,13 @@ import {
   Image as ImageIcon,
   X,
   AlertCircle,
+  Infinity as InfinityIcon,
 } from "lucide-react";
 import { CardStack } from "@/components/oushi-cards/card-renderer";
 import type { OushiCard } from "@/components/oushi-cards/types";
 import type { CardActionContext } from "@/components/oushi-cards/card-actions";
 import { LoadingDots } from "@/components/feedback";
+import { UpgradeModal } from "@/components/upgrade-modal";
 
 export interface AttachmentPreview {
   filename: string;
@@ -62,6 +64,13 @@ export interface RecentThread {
   message_count: number;
 }
 
+interface AskQuota {
+  tier: "free" | "pro";
+  used: number;
+  /** -1 means unlimited (Pro). Otherwise the daily cap. */
+  limit: number;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -95,10 +104,43 @@ export function AskSpotlight({
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const [pendingFiles, setPendingFiles] = useState<AttachmentPreview[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [quota, setQuota] = useState<AskQuota | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const hasMessages = messages.length > 0;
   // Derived directly from message presence — when the user sends a question,
   // the input moves to a slim bar at the bottom and the conversation fills the body.
   const showInputAtBottom = hasMessages;
+
+  // Pull the user's tier + today's Ask Oushi usage so we can show
+  // "13 / 20 today" in the input bar. Refetch on two transitions:
+  //   1. open flips false → true (spotlight just opened)
+  //   2. loading flips true → false while open (assistant just finished —
+  //      the /api/ask handler bumped the counter on the server)
+  // Other re-runs (e.g., user just sent and loading went false→true) are
+  // also fine to refetch on; the counter just hasn't moved yet.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/billing/state");
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setQuota({
+          tier: data.tier === "pro" ? "pro" : "free",
+          used: data.ask_quota?.used ?? 0,
+          limit: data.ask_quota?.limit ?? 20,
+        });
+      } catch {
+        // Best-effort — if billing state is unreachable we just hide
+        // the pill rather than show a broken counter.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, loading]);
 
   useEffect(() => {
     if (open) {
@@ -214,6 +256,8 @@ export function AskSpotlight({
                     onEscape={onClose}
                     onAddFiles={addFiles}
                     variant="top"
+                    quota={quota}
+                    onUpgrade={() => setUpgradeOpen(true)}
                   />
                 </>
               )}
@@ -247,7 +291,7 @@ export function AskSpotlight({
               {/* Bottom input bar (active chat) */}
               {showInputAtBottom && (
                 <div className="border-t border-[#E6DCC4]/60 bg-[#FFFCF3]/80 backdrop-blur-md">
-                  <div className="flex items-center justify-between px-3 pt-2">
+                  <div className="flex items-center justify-between gap-2 px-3 pt-2">
                     <button
                       onClick={onClear}
                       className="inline-flex items-center gap-1.5 text-[10.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1 rounded transition-colors"
@@ -255,7 +299,10 @@ export function AskSpotlight({
                       <RotateCcw className="w-2.5 h-2.5" />
                       New chat
                     </button>
-                    <p className="text-[10.5px] text-[#A89F92]">Enter to send · Esc to close</p>
+                    <div className="flex items-center gap-2.5">
+                      <QuotaPill quota={quota} onUpgrade={() => setUpgradeOpen(true)} />
+                      <p className="text-[10.5px] text-[#A89F92]">Enter to send · Esc to close</p>
+                    </div>
                   </div>
                   <AttachmentPills files={pendingFiles} onRemove={removeFile} error={fileError} variant="bottom" />
                   <SpotlightInput
@@ -267,11 +314,20 @@ export function AskSpotlight({
                     onEscape={onClose}
                     onAddFiles={addFiles}
                     variant="bottom"
+                    quota={null}
+                    onUpgrade={() => setUpgradeOpen(true)}
                   />
                 </div>
               )}
             </div>
           </motion.div>
+          <UpgradeModal
+            open={upgradeOpen}
+            onClose={() => setUpgradeOpen(false)}
+            source="ask-quota"
+            headline="Ran out of Ask Oushi for today?"
+            subhead="Pro removes the daily cap entirely — ask as much as you want. We flip Pro on manually during beta, usually within a few hours."
+          />
         </>
       )}
     </AnimatePresence>
@@ -287,6 +343,8 @@ function SpotlightInput({
   onEscape,
   onAddFiles,
   variant,
+  quota,
+  onUpgrade,
 }: {
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
   input: string;
@@ -296,6 +354,8 @@ function SpotlightInput({
   onEscape: () => void;
   onAddFiles: (files: FileList | null) => void;
   variant: "top" | "bottom";
+  quota: AskQuota | null;
+  onUpgrade: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   return (
@@ -346,9 +406,12 @@ function SpotlightInput({
       </button>
 
       {variant === "top" ? (
-        <kbd className="text-[10.5px] font-mono text-[#A89F92] bg-[#FAF6EB] rounded px-1.5 py-0.5 border border-[#E6DCC4]">
-          esc
-        </kbd>
+        <div className="flex items-center gap-2 shrink-0">
+          <QuotaPill quota={quota} onUpgrade={onUpgrade} />
+          <kbd className="text-[10.5px] font-mono text-[#A89F92] bg-[#FAF6EB] rounded px-1.5 py-0.5 border border-[#E6DCC4]">
+            esc
+          </kbd>
+        </div>
       ) : (
         <button
           onClick={onSubmit}
@@ -359,6 +422,59 @@ function SpotlightInput({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * Tiny tier-aware pill that shows "13 / 20 today" for free users, an
+ * infinity glyph for Pro. Clicking when free opens the upgrade modal —
+ * this is the single most visible paywall surface in the product, so the
+ * affordance has to be obvious without being annoying.
+ *
+ * Hidden entirely if billing state hasn't loaded yet (avoids a flash of
+ * "0 / 20" that gives the wrong impression on first open).
+ */
+function QuotaPill({
+  quota,
+  onUpgrade,
+}: {
+  quota: AskQuota | null;
+  onUpgrade: () => void;
+}) {
+  if (!quota) return null;
+  if (quota.tier === "pro" || quota.limit === -1) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-[#D0E1F0]/40 border border-[#5E8FBF]/20 px-2 py-0.5 text-[10.5px] font-mono text-[#3D6A95]"
+        title="You're on Pro — no daily cap."
+      >
+        <InfinityIcon className="w-3 h-3" strokeWidth={2.5} />
+        <span>unlimited</span>
+      </span>
+    );
+  }
+  const remaining = Math.max(0, quota.limit - quota.used);
+  const isLow = remaining <= 3;
+  const isOut = remaining === 0;
+  const colorClasses = isOut
+    ? "bg-[#F5E8E0] border-[#B86B4A]/30 text-[#B86B4A] hover:bg-[#F0DCD0]"
+    : isLow
+    ? "bg-[#FAF1DC] border-[#C99A50]/30 text-[#8E6A2A] hover:bg-[#F0E5C0]"
+    : "bg-[#FAF6EB] border-[#E6DCC4] text-[#766E63] hover:bg-[#F0E9D6] hover:text-[#3D6A95]";
+  return (
+    <button
+      onClick={onUpgrade}
+      title={
+        isOut
+          ? "Out of messages today — upgrade for unlimited"
+          : `Free tier · ${remaining} Ask Oushi messages left today`
+      }
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10.5px] font-mono transition-colors ${colorClasses}`}
+    >
+      <span className="font-semibold tabular-nums">{quota.used}</span>
+      <span className="opacity-70">/ {quota.limit}</span>
+      <span className="hidden sm:inline">today</span>
+    </button>
   );
 }
 
