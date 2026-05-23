@@ -368,8 +368,6 @@ function HowCard({
   );
 }
 
-// ============= NEXT CARD (coming soon) =============
-
 // ============= VALUE CARD =============
 
 function ValueCard({

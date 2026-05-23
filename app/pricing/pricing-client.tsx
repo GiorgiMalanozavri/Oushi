@@ -55,12 +55,6 @@ export function PricingClient() {
                 How it works
               </Link>
               <Link
-                href="/#next"
-                className="text-[13px] font-medium text-[#766E63] hover:text-[#2A2520] transition-colors"
-              >
-                What&apos;s next
-              </Link>
-              <Link
                 href="/pricing"
                 className="text-[13px] font-medium text-[#2A2520] transition-colors"
               >

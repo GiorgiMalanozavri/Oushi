@@ -80,6 +80,11 @@ export async function GET(request: Request) {
         expires_at: tokens.expiry_date
           ? new Date(tokens.expiry_date).toISOString()
           : null,
+        // Clear any prior invalidation — a fresh refresh token means
+        // the user just re-authorized, so whatever was wrong before
+        // is fixed now.
+        invalidated_at: null,
+        invalidation_reason: null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id" }

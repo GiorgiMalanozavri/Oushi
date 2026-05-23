@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { syncIncremental } from "@/lib/gmail";
+import {
+  syncIncremental,
+  isGmailAuthError,
+  markGmailTokenInvalid,
+} from "@/lib/gmail";
 import { rankUnrankedEmails } from "@/lib/ranking";
 import { syncCalendarForUser } from "@/lib/calendar";
 
@@ -66,6 +70,15 @@ export async function GET(request: Request) {
 
       results.push({ user_id, synced, ranked, cal_events, cal_matched });
     } catch (e) {
+      // If the failure is an auth error, flag the token so the
+      // dashboard can show a Reconnect banner. We continue iterating
+      // — one bad user shouldn't stop the cron for everyone.
+      if (isGmailAuthError(e)) {
+        await markGmailTokenInvalid(
+          user_id,
+          e instanceof Error ? e.message : "sync failed"
+        );
+      }
       results.push({
         user_id,
         synced: 0,

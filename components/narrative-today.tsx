@@ -736,7 +736,7 @@ function NarrativeCard({
       onMouseLeave={() => setHover(false)}
       whileHover={{ y: -2 }}
       transition={{ type: "spring", stiffness: 380, damping: 28 }}
-      className="rounded-3xl bg-[#FFFCF3] dark:bg-[#25201A] borderborder-[#E6DCC4]/80 dark:border-[#3A3127]/80 overflow-hidden cursor-pointer"
+      className="rounded-3xl bg-[#FFFCF3] dark:bg-[#25201A] border border-[#E6DCC4]/80 dark:border-[#3A3127]/80 overflow-hidden cursor-pointer"
       style={{
         boxShadow: hover
           ? "0 1px 0 rgba(255,255,255,0.7) inset, 0 12px 36px -10px rgba(106,76,38,0.16), 0 2px 8px -2px rgba(106,76,38,0.06)"
@@ -801,9 +801,12 @@ function NarrativeCard({
           </p>
         )}
 
-        {/* Inline action row */}
+        {/* Inline action row. Wraps on small viewports so the four
+            buttons don't push horizontal scroll on phones. The "Open"
+            button uses ml-auto to stay anchored right when there's
+            room, but happily flows into the wrap when there isn't. */}
         {item.email_id && (
-          <div className="mt-5 flex items-center gap-1.5 -mb-1">
+          <div className="mt-5 flex flex-wrap items-center gap-1.5 -mb-1">
             {/* "Reply with Oushi" only appears when the email is actually
                 replyable. Automated senders (auto-forwarders, shift
                 reminders, calendar bots, etc.) and grouped batches get
@@ -811,7 +814,8 @@ function NarrativeCard({
             {!item.is_automated && !(item.group_count && item.group_count > 1) && (
               <ActionPill
                 icon={<Sparkles className="w-3 h-3" />}
-                label="Reply with Oushi"
+                label="Reply"
+                fullLabel="Reply with Oushi"
                 tone="primary"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -866,11 +870,15 @@ function NarrativeCard({
 function ActionPill({
   icon,
   label,
+  fullLabel,
   tone = "default",
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
+  /** Optional longer label shown on sm:+ screens. Mobile uses the
+   *  shorter `label` to keep the action row from overflowing. */
+  fullLabel?: string;
   tone?: "default" | "primary" | "ghost";
   onClick: (e: React.MouseEvent) => void;
 }) {
@@ -889,7 +897,14 @@ function ActionPill({
       className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-[12px] font-medium transition-colors ${styles}`}
     >
       {icon}
-      <span>{label}</span>
+      {fullLabel ? (
+        <>
+          <span className="sm:hidden">{label}</span>
+          <span className="hidden sm:inline">{fullLabel}</span>
+        </>
+      ) : (
+        <span>{label}</span>
+      )}
     </motion.button>
   );
 }

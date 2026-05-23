@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { syncIncremental } from "@/lib/gmail";
+import {
+  syncIncremental,
+  isGmailAuthError,
+  markGmailTokenInvalid,
+} from "@/lib/gmail";
 import { rankUnrankedEmails } from "@/lib/ranking";
 
 export const maxDuration = 120;
@@ -59,6 +63,19 @@ export async function POST() {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Sync failed";
+    if (isGmailAuthError(error)) {
+      // User-initiated sync hit a token error — flag it so the
+      // dashboard banner shows up next render, and tell the caller
+      // exactly why so the UI can give a "Reconnect Gmail" hint.
+      await markGmailTokenInvalid(user.id, message);
+      return NextResponse.json(
+        {
+          error: "Gmail access expired",
+          reconnect_required: true,
+        },
+        { status: 401 }
+      );
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

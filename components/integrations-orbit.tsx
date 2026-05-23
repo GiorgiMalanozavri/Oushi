@@ -231,10 +231,15 @@ export function IntegrationsOrbit() {
       // translateY transforms because they resolve against the element's
       // own size (the chip, ~60px), not the parent container.
       style={{
-        width: "clamp(360px, 88vw, 640px)",
+        // Container scales 320px (iPhone SE) → 640px (desktop). Radii are
+        // chosen so the chip's outer edge (radius + chip-half) never
+        // exceeds half the container width — otherwise chips overflow
+        // horizontally on phones. Outer chip is 52px (half = 26),
+        // inner chip is 60px (half = 30).
+        width: "clamp(320px, 92vw, 640px)",
         aspectRatio: "1 / 1",
-        ["--inner-radius" as string]: "clamp(95px, 23vw, 165px)",
-        ["--outer-radius" as string]: "clamp(155px, 38vw, 275px)",
+        ["--inner-radius" as string]: "clamp(80px, 22vw, 165px)",
+        ["--outer-radius" as string]: "clamp(128px, 36vw, 275px)",
       }}
     >
       {/* Soft halo behind the center — gives the rings something visual to

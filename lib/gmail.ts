@@ -18,6 +18,80 @@ export function getOAuth2Client() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Connection health
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Marks a user's Gmail connection as invalid. Called from sync paths
+ * when the Gmail API returns a 401/invalid_grant — the refresh token
+ * is gone (user revoked, expired, etc) and every subsequent call will
+ * fail. The dashboard reads this column to show a Reconnect banner.
+ */
+export async function markGmailTokenInvalid(
+  userId: string,
+  reason: string
+): Promise<void> {
+  try {
+    const service = await createServiceClient();
+    await service
+      .from("user_tokens")
+      .update({
+        invalidated_at: new Date().toISOString(),
+        invalidation_reason: reason.slice(0, 200),
+      })
+      .eq("user_id", userId);
+  } catch (e) {
+    // Don't let logging-the-error itself crash a code path.
+    console.error(
+      "[gmail] markGmailTokenInvalid failed",
+      e instanceof Error ? e.message : e
+    );
+  }
+}
+
+/**
+ * Clears the invalidation flag after a successful re-auth. Called by
+ * /api/gmail/callback when a fresh token gets written.
+ */
+export async function clearGmailTokenInvalid(userId: string): Promise<void> {
+  try {
+    const service = await createServiceClient();
+    await service
+      .from("user_tokens")
+      .update({
+        invalidated_at: null,
+        invalidation_reason: null,
+      })
+      .eq("user_id", userId);
+  } catch (e) {
+    console.error(
+      "[gmail] clearGmailTokenInvalid failed",
+      e instanceof Error ? e.message : e
+    );
+  }
+}
+
+/**
+ * Heuristic for whether an error from a Gmail API call is the "the
+ * user's refresh token is bad, full stop" kind vs a transient network
+ * blip. Matches both google-auth-library `invalid_grant` and the
+ * generic 401 status. Anything else, we don't flip the invalidation
+ * flag — better to retry than to falsely lock a user out.
+ */
+export function isGmailAuthError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = err instanceof Error ? err.message : String(err);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const code = (err as any)?.code ?? (err as any)?.status ?? null;
+  if (code === 401) return true;
+  return (
+    msg.includes("invalid_grant") ||
+    msg.includes("Invalid Credentials") ||
+    msg.includes("Token has been expired or revoked")
+  );
+}
+
 export async function getAuthenticatedClient(userId: string) {
   const supabase = await createServiceClient();
   const { data: tokens } = await supabase

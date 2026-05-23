@@ -64,6 +64,7 @@ import {
 } from "@/lib/feedback-fx";
 import { TodayOushi } from "@/components/today-oushi";
 import { NarrativeToday } from "@/components/narrative-today";
+import { ConnectionBanner } from "@/components/connection-banner";
 import {
   readStoredTodayMode,
   writeStoredTodayMode,
@@ -1273,10 +1274,15 @@ export function DashboardClient({
 
       {/* Main */}
       <main className="flex-1 h-full overflow-y-auto relative z-10">
+        {/* Connection health banner — only appears when Gmail token is
+            invalidated. The component fetches its own state and
+            renders null otherwise, so there's no flash for healthy
+            users. */}
+        <ConnectionBanner />
         {!sidebarOpen && (
           <button
             onClick={() => setSidebarOpen(true)}
-            className="fixed top-3 left-3 z-30 rounded-md p-2 bg-[#FFFCF3] dark:bg-[#25201A]border border-[#E6DCC4] dark:border-[#3A3127] text-[#766E63] dark:text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] shadow-sm"
+            className="fixed top-3 left-3 z-30 rounded-md p-2 bg-[#FFFCF3] dark:bg-[#25201A] border border-[#E6DCC4] dark:border-[#3A3127] text-[#766E63] dark:text-[#A89F92] hover:text-[#2A2520] dark:hover:text-[#FBF4DF] shadow-sm"
             title="Open menu"
           >
             <PanelLeft className="w-4 h-4" />
@@ -1293,7 +1299,7 @@ export function DashboardClient({
             >
               <Sparkles className="w-3.5 h-3.5 text-[#5E8FBF]" />
               <span className="text-[13px] font-medium">Ask Oushi anything</span>
-              <kbd className="text-[10px] font-mono text-[#A89F92] bg-[#FAF6EB] rounded px-1.5 py-0.5 border border-[#E6DCC4] dark:border-[#3A3127]group-hover:border-[#5E8FBF]/30">⌘K</kbd>
+              <kbd className="text-[10px] font-mono text-[#A89F92] bg-[#FAF6EB] dark:bg-[#2A2520] rounded px-1.5 py-0.5 border border-[#E6DCC4] dark:border-[#3A3127] group-hover:border-[#5E8FBF]/30">⌘K</kbd>
             </button>
             <button
               onClick={() => setKbdHelpOpen(true)}

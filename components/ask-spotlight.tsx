@@ -181,7 +181,7 @@ export function AskSpotlight({
 
     for (const f of incoming) {
       if (!ALLOWED_MIME_TYPES.includes(f.type)) {
-        setFileError(`"${f.name}" — only PDFs and images supported.`);
+        setFileError(`"${f.name}" — only PDF, JPEG, PNG, or WebP supported.`);
         continue;
       }
       if (f.size > MAX_FILE_BYTES_CLIENT) {

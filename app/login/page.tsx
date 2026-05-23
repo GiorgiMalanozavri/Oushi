@@ -31,7 +31,14 @@ export default function LoginPage() {
       },
     });
     if (error) {
+      // Surface the failure to the user — previously we just logged
+      // to console, so the button would un-spin with no explanation
+      // and the visitor would assume the product was broken.
       console.error("[login] OAuth init failed:", error.message);
+      setError(
+        error.message ||
+          "Couldn't start the sign-in flow. Try again, or email hello@oushi.app if it keeps happening."
+      );
       setLoading(false);
     }
   };
