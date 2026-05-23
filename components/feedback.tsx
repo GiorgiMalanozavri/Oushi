@@ -54,7 +54,7 @@ export function SkeletonRow({
 }) {
   return (
     <div
-      className={`rounded-xl bg-[#FAF6EB] animate-pulse ${className}`}
+      className={`rounded-xl bg-[#FAF6EB] dark:bg-[#2A2520] animate-pulse ${className}`}
       style={{ height }}
     />
   );
@@ -70,12 +70,12 @@ export function SkeletonList({ count = 3 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="rounded-xl border border-[#E6DCC4]/60 bg-[#FFFCF3] px-4 py-3.5 flex items-start gap-3"
+          className="rounded-xl border border-[#E6DCC4]/60 dark:border-[#3A3127]/60 bg-[#FFFCF3] dark:bg-[#25201A] px-4 py-3.5 flex items-start gap-3"
           style={{ animationDelay: `${i * 80}ms` }}
         >
-          <div className="w-9 h-9 rounded-xl bg-[#FAF6EB] animate-pulse shrink-0" />
+          <div className="w-9 h-9 rounded-xl bg-[#FAF6EB] dark:bg-[#2A2520] animate-pulse shrink-0" />
           <div className="flex-1 min-w-0 space-y-1.5">
-            <div className="h-3 bg-[#FAF6EB] rounded animate-pulse" style={{ width: `${65 + i * 8}%` }} />
+            <div className="h-3 bg-[#FAF6EB] dark:bg-[#2A2520] rounded animate-pulse" style={{ width: `${65 + i * 8}%` }} />
             <div className="h-2.5 bg-[#FAF6EB]/70 rounded animate-pulse" style={{ width: `${40 + i * 5}%` }} />
           </div>
         </div>
@@ -96,7 +96,7 @@ export function InlineStatus({
   className?: string;
 }) {
   return (
-    <div className={`inline-flex items-center gap-2 text-[12.5px] text-[#766E63] ${className}`}>
+    <div className={`inline-flex items-center gap-2 text-[12.5px] text-[#766E63] dark:text-[#A89F92] ${className}`}>
       <LoadingDots size="md" />
       <span>{label}</span>
     </div>
@@ -174,7 +174,7 @@ export function EmptyState({
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="rounded-2xl border border-dashed border-[#E6DCC4] bg-[#FFFCF3]/40 px-6 py-10 text-center"
+      className="rounded-2xl border border-dashed border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3]/40 dark:bg-[#25201A]/40 px-6 py-10 text-center"
     >
       <div
         className="inline-flex w-12 h-12 rounded-2xl items-center justify-center mb-3"
@@ -182,9 +182,9 @@ export function EmptyState({
       >
         <Icon className="w-5 h-5" style={{ color: tints.fg }} />
       </div>
-      <p className="text-[14.5px] font-semibold text-[#2A2520] mb-1">{title}</p>
+      <p className="text-[14.5px] font-semibold text-[#2A2520] dark:text-[#FBF4DF] mb-1">{title}</p>
       {body && (
-        <p className="text-[12.5px] text-[#766E63] max-w-sm mx-auto leading-relaxed">
+        <p className="text-[12.5px] text-[#766E63] dark:text-[#A89F92] max-w-sm mx-auto leading-relaxed">
           {body}
         </p>
       )}

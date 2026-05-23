@@ -242,7 +242,7 @@ export function AskSpotlight({
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             className="fixed left-1/2 top-[10vh] z-[61] -translate-x-1/2 w-[640px] max-w-[calc(100vw-24px)]"
           >
-            <div className="rounded-2xl bg-[#FFFCF3]/95 backdrop-blur-xl border border-[#E6DCC4] shadow-[0_24px_80px_-12px_rgba(42,37,32,0.35),_0_0_0_1px_rgba(94,143,191,0.04)] overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="rounded-2xl bg-[#FFFCF3]/95 dark:bg-[#25201A]/95 backdrop-blur-xl border border-[#E6DCC4] dark:border-[#3A3127] shadow-[0_24px_80px_-12px_rgba(42,37,32,0.35),_0_0_0_1px_rgba(94,143,191,0.04)] overflow-hidden flex flex-col max-h-[80vh]">
               {/* Top input bar (empty state only) */}
               {!showInputAtBottom && (
                 <>
@@ -290,11 +290,11 @@ export function AskSpotlight({
 
               {/* Bottom input bar (active chat) */}
               {showInputAtBottom && (
-                <div className="border-t border-[#E6DCC4]/60 bg-[#FFFCF3]/80 backdrop-blur-md">
+                <div className="border-t border-[#E6DCC4]/60 dark:border-[#3A3127]/60 bg-[#FFFCF3]/80 dark:bg-[#25201A]/80 backdrop-blur-md">
                   <div className="flex items-center justify-between gap-2 px-3 pt-2">
                     <button
                       onClick={onClear}
-                      className="inline-flex items-center gap-1.5 text-[10.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1 rounded transition-colors"
+                      className="inline-flex items-center gap-1.5 text-[10.5px] text-[#A89F92] hover:text-[#2A2520] dark:hover:text-[#FBF4DF] px-2 py-1 rounded transition-colors"
                     >
                       <RotateCcw className="w-2.5 h-2.5" />
                       New chat
@@ -361,7 +361,7 @@ function SpotlightInput({
   return (
     <div
       className={`flex items-center gap-2.5 px-4 ${
-        variant === "top" ? "py-3.5 border-b border-[#E6DCC4]/60" : "py-3"
+        variant === "top" ? "py-3.5 border-b border-[#E6DCC4]/60 dark:border-[#3A3127]/60" : "py-3"
       }`}
     >
       <Sparkles className="w-4 h-4 text-[#5E8FBF] shrink-0" />
@@ -380,7 +380,7 @@ function SpotlightInput({
           }
         }}
         placeholder={variant === "top" ? "Ask Oushi anything — or drop a PDF…" : "Ask anything, attach files…"}
-        className="flex-1 resize-none bg-transparent text-[15px] text-[#2A2520] outline-none placeholder:text-[#A89F92] leading-[1.45] py-0.5 max-h-[120px]"
+        className="flex-1 resize-none bg-transparent text-[15px] text-[#2A2520] dark:text-[#FBF4DF] outline-none placeholder:text-[#A89F92] leading-[1.45] py-0.5 max-h-[120px]"
       />
 
       {/* Paperclip — files (PDF / image) */}
@@ -400,7 +400,7 @@ function SpotlightInput({
         onClick={() => fileInputRef.current?.click()}
         disabled={loading}
         title="Attach a PDF or image"
-        className="p-1.5 rounded-md text-[#766E63] hover:text-[#3D6A95] hover:bg-[#FAF6EB] disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+        className="p-1.5 rounded-md text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
       >
         <Paperclip className="w-3.5 h-3.5" />
       </button>
@@ -408,7 +408,7 @@ function SpotlightInput({
       {variant === "top" ? (
         <div className="flex items-center gap-2 shrink-0">
           <QuotaPill quota={quota} onUpgrade={onUpgrade} />
-          <kbd className="text-[10.5px] font-mono text-[#A89F92] bg-[#FAF6EB] rounded px-1.5 py-0.5 border border-[#E6DCC4]">
+          <kbd className="text-[10.5px] font-mono text-[#A89F92] bg-[#FAF6EB] dark:bg-[#2A2520] rounded px-1.5 py-0.5 border border-[#E6DCC4] dark:border-[#3A3127]">
             esc
           </kbd>
         </div>
@@ -460,7 +460,7 @@ function QuotaPill({
     ? "bg-[#F5E8E0] border-[#B86B4A]/30 text-[#B86B4A] hover:bg-[#F0DCD0]"
     : isLow
     ? "bg-[#FAF1DC] border-[#C99A50]/30 text-[#8E6A2A] hover:bg-[#F0E5C0]"
-    : "bg-[#FAF6EB] border-[#E6DCC4] text-[#766E63] hover:bg-[#F0E9D6] hover:text-[#3D6A95]";
+    : "bg-[#FAF6EB] dark:bg-[#2A2520] border-[#E6DCC4] dark:border-[#3A3127] text-[#766E63] dark:text-[#A89F92] hover:bg-[#F0E9D6] hover:text-[#3D6A95]";
   return (
     <button
       onClick={onUpgrade}
@@ -577,7 +577,7 @@ function EmptyState({
             <button
               key={s}
               onClick={() => onPick(s)}
-              className="text-left px-3 py-2 rounded-lg border border-[#E6DCC4] bg-white/40 hover:bg-white hover:border-[#5E8FBF] hover:text-[#3D6A95] text-[12.5px] text-[#2A2520] transition-all"
+              className="text-left px-3 py-2 rounded-lg border border-[#E6DCC4] dark:border-[#3A3127] bg-white/40 hover:bg-white hover:border-[#5E8FBF] hover:text-[#3D6A95] text-[12.5px] text-[#2A2520] dark:text-[#FBF4DF] transition-all"
             >
               {s}
             </button>
@@ -600,7 +600,7 @@ function EmptyState({
                     className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
                   >
                     <MessageSquare className="w-3.5 h-3.5 text-[#A89F92] shrink-0" />
-                    <span className="text-[12.5px] text-[#2A2520] truncate">{t.title}</span>
+                    <span className="text-[12.5px] text-[#2A2520] dark:text-[#FBF4DF] truncate">{t.title}</span>
                     <span className="text-[10.5px] text-[#A89F92] shrink-0 font-mono tabular-nums">
                       {relativeTime(t.updated_at)}
                     </span>
@@ -684,7 +684,7 @@ function Message({
       </div>
       <div className={`min-w-0 ${hasCards ? "flex-1" : "max-w-[85%]"}`}>
         {message.content && (
-          <div className="rounded-2xl rounded-tl-sm bg-[#FAF6EB] border border-[#E6DCC4] px-3.5 py-2 text-[13.5px] leading-[1.6] text-[#2A2520] whitespace-pre-wrap inline-block max-w-full">
+          <div className="rounded-2xl rounded-tl-sm bg-[#FAF6EB] dark:bg-[#2A2520] border border-[#E6DCC4] dark:border-[#3A3127] px-3.5 py-2 text-[13.5px] leading-[1.6] text-[#2A2520] dark:text-[#FBF4DF] whitespace-pre-wrap inline-block max-w-full">
             {message.content}
             {message.streaming && (
               <span className="inline-block w-[2px] h-[13px] bg-[#5E8FBF] align-middle ml-0.5 animate-pulse" />
@@ -703,7 +703,7 @@ function LoadingBubble() {
       <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#5E8FBF] to-[#3D6A95] flex items-center justify-center shrink-0">
         <Sparkles className="w-3.5 h-3.5 text-white" />
       </div>
-      <div className="rounded-2xl rounded-tl-sm bg-[#FAF6EB] border border-[#E6DCC4] px-3.5 py-2.5 flex items-center gap-2 text-[#766E63]">
+      <div className="rounded-2xl rounded-tl-sm bg-[#FAF6EB] dark:bg-[#2A2520] border border-[#E6DCC4] dark:border-[#3A3127] px-3.5 py-2.5 flex items-center gap-2 text-[#766E63] dark:text-[#A89F92]">
         <LoadingDots size="md" />
         <span className="text-[12.5px]">Reading your inbox…</span>
       </div>

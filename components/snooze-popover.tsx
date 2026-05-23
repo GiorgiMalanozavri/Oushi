@@ -183,7 +183,7 @@ export function SnoozePopover({ onSnooze, className = "", label = "Snooze" }: Pr
             transform: position.openAbove ? "translateY(-100%)" : undefined,
             zIndex: 100,
           }}
-          className="w-[280px] rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] shadow-[0_12px_32px_-8px_rgba(42,37,32,0.18)] overflow-hidden"
+          className="w-[280px] rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] shadow-[0_12px_32px_-8px_rgba(42,37,32,0.18)] overflow-hidden"
         >
             {!showCustom ? (
               <>
@@ -193,7 +193,7 @@ export function SnoozePopover({ onSnooze, className = "", label = "Snooze" }: Pr
                   </p>
                   <button
                     onClick={() => setOpen(false)}
-                    className="text-[#A89F92] hover:text-[#2A2520] p-0.5"
+                    className="text-[#A89F92] hover:text-[#2A2520] dark:hover:text-[#FBF4DF] p-0.5"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -207,7 +207,7 @@ export function SnoozePopover({ onSnooze, className = "", label = "Snooze" }: Pr
                         <button
                           onClick={() => pick(p.id)}
                           disabled={busy !== null}
-                          className="w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-[#FAF6EB] transition-colors text-left disabled:opacity-50"
+                          className="w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors text-left disabled:opacity-50"
                         >
                           <div
                             className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
@@ -224,7 +224,7 @@ export function SnoozePopover({ onSnooze, className = "", label = "Snooze" }: Pr
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[12.5px] font-medium text-[#2A2520] leading-tight">
+                            <p className="text-[12.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF] leading-tight">
                               {p.label}
                               {p.smart && (
                                 <span className="ml-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#3D6A95]">
@@ -238,16 +238,16 @@ export function SnoozePopover({ onSnooze, className = "", label = "Snooze" }: Pr
                       </li>
                     );
                   })}
-                  <li className="border-t border-[#E6DCC4]/50">
+                  <li className="border-t border-[#E6DCC4]/50 dark:border-[#3A3127]/50">
                     <button
                       onClick={() => setShowCustom(true)}
-                      className="w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-[#FAF6EB] transition-colors text-left"
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors text-left"
                     >
                       <div className="w-7 h-7 rounded-md bg-[#F0E9D6] flex items-center justify-center shrink-0">
-                        <Calendar className="w-3.5 h-3.5 text-[#766E63]" />
+                        <Calendar className="w-3.5 h-3.5 text-[#766E63] dark:text-[#A89F92]" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-[12.5px] font-medium text-[#2A2520] leading-tight">
+                        <p className="text-[12.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF] leading-tight">
                           Pick a time
                         </p>
                         <p className="text-[10.5px] text-[#A89F92] mt-0.5">Custom date + time</p>
@@ -264,24 +264,24 @@ export function SnoozePopover({ onSnooze, className = "", label = "Snooze" }: Pr
                   </p>
                   <button
                     onClick={() => setShowCustom(false)}
-                    className="text-[11px] text-[#766E63] hover:text-[#2A2520]"
+                    className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#2A2520] dark:hover:text-[#FBF4DF]"
                   >
                     Back
                   </button>
                 </div>
-                <label className="block text-[11px] text-[#766E63] mb-1">Date</label>
+                <label className="block text-[11px] text-[#766E63] dark:text-[#A89F92] mb-1">Date</label>
                 <input
                   type="date"
                   value={customDate}
                   onChange={(e) => setCustomDate(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] text-[13px] text-[#2A2520] focus:outline-none focus:border-[#5E8FBF] mb-3"
+                  className="w-full px-2.5 py-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] text-[13px] text-[#2A2520] dark:text-[#FBF4DF] focus:outline-none focus:border-[#5E8FBF] mb-3"
                 />
-                <label className="block text-[11px] text-[#766E63] mb-1">Time</label>
+                <label className="block text-[11px] text-[#766E63] dark:text-[#A89F92] mb-1">Time</label>
                 <input
                   type="time"
                   value={customTime}
                   onChange={(e) => setCustomTime(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] text-[13px] text-[#2A2520] focus:outline-none focus:border-[#5E8FBF] mb-3"
+                  className="w-full px-2.5 py-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] text-[13px] text-[#2A2520] dark:text-[#FBF4DF] focus:outline-none focus:border-[#5E8FBF] mb-3"
                 />
                 <button
                   onClick={() => {
@@ -310,7 +310,7 @@ export function SnoozePopover({ onSnooze, className = "", label = "Snooze" }: Pr
       <button
         ref={triggerRef}
         onClick={() => setOpen((p) => !p)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] hover:border-[#5E8FBF]/40 hover:text-[#3D6A95] text-[12px] font-medium text-[#766E63] transition-all ${className}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] hover:border-[#5E8FBF]/40 hover:text-[#3D6A95] text-[12px] font-medium text-[#766E63] dark:text-[#A89F92] transition-all ${className}`}
         title="Snooze this email"
       >
         <Clock className="w-3 h-3" />

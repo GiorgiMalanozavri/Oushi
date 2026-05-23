@@ -134,7 +134,7 @@ export function FeedbackModal() {
                 "0 1px 0 rgba(255,255,255,0.6) inset, 0 24px 60px -20px rgba(106,76,38,0.30), 0 8px 20px -8px rgba(106,76,38,0.16)",
             }}
           >
-            <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-[#E6DCC4]/60 dark:border-[#3A3127]/60">
+            <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-[#E6DCC4]/60 dark:border-[#3A3127]/60 dark:border-[#3A3127]/60">
               <div>
                 <p
                   className="text-[15px] tracking-[-0.01em] text-[#2A2520] dark:text-[#FBF4DF]"
@@ -150,7 +150,7 @@ export function FeedbackModal() {
               </div>
               <button
                 onClick={() => setOpen(false)}
-                className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] p-1 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2E2820] transition-colors"
+                className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:hover:text-[#FBF4DF] p-1 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] dark:hover:bg-[#2E2820] transition-colors"
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
@@ -189,7 +189,7 @@ export function FeedbackModal() {
                   placeholder="What's broken? What's confusing? What would make this 10x better?"
                   autoFocus
                   rows={5}
-                  className="w-full rounded-lg border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#1B1813]/40 px-3 py-2.5 text-[13.5px] text-[#2A2520] dark:text-[#FBF4DF] placeholder:text-[#A89F92] resize-none focus:outline-none focus:border-[#B86B4A] focus:bg-[#FFFCF3] dark:focus:bg-[#25201A] transition-colors"
+                  className="w-full rounded-lg border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 dark:bg-[#1B1813]/40 px-3 py-2.5 text-[13.5px] text-[#2A2520] dark:text-[#FBF4DF] placeholder:text-[#A89F92] resize-none focus:outline-none focus:border-[#B86B4A] focus:bg-[#FFFCF3] dark:bg-[#25201A] dark:focus:bg-[#25201A] transition-colors"
                 />
                 {error && (
                   <p className="mt-2 text-[12px] text-[#B86B4A] dark:text-[#D9956E]">
@@ -239,7 +239,7 @@ export function ReportBugItem() {
   return (
     <button
       onClick={dispatchOpen}
-      className="group w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[12px] text-[#766E63] dark:text-[#A89F92] hover:text-[#B86B4A] dark:hover:text-[#D9956E] hover:bg-[#FAF6EB] dark:hover:bg-[#2E2820] transition-colors"
+      className="group w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[12px] text-[#766E63] dark:text-[#A89F92] hover:text-[#B86B4A] dark:hover:text-[#D9956E] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] dark:hover:bg-[#2E2820] transition-colors"
       title="Report a bug or send feedback"
     >
       <Bug className="w-3.5 h-3.5 text-[#A89F92] group-hover:text-[#B86B4A] dark:group-hover:text-[#D9956E] transition-colors" />
@@ -356,7 +356,7 @@ export function FeedbackPrompt() {
                 </button>
                 <button
                   onClick={dismiss}
-                  className="text-[11.5px] text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
+                  className="text-[11.5px] text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
                 >
                   Not now
                 </button>
@@ -364,7 +364,7 @@ export function FeedbackPrompt() {
             </div>
             <button
               onClick={dismiss}
-              className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] p-0.5 rounded transition-colors"
+              className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:hover:text-[#FBF4DF] p-0.5 rounded transition-colors"
               aria-label="Dismiss"
             >
               <X className="w-3.5 h-3.5" />

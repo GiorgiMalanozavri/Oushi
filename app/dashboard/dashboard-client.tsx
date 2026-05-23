@@ -1792,7 +1792,7 @@ function Sidebar({
         </button>
         <button
           onClick={onCollapse}
-          className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] p-1.5 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors"
+          className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] p-1.5 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors"
           aria-label="Collapse sidebar"
         >
           <PanelLeftClose className="w-4 h-4" />
@@ -1934,7 +1934,7 @@ function SidebarFooter({
         <Link
           href="/settings"
           title="Settings"
-          className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] p-1.5 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors"
+          className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] p-1.5 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors"
         >
           <Settings className="w-4 h-4" />
         </Link>
@@ -2114,7 +2114,7 @@ function NavItem({
       className={`group relative w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] mb-0.5 transition-all ${
         active
           ? "text-[#2A2520] dark:text-[#FBF4DF] font-medium"
-          : "text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8]"
+          : "text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF]"
       }`}
     >
       {/* Sliding active pill — framer-motion layoutId animates it between
@@ -3057,7 +3057,7 @@ function LabelChip({ email }: { email: Classified }) {
               <button
                 disabled={savingRule}
                 onClick={() => applySenderRule("email")}
-                className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
+                className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
               >
                 Just this address
               </button>
@@ -3065,7 +3065,7 @@ function LabelChip({ email }: { email: Classified }) {
               <button
                 disabled={savingRule}
                 onClick={() => applySenderRule("domain")}
-                className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
+                className="text-[11px] text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:hover:text-[#FBF4DF] px-2 py-1 transition-colors"
               >
                 Whole @{senderDomain}
               </button>
@@ -3073,7 +3073,7 @@ function LabelChip({ email }: { email: Classified }) {
             <button
               disabled={savingRule}
               onClick={() => setSenderPromptFor(null)}
-              className="text-[11px] text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] dark:hover:text-[#FBF4DF] px-2 py-1 ml-auto transition-colors"
+              className="text-[11px] text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:hover:text-[#FBF4DF] px-2 py-1 ml-auto transition-colors"
             >
               Skip
             </button>
@@ -3236,7 +3236,7 @@ function EmailPanel({
         <div className="flex items-center justify-between gap-3 px-5 py-3 shrink-0 relative">
           <button
             onClick={onClose}
-            className="text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] inline-flex items-center gap-1.5 text-[12px] font-medium px-2 py-1 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520]/60 transition-colors"
+            className="text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] inline-flex items-center gap-1.5 text-[12px] font-medium px-2 py-1 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520]/60 transition-colors"
           >
             <X className="w-3.5 h-3.5" />
             Close

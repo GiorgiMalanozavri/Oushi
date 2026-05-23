@@ -174,17 +174,17 @@ export function PromisesView() {
           <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#5E8FBF] mb-2">
             Promises
           </p>
-          <h1 className="text-[28px] sm:text-[34px] font-semibold tracking-[-0.01em] text-[#2A2520] leading-[1.1]">
+          <h1 className="text-[28px] sm:text-[34px] font-semibold tracking-[-0.01em] text-[#2A2520] dark:text-[#FBF4DF] leading-[1.1]">
             What you said you&apos;d do.
           </h1>
-          <p className="mt-2 text-[14px] text-[#766E63] max-w-lg leading-relaxed">
+          <p className="mt-2 text-[14px] text-[#766E63] dark:text-[#A89F92] max-w-lg leading-relaxed">
             Pulled from your sent mail. If you said &ldquo;I&apos;ll get back to you&rdquo; — it&apos;s here until you do.
           </p>
         </div>
         <button
           onClick={scan}
           disabled={scanning}
-          className="shrink-0 mt-1.5 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#E6DCC4] bg-[#FFFCF3] hover:border-[#5E8FBF] hover:text-[#3D6A95] text-[12.5px] font-medium text-[#2A2520] transition-all disabled:opacity-60 disabled:cursor-wait"
+          className="shrink-0 mt-1.5 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] hover:border-[#5E8FBF] hover:text-[#3D6A95] text-[12.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF] transition-all disabled:opacity-60 disabled:cursor-wait"
         >
           {scanning ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -288,15 +288,15 @@ function CommitmentCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ duration: 0.2 }}
-      className="group rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] hover:border-[#5E8FBF]/40 hover:shadow-sm transition-all overflow-hidden"
+      className="group rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] hover:border-[#5E8FBF]/40 hover:shadow-sm transition-all overflow-hidden"
     >
       <div className="px-4 pt-3.5 pb-3">
         {/* Top line: summary + recipient */}
         <div className="flex items-start gap-3">
           <Handshake className="w-4 h-4 text-[#5E8FBF] shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-medium text-[#2A2520] leading-snug">{c.summary}</p>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[11.5px] text-[#766E63]">
+            <p className="text-[14px] font-medium text-[#2A2520] dark:text-[#FBF4DF] leading-snug">{c.summary}</p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[11.5px] text-[#766E63] dark:text-[#A89F92]">
               {c.recipient_name && (
                 <span className="inline-flex items-center gap-1">
                   <Mail className="w-3 h-3 text-[#A89F92]" />
@@ -329,7 +329,7 @@ function CommitmentCard({
           </button>
         )}
         {showQuote && c.raw_quote && (
-          <blockquote className="mt-1.5 ml-7 pl-3 border-l-2 border-[#5E8FBF]/40 text-[12px] italic text-[#766E63] leading-relaxed">
+          <blockquote className="mt-1.5 ml-7 pl-3 border-l-2 border-[#5E8FBF]/40 text-[12px] italic text-[#766E63] dark:text-[#A89F92] leading-relaxed">
             &ldquo;{c.raw_quote}&rdquo;
           </blockquote>
         )}
@@ -383,7 +383,7 @@ function ActionButton({
   return (
     <button
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11.5px] font-medium border border-[#E6DCC4] bg-white hover:border-[#5E8FBF] hover:text-[#3D6A95] text-[#766E63] transition-all"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11.5px] font-medium border border-[#E6DCC4] dark:border-[#3A3127] bg-white hover:border-[#5E8FBF] hover:text-[#3D6A95] text-[#766E63] dark:text-[#A89F92] transition-all"
     >
       {icon}
       {label}
@@ -401,21 +401,21 @@ function EmptyState({
   scanning: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-dashed border-[#E6DCC4] bg-[#FFFCF3]/50 px-6 py-12 text-center">
+    <div className="rounded-2xl border border-dashed border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3]/50 px-6 py-12 text-center">
       <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-[#D0E1F0] to-[#A8C5E0] items-center justify-center mb-4 shadow-sm">
         <Handshake className="w-6 h-6 text-[#3D6A95]" />
       </div>
       {hasScannedBefore ? (
         <>
-          <p className="text-[15px] font-semibold text-[#2A2520] mb-1">No open promises.</p>
-          <p className="text-[12.5px] text-[#766E63] max-w-sm mx-auto">
+          <p className="text-[15px] font-semibold text-[#2A2520] dark:text-[#FBF4DF] mb-1">No open promises.</p>
+          <p className="text-[12.5px] text-[#766E63] dark:text-[#A89F92] max-w-sm mx-auto">
             Nothing you said you&apos;d do is sitting unfinished. Nice.
           </p>
         </>
       ) : (
         <>
-          <p className="text-[15px] font-semibold text-[#2A2520] mb-1">No commitments yet.</p>
-          <p className="text-[12.5px] text-[#766E63] max-w-sm mx-auto mb-4">
+          <p className="text-[15px] font-semibold text-[#2A2520] dark:text-[#FBF4DF] mb-1">No commitments yet.</p>
+          <p className="text-[12.5px] text-[#766E63] dark:text-[#A89F92] max-w-sm mx-auto mb-4">
             Run a scan to extract promises from your last 30 days of sent mail.
             Oushi looks for things like &ldquo;I&apos;ll send by Friday&rdquo; and tracks them until you mark them done.
           </p>

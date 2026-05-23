@@ -118,12 +118,12 @@ export function UpgradeModal({
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#E6DCC4] bg-[#FFFCF3] shadow-[0_32px_80px_-24px_rgba(106,76,38,0.35)]"
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] shadow-[0_32px_80px_-24px_rgba(106,76,38,0.35)]"
           >
             {/* Close button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-[#766E63] hover:bg-[#FAF6EB] hover:text-[#2A2520] transition-colors"
+              className="absolute top-4 right-4 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-[#766E63] dark:text-[#A89F92] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] hover:text-[#2A2520] dark:hover:text-[#FBF4DF] transition-colors"
               aria-label="Close"
             >
               <X className="h-3.5 w-3.5" />
@@ -134,7 +134,7 @@ export function UpgradeModal({
             ) : (
               <>
                 {/* Header */}
-                <div className="px-6 sm:px-8 pt-7 sm:pt-9 pb-5 border-b border-[#E6DCC4]/60">
+                <div className="px-6 sm:px-8 pt-7 sm:pt-9 pb-5 border-b border-[#E6DCC4]/60 dark:border-[#3A3127]/60">
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-[#D0E1F0]/50 border border-[#5E8FBF]/20 px-2.5 py-0.5 mb-3">
                     <Sparkles className="w-3 h-3 text-[#3D6A95]" />
                     <span className="text-[10.5px] font-mono uppercase tracking-[0.16em] text-[#3D6A95]">
@@ -142,14 +142,14 @@ export function UpgradeModal({
                     </span>
                   </div>
                   <h2
-                    className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-[#2A2520] leading-[1.18]"
+                    className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-[#2A2520] dark:text-[#FBF4DF] leading-[1.18]"
                     style={{
                       fontFamily: "var(--font-source-serif), Georgia, serif",
                     }}
                   >
                     {headline}
                   </h2>
-                  <p className="mt-2 text-[13.5px] leading-[1.55] text-[#766E63] max-w-[520px]">
+                  <p className="mt-2 text-[13.5px] leading-[1.55] text-[#766E63] dark:text-[#A89F92] max-w-[520px]">
                     {subhead}
                   </p>
                 </div>
@@ -201,13 +201,13 @@ export function UpgradeModal({
                     placeholder="What would make Pro worth it for you?"
                     rows={2}
                     maxLength={1000}
-                    className="w-full rounded-lg border border-[#E6DCC4] bg-[#FAF6EB]/40 px-3.5 py-2.5 text-[13.5px] leading-[1.5] text-[#2A2520] placeholder:text-[#A89F92] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors resize-none"
+                    className="w-full rounded-lg border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 px-3.5 py-2.5 text-[13.5px] leading-[1.5] text-[#2A2520] dark:text-[#FBF4DF] placeholder:text-[#A89F92] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors resize-none"
                   />
                 </div>
 
                 {/* Footer / CTA */}
-                <div className="px-6 sm:px-8 py-5 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between bg-[#FAF6EB]/30 border-t border-[#E6DCC4]/60 rounded-b-2xl">
-                  <p className="text-[12px] text-[#766E63] leading-snug">
+                <div className="px-6 sm:px-8 py-5 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between bg-[#FAF6EB]/30 border-t border-[#E6DCC4]/60 dark:border-[#3A3127]/60 rounded-b-2xl">
+                  <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] leading-snug">
                     No card needed yet. Beta is invite-flip while we wire Stripe.
                   </p>
                   <button
@@ -256,7 +256,7 @@ function PlanColumn({
       className={`rounded-xl border p-4 sm:p-5 ${
         isAccent
           ? "border-[#5E8FBF]/30 bg-gradient-to-b from-[#D0E1F0]/30 to-[#FFFCF3]"
-          : "border-[#E6DCC4] bg-[#FFFCF3]"
+          : "border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A]"
       }`}
     >
       <div className="flex items-baseline justify-between mb-3">
@@ -270,7 +270,7 @@ function PlanColumn({
         <div className="flex items-baseline gap-1">
           <span
             className={`text-[20px] font-semibold tracking-tight ${
-              isAccent ? "text-[#2A2520]" : "text-[#766E63]"
+              isAccent ? "text-[#2A2520] dark:text-[#FBF4DF]" : "text-[#766E63] dark:text-[#A89F92]"
             }`}
             style={{
               fontFamily: "var(--font-source-serif), Georgia, serif",
@@ -295,14 +295,14 @@ function PlanColumn({
               {item.label.toLowerCase().includes("unlimited") ? (
                 <InfinityIcon
                   className={`h-2.5 w-2.5 ${
-                    isAccent ? "text-[#3D6A95]" : "text-[#766E63]"
+                    isAccent ? "text-[#3D6A95]" : "text-[#766E63] dark:text-[#A89F92]"
                   }`}
                   strokeWidth={2.5}
                 />
               ) : (
                 <Check
                   className={`h-2.5 w-2.5 ${
-                    isAccent ? "text-[#3D6A95]" : "text-[#766E63]"
+                    isAccent ? "text-[#3D6A95]" : "text-[#766E63] dark:text-[#A89F92]"
                   }`}
                   strokeWidth={3}
                 />
@@ -311,10 +311,10 @@ function PlanColumn({
             <span
               className={`${
                 item.emphasis
-                  ? "font-medium text-[#2A2520]"
+                  ? "font-medium text-[#2A2520] dark:text-[#FBF4DF]"
                   : isAccent
-                  ? "text-[#2A2520]"
-                  : "text-[#766E63]"
+                  ? "text-[#2A2520] dark:text-[#FBF4DF]"
+                  : "text-[#766E63] dark:text-[#A89F92]"
               }`}
             >
               {item.label}
@@ -333,19 +333,19 @@ function SubmittedView({ onClose }: { onClose: () => void }) {
         <Mail className="w-6 h-6 text-[#6B8E68]" strokeWidth={2.2} />
       </div>
       <h2
-        className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-[#2A2520] leading-[1.2]"
+        className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-[#2A2520] dark:text-[#FBF4DF] leading-[1.2]"
         style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
       >
         We&rsquo;ll be in touch.
       </h2>
-      <p className="mt-3 text-[14px] text-[#766E63] leading-relaxed max-w-md mx-auto">
+      <p className="mt-3 text-[14px] text-[#766E63] dark:text-[#A89F92] leading-relaxed max-w-md mx-auto">
         Your request landed with the team. During the beta we flip Pro on
         manually — usually within a few hours. You&rsquo;ll get an email at
         the address on your Oushi account.
       </p>
       <button
         onClick={onClose}
-        className="mt-7 inline-flex items-center justify-center rounded-lg bg-[#FAF6EB] border border-[#E6DCC4] px-5 py-2 text-[13px] font-medium text-[#2A2520] hover:bg-[#F0E9D6] transition-colors"
+        className="mt-7 inline-flex items-center justify-center rounded-lg bg-[#FAF6EB] dark:bg-[#2A2520] border border-[#E6DCC4] dark:border-[#3A3127] px-5 py-2 text-[13px] font-medium text-[#2A2520] dark:text-[#FBF4DF] hover:bg-[#F0E9D6] transition-colors"
       >
         Got it
       </button>

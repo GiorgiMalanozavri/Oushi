@@ -595,7 +595,7 @@ export function NarrativeToday({
             }}
           >
             <Sparkles className="w-4 h-4 text-[#B86B4A] shrink-0" />
-            <span className="flex-1 text-[14px] text-[#8A7F70] dark:text-[#9D9183] group-hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8] transition-colors">
+            <span className="flex-1 text-[14px] text-[#8A7F70] dark:text-[#9D9183] group-hover:text-[#3F362C] dark:hover:text-[#FBF4DF] transition-colors">
               Ask anything about your inbox…
             </span>
             <kbd className="text-[10.5px] font-mono text-[#A89F92] dark:text-[#9D9183] bg-[#FAF6EB] dark:bg-[#2A2520] rounded px-1.5 py-0.5 border border-[#E6DCC4] dark:border-[#3A3127]">
@@ -878,8 +878,8 @@ function ActionPill({
     tone === "primary"
       ? "bg-[#B86B4A] text-white border-[#A65B3F] hover:bg-[#A65B3F]"
       : tone === "ghost"
-        ? "bg-transparent text-[#766E63] dark:text-[#A89F92] border-transparent hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8]"
-        : "bg-[#FAF6EB]/80 dark:bg-[#2A2520]/80 text-[#766E63] dark:text-[#A89F92] border-[#E6DCC4] dark:border-[#3A3127] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:text-[#E8D9B8]";
+        ? "bg-transparent text-[#766E63] dark:text-[#A89F92] border-transparent hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] hover:text-[#3F362C] dark:hover:text-[#FBF4DF]"
+        : "bg-[#FAF6EB]/80 dark:bg-[#2A2520]/80 text-[#766E63] dark:text-[#A89F92] border-[#E6DCC4] dark:border-[#3A3127] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] hover:text-[#3F362C] dark:hover:text-[#FBF4DF]";
 
   return (
     <motion.button

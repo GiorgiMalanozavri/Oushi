@@ -151,7 +151,7 @@ export function SetupChecklist() {
             onClick={dismiss}
             disabled={dismissing}
             title="Skip — won't ask again"
-            className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] p-1 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2E2820] transition-colors disabled:opacity-50"
+            className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:hover:text-[#FBF4DF] p-1 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] dark:hover:bg-[#2E2820] transition-colors disabled:opacity-50"
           >
             {dismissing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -162,14 +162,14 @@ export function SetupChecklist() {
         </div>
 
         {/* Items */}
-        <div className="divide-y divide-[#E6DCC4]/60 dark:divide-[#3A3127]/60 border-t border-[#E6DCC4]/60 dark:border-[#3A3127]/60">
+        <div className="divide-y divide-[#E6DCC4]/60 dark:divide-[#3A3127]/60 border-t border-[#E6DCC4]/60 dark:border-[#3A3127]/60 dark:border-[#3A3127]/60">
           {items.map((item) => (
             <ChecklistItem key={item.key} item={item} />
           ))}
         </div>
 
         {/* Footer — "skip for now" */}
-        <div className="px-5 py-3 border-t border-[#E6DCC4]/60 dark:border-[#3A3127]/60 flex items-center justify-between">
+        <div className="px-5 py-3 border-t border-[#E6DCC4]/60 dark:border-[#3A3127]/60 dark:border-[#3A3127]/60 flex items-center justify-between">
           <p className="text-[11px] text-[#A89F92]">
             Each item links to the right Settings section.
           </p>
@@ -201,7 +201,7 @@ function ChecklistItem({
   return (
     <Link
       href={item.href}
-      className="group flex items-start gap-3 px-5 py-3.5 hover:bg-[#FAF6EB]/50 dark:hover:bg-[#2E2820]/40 transition-colors"
+      className="group flex items-start gap-3 px-5 py-3.5 hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520]/50 dark:hover:bg-[#2E2820]/40 transition-colors"
     >
       {/* Status circle — checked when done */}
       <div
@@ -225,7 +225,7 @@ function ChecklistItem({
         className={`shrink-0 mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
           item.done
             ? "bg-[#E8EFE5] text-[#6B8E68]"
-            : "bg-[#FAF6EB] dark:bg-[#2E2820] text-[#B86B4A] group-hover:bg-[#F5E8E0] dark:group-hover:bg-[#3A2F23]"
+            : "bg-[#FAF6EB] dark:bg-[#2A2520] dark:bg-[#2E2820] text-[#B86B4A] group-hover:bg-[#F5E8E0] dark:group-hover:bg-[#3A2F23]"
         }`}
       >
         {item.icon}

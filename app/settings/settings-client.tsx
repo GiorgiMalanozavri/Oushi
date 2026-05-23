@@ -414,7 +414,7 @@ export function SettingsClient({
               >
                 <OushiMark size={26} />
                 <span
-                  className="text-[19px] tracking-[-0.012em] text-[#2A2520] group-hover:text-[#B86B4A] transition-colors font-medium"
+                  className="text-[19px] tracking-[-0.012em] text-[#2A2520] dark:text-[#FBF4DF] group-hover:text-[#B86B4A] transition-colors font-medium"
                   style={{
                     fontFamily: "var(--font-source-serif), Georgia, serif",
                   }}
@@ -438,7 +438,7 @@ export function SettingsClient({
                 Settings
               </p>
               <p
-                className="text-[14.5px] text-[#2A2520] truncate"
+                className="text-[14.5px] text-[#2A2520] dark:text-[#FBF4DF] truncate"
                 style={{
                   fontFamily: "var(--font-source-serif), Georgia, serif",
                 }}
@@ -447,7 +447,7 @@ export function SettingsClient({
               </p>
               <Link
                 href="/dashboard"
-                className="mt-2 inline-flex items-center gap-1.5 text-[11.5px] font-medium text-[#766E63] hover:text-[#B86B4A] transition-colors"
+                className="mt-2 inline-flex items-center gap-1.5 text-[11.5px] font-medium text-[#766E63] dark:text-[#A89F92] hover:text-[#B86B4A] transition-colors"
               >
                 <ChevronLeft className="w-3 h-3" />
                 Back to inbox
@@ -476,14 +476,14 @@ export function SettingsClient({
       <main className="flex-1 h-full overflow-y-auto relative z-10">
         {/* Mobile top bar */}
         {isMobile && (
-          <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b border-[#E6DCC4] bg-[#FAF6EB]/95 backdrop-blur">
+          <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/95 backdrop-blur">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="rounded-md p-1.5 border border-[#E6DCC4] bg-[#FFFCF3] text-[#766E63] hover:text-[#2A2520]"
+              className="rounded-md p-1.5 border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] text-[#766E63] dark:text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF]"
             >
               <Menu className="w-4 h-4" />
             </button>
-            <p className="text-[14px] font-semibold text-[#2A2520]">{currentSection?.label || "Settings"}</p>
+            <p className="text-[14px] font-semibold text-[#2A2520] dark:text-[#FBF4DF]">{currentSection?.label || "Settings"}</p>
           </div>
         )}
         <div className="max-w-[680px] mx-auto px-5 sm:px-10 lg:px-14 py-10 sm:py-16">
@@ -579,14 +579,14 @@ function SectionHeader({ title, description }: { title: string; description: str
   return (
     <div className="mb-9">
       <h1
-        className="text-[32px] tracking-[-0.018em] text-[#2A2520] leading-[1.1]"
+        className="text-[32px] tracking-[-0.018em] text-[#2A2520] dark:text-[#FBF4DF] leading-[1.1]"
         style={{
           fontFamily: "var(--font-source-serif), Georgia, serif",
         }}
       >
         {title}
       </h1>
-      <p className="mt-2.5 text-[14.5px] text-[#766E63] leading-relaxed max-w-[480px]">
+      <p className="mt-2.5 text-[14.5px] text-[#766E63] dark:text-[#A89F92] leading-relaxed max-w-[480px]">
         {description}
       </p>
     </div>
@@ -615,8 +615,8 @@ function SettingsNavItem({
       onClick={onClick}
       className={`group relative w-full flex items-start gap-2.5 px-3 py-2 rounded-lg mb-0.5 text-left transition-colors ${
         active
-          ? "text-[#2A2520]"
-          : "text-[#766E63] hover:text-[#3F362C]"
+          ? "text-[#2A2520] dark:text-[#FBF4DF]"
+          : "text-[#766E63] dark:text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF]"
       }`}
     >
       {active && (
@@ -631,18 +631,18 @@ function SettingsNavItem({
         />
       )}
       {!active && (
-        <span className="absolute inset-0 rounded-lg bg-[#FAF6EB]/0 group-hover:bg-[#FAF6EB] transition-colors" />
+        <span className="absolute inset-0 rounded-lg bg-[#FAF6EB]/0 group-hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors" />
       )}
       <span
         className={`relative mt-0.5 transition-colors ${
-          active ? "text-[#B86B4A]" : "text-[#A89F92] group-hover:text-[#766E63]"
+          active ? "text-[#B86B4A]" : "text-[#A89F92] group-hover:text-[#766E63] dark:text-[#A89F92]"
         }`}
       >
         {icon}
       </span>
       <div className="relative min-w-0 flex-1">
         <p
-          className={`text-[13.5px] leading-tight ${active ? "font-medium text-[#2A2520]" : ""}`}
+          className={`text-[13.5px] leading-tight ${active ? "font-medium text-[#2A2520] dark:text-[#FBF4DF]" : ""}`}
         >
           {label}
         </p>
@@ -657,7 +657,7 @@ function SettingsNavItem({
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div
-      className={`rounded-2xl border border-[#E6DCC4]/80 bg-[#FFFCF3] overflow-hidden ${className}`}
+      className={`rounded-2xl border border-[#E6DCC4]/80 dark:border-[#3A3127]/80 bg-[#FFFCF3] dark:bg-[#25201A] overflow-hidden ${className}`}
       style={{
         boxShadow:
           "0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 24px -10px rgba(106,76,38,0.08), 0 1px 3px rgba(106,76,38,0.04)",
@@ -680,8 +680,8 @@ function Row({
   return (
     <div className="flex items-start justify-between gap-6 px-5 py-4">
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium text-[#2A2520]">{label}</p>
-        {hint && <p className="mt-0.5 text-[12px] text-[#766E63]">{hint}</p>}
+        <p className="text-[13px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">{label}</p>
+        {hint && <p className="mt-0.5 text-[12px] text-[#766E63] dark:text-[#A89F92]">{hint}</p>}
       </div>
       <div className="shrink-0">{children}</div>
     </div>
@@ -699,7 +699,7 @@ function StackedField({
 }) {
   return (
     <div className="px-5 py-4">
-      <label className="block text-[12px] font-medium text-[#2A2520] mb-2">{label}</label>
+      <label className="block text-[12px] font-medium text-[#2A2520] dark:text-[#FBF4DF] mb-2">{label}</label>
       {children}
       {hint && <p className="mt-1.5 text-[11px] text-[#A89F92]">{hint}</p>}
     </div>
@@ -730,7 +730,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 function SaveBadge({ state }: { state: "idle" | "saving" | "saved" }) {
   if (state === "idle") return null;
   return (
-    <div className="inline-flex items-center gap-1 text-[11px] text-[#766E63]">
+    <div className="inline-flex items-center gap-1 text-[11px] text-[#766E63] dark:text-[#A89F92]">
       {state === "saving" && (
         <>
           <div className="w-2 h-2 rounded-full bg-[#5E8FBF] animate-pulse" />
@@ -766,7 +766,7 @@ function TagInput({
   const tagColors = {
     sky: { bg: "bg-[#D0E1F0]/50", text: "text-[#3D6A95]", border: "border-[#5E8FBF]/20", hover: "hover:bg-[#D0E1F0]" },
     sage: { bg: "bg-[#E8EFE5]", text: "text-[#6B8E68]", border: "border-[#6B8E68]/20", hover: "hover:bg-[#E8EFE5]/80" },
-    muted: { bg: "bg-[#F0E9D6]", text: "text-[#766E63]", border: "border-[#E6DCC4]", hover: "hover:bg-[#F0E9D6]/80" },
+    muted: { bg: "bg-[#F0E9D6] dark:bg-[#3A3127]", text: "text-[#766E63] dark:text-[#A89F92]", border: "border-[#E6DCC4] dark:border-[#3A3127]", hover: "hover:bg-[#F0E9D6]/80" },
   }[accent];
 
   const addTag = (tag: string) => {
@@ -788,7 +788,7 @@ function TagInput({
   return (
     <div
       onClick={() => inputRef.current?.focus()}
-      className="rounded-md border border-[#E6DCC4] bg-[#FAF6EB]/40 px-2 py-1.5 min-h-[36px] flex flex-wrap items-center gap-1.5 cursor-text focus-within:border-[#5E8FBF] focus-within:bg-[#FFFCF3] focus-within:ring-2 focus-within:ring-[#5E8FBF]/15 transition-all"
+      className="rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 px-2 py-1.5 min-h-[36px] flex flex-wrap items-center gap-1.5 cursor-text focus-within:border-[#5E8FBF] focus-within:bg-[#FFFCF3] dark:bg-[#25201A] focus-within:ring-2 focus-within:ring-[#5E8FBF]/15 transition-all"
     >
       {value.map((tag) => (
         <span
@@ -813,7 +813,7 @@ function TagInput({
         onKeyDown={handleKey}
         onBlur={() => addTag(input)}
         placeholder={value.length === 0 ? placeholder : ""}
-        className="flex-1 min-w-[100px] bg-transparent text-[13px] text-[#2A2520] outline-none py-0.5 px-1 placeholder:text-[#A89F92]"
+        className="flex-1 min-w-[100px] bg-transparent text-[13px] text-[#2A2520] dark:text-[#FBF4DF] outline-none py-0.5 px-1 placeholder:text-[#A89F92]"
       />
     </div>
   );
@@ -837,10 +837,10 @@ function ProfileSection({
   return (
     <div>
       <div className="flex items-baseline justify-between mb-1">
-        <h1 className="text-[26px] font-semibold tracking-tight text-[#2A2520]">Profile</h1>
+        <h1 className="text-[26px] font-semibold tracking-tight text-[#2A2520] dark:text-[#FBF4DF]">Profile</h1>
         <SaveBadge state={saveState} />
       </div>
-      <p className="text-[14px] text-[#766E63] mb-8">
+      <p className="text-[14px] text-[#766E63] dark:text-[#A89F92] mb-8">
         Who you are. The richer this gets, the sharper Oushi&apos;s rankings.
       </p>
 
@@ -854,18 +854,18 @@ function ProfileSection({
             onChange={(e) => setBio(e.target.value)}
             rows={3}
             placeholder="e.g. Founder building Oushi, an AI email assistant. Based in NYC. Interested in design and AI."
-            className="w-full rounded-md border border-[#E6DCC4] bg-[#FAF6EB]/40 px-3 py-2 text-[13px] text-[#2A2520] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15 resize-y"
+            className="w-full rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 px-3 py-2 text-[13px] text-[#2A2520] dark:text-[#FBF4DF] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15 resize-y"
           />
         </StackedField>
-        <div className="border-t border-[#E6DCC4]" />
+        <div className="border-t border-[#E6DCC4] dark:border-[#3A3127]" />
         <StackedField label="Interests" hint="Subjects you want to keep an eye on. Press Enter to add.">
           <TagInput value={interests} onChange={setInterests} placeholder="e.g. engineering, AI, design" accent="sage" />
         </StackedField>
-        <div className="border-t border-[#E6DCC4]" />
+        <div className="border-t border-[#E6DCC4] dark:border-[#3A3127]" />
         <StackedField label="Priorities" hint="What you always care about — Oushi will rank these higher.">
           <TagInput value={priorities} onChange={setPriorities} placeholder="e.g. job offers, interview requests, my advisor" accent="sky" />
         </StackedField>
-        <div className="border-t border-[#E6DCC4]" />
+        <div className="border-t border-[#E6DCC4] dark:border-[#3A3127]" />
         <StackedField label="Noise" hint="What you'd rather not see — Oushi will down-rank these.">
           <TagInput value={noise} onChange={setNoise} placeholder="e.g. crypto pitches, LinkedIn spam, recruiter mail" accent="muted" />
         </StackedField>
@@ -945,7 +945,7 @@ function AutoDraftToggle() {
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[13.5px] font-medium text-[#2A2520]">
+                <p className="text-[13.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">
                   Auto-draft replies in Gmail
                 </p>
                 <span className="inline-flex items-center gap-1 rounded-full bg-[#D0E1F0]/60 border border-[#5E8FBF]/25 px-1.5 py-0.5 text-[9.5px] font-mono uppercase tracking-[0.14em] text-[#3D6A95]">
@@ -953,7 +953,7 @@ function AutoDraftToggle() {
                   Pro
                 </span>
               </div>
-              <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
+              <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] mt-1 leading-relaxed">
                 When a high-priority email arrives, Oushi writes a draft in
                 your voice and saves it to Gmail&apos;s drafts folder — so
                 the reply is already waiting when you open the thread. One
@@ -1120,7 +1120,7 @@ function PlanSection() {
                   </p>
                   <div className="flex items-center gap-2.5">
                     <h3
-                      className="text-[24px] tracking-[-0.012em] text-[#2A2520]"
+                      className="text-[24px] tracking-[-0.012em] text-[#2A2520] dark:text-[#FBF4DF]"
                       style={{
                         fontFamily:
                           "var(--font-source-serif), Georgia, serif",
@@ -1135,7 +1135,7 @@ function PlanSection() {
                       </span>
                     )}
                   </div>
-                  <p className="mt-2 text-[13px] text-[#766E63] leading-relaxed max-w-[420px]">
+                  <p className="mt-2 text-[13px] text-[#766E63] dark:text-[#A89F92] leading-relaxed max-w-[420px]">
                     {isPro
                       ? "You're on Pro — every feature unlocked, no daily caps. Thanks for backing the beta."
                       : "Honest free tier: most features, with a 20-message Ask Oushi cap and no auto-draft. Pro turns everything on."}
@@ -1144,7 +1144,7 @@ function PlanSection() {
                 <div className="text-right shrink-0">
                   <div className="flex items-baseline gap-1 justify-end">
                     <span
-                      className="text-[28px] tracking-tight text-[#2A2520]"
+                      className="text-[28px] tracking-tight text-[#2A2520] dark:text-[#FBF4DF]"
                       style={{
                         fontFamily:
                           "var(--font-source-serif), Georgia, serif",
@@ -1162,7 +1162,7 @@ function PlanSection() {
                 </div>
               </div>
 
-              <div className="mt-5 pt-5 border-t border-[#E6DCC4]/70 flex flex-wrap items-center gap-3">
+              <div className="mt-5 pt-5 border-t border-[#E6DCC4]/70 dark:border-[#3A3127]/70 flex flex-wrap items-center gap-3">
                 {isPro ? (
                   <>
                     <span className="inline-flex items-center gap-1.5 text-[12px] text-[#6B8E68]">
@@ -1171,7 +1171,7 @@ function PlanSection() {
                     </span>
                     <a
                       href="mailto:hello@oushi.app?subject=Pro%20question"
-                      className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors"
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-1.5 text-[12px] font-medium text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors"
                     >
                       <Mail className="w-3 h-3" />
                       Manage / cancel
@@ -1181,7 +1181,7 @@ function PlanSection() {
                   <>
                     <Link
                       href="/pricing"
-                      className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-1.5 text-[12px] font-medium text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors"
                     >
                       Compare plans
                     </Link>
@@ -1203,10 +1203,10 @@ function PlanSection() {
             <div className="p-5">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-[13.5px] font-medium text-[#2A2520]">
+                  <p className="text-[13.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">
                     Ask Oushi · today
                   </p>
-                  <p className="text-[11.5px] text-[#766E63] mt-0.5">
+                  <p className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] mt-0.5">
                     Plain-English questions about your inbox.
                   </p>
                 </div>
@@ -1222,7 +1222,7 @@ function PlanSection() {
                       </span>
                     </div>
                   ) : (
-                    <p className="text-[14px] font-mono text-[#2A2520]">
+                    <p className="text-[14px] font-mono text-[#2A2520] dark:text-[#FBF4DF]">
                       <span className="font-semibold">{askUsed}</span>
                       <span className="text-[#A89F92]"> / {askLimit}</span>
                     </p>
@@ -1232,7 +1232,7 @@ function PlanSection() {
 
               {!askUnlimited && (
                 <>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#F0E9D6]">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#F0E9D6] dark:bg-[#3A3127]">
                     <div
                       className={`h-full rounded-full transition-all ${
                         askPct >= 90
@@ -1263,7 +1263,7 @@ function PlanSection() {
           {!isPro && billing && (
             <Card>
               <div className="p-5">
-                <p className="text-[13.5px] font-medium text-[#2A2520] mb-3">
+                <p className="text-[13.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF] mb-3">
                   Other free-tier caps
                 </p>
                 <div className="grid grid-cols-2 gap-3">
@@ -1298,8 +1298,8 @@ function PlanSection() {
 function CapTile({ label, cap }: { label: string; cap: number }) {
   const unlimited = cap === -1 || cap === Number.POSITIVE_INFINITY;
   return (
-    <div className="rounded-lg border border-[#E6DCC4] bg-[#FAF6EB]/40 px-3.5 py-3">
-      <p className="text-[11px] text-[#766E63] leading-tight">{label}</p>
+    <div className="rounded-lg border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 px-3.5 py-3">
+      <p className="text-[11px] text-[#766E63] dark:text-[#A89F92] leading-tight">{label}</p>
       <div className="mt-1.5 flex items-baseline gap-1">
         {unlimited ? (
           <>
@@ -1311,7 +1311,7 @@ function CapTile({ label, cap }: { label: string; cap: number }) {
         ) : (
           <>
             <span
-              className="text-[18px] text-[#2A2520]"
+              className="text-[18px] text-[#2A2520] dark:text-[#FBF4DF]"
               style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
             >
               {cap}
@@ -1369,10 +1369,10 @@ function AppearanceSection() {
         <div className="p-5">
           <div className="flex items-start justify-between gap-6 mb-5">
             <div className="flex-1 min-w-0">
-              <p className="text-[13.5px] font-medium text-[#2A2520] mb-1">
+              <p className="text-[13.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF] mb-1">
                 Today view
               </p>
-              <p className="text-[12px] text-[#766E63] leading-relaxed">
+              <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] leading-relaxed">
                 Narrative is the new default — Oushi writes you a short brief
                 with email cards woven in. Classic is the original card list
                 if you prefer the denser triage layout.
@@ -1390,14 +1390,14 @@ function AppearanceSection() {
               accent="#B86B4A"
             >
               <p
-                className="font-serif text-[14px] italic text-[#3F362C] leading-snug mb-1.5"
+                className="font-serif text-[14px] italic text-[#3F362C] dark:text-[#E8D9B8] leading-snug mb-1.5"
                 style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
               >
                 Three things matter today.
               </p>
               <div className="h-1.5 rounded-full bg-[#E6DCC4] mb-1.5 w-3/4" />
-              <div className="h-7 rounded-md bg-[#FAF6EB] border border-[#E6DCC4]" />
-              <div className="h-7 rounded-md bg-[#FAF6EB] border border-[#E6DCC4] mt-1.5" />
+              <div className="h-7 rounded-md bg-[#FAF6EB] dark:bg-[#2A2520] border border-[#E6DCC4] dark:border-[#3A3127]" />
+              <div className="h-7 rounded-md bg-[#FAF6EB] dark:bg-[#2A2520] border border-[#E6DCC4] dark:border-[#3A3127] mt-1.5" />
             </AppearancePreview>
 
             <AppearancePreview
@@ -1406,14 +1406,14 @@ function AppearanceSection() {
               onClick={() => changeMode("classic")}
               accent="#5E8FBF"
             >
-              <p className="text-[12.5px] font-semibold text-[#2A2520] mb-1.5">
+              <p className="text-[12.5px] font-semibold text-[#2A2520] dark:text-[#FBF4DF] mb-1.5">
                 Today
               </p>
               <div className="space-y-1">
-                <div className="h-4 rounded bg-[#FAF6EB] border border-[#E6DCC4]" />
-                <div className="h-4 rounded bg-[#FAF6EB] border border-[#E6DCC4]" />
-                <div className="h-4 rounded bg-[#FAF6EB] border border-[#E6DCC4]" />
-                <div className="h-4 rounded bg-[#FAF6EB] border border-[#E6DCC4]" />
+                <div className="h-4 rounded bg-[#FAF6EB] dark:bg-[#2A2520] border border-[#E6DCC4] dark:border-[#3A3127]" />
+                <div className="h-4 rounded bg-[#FAF6EB] dark:bg-[#2A2520] border border-[#E6DCC4] dark:border-[#3A3127]" />
+                <div className="h-4 rounded bg-[#FAF6EB] dark:bg-[#2A2520] border border-[#E6DCC4] dark:border-[#3A3127]" />
+                <div className="h-4 rounded bg-[#FAF6EB] dark:bg-[#2A2520] border border-[#E6DCC4] dark:border-[#3A3127]" />
               </div>
             </AppearancePreview>
           </div>
@@ -1426,10 +1426,10 @@ function AppearanceSection() {
           <div className="p-5">
             <div className="flex items-start justify-between gap-6">
               <div className="flex-1 min-w-0">
-                <p className="text-[13.5px] font-medium text-[#2A2520] mb-1">
+                <p className="text-[13.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF] mb-1">
                   Theme
                 </p>
-                <p className="text-[12px] text-[#766E63] leading-relaxed">
+                <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] leading-relaxed">
                   Light is the warm cream you&apos;re used to. Dark is a warm
                   manuscript-feel deep brown — easier on the eyes after dark.
                   System follows your OS.
@@ -1467,8 +1467,8 @@ function AppearancePreview({
       onClick={onClick}
       className={`text-left rounded-xl p-3 border transition-all ${
         active
-          ? "bg-[#FFFCF3] border-transparent"
-          : "bg-[#FFFCF3]/50 border-[#E6DCC4]/80 hover:bg-[#FFFCF3]"
+          ? "bg-[#FFFCF3] dark:bg-[#25201A] border-transparent"
+          : "bg-[#FFFCF3]/50 border-[#E6DCC4]/80 dark:border-[#3A3127]/80 hover:bg-[#FFFCF3] dark:bg-[#25201A]"
       }`}
       style={{
         boxShadow: active
@@ -1481,7 +1481,7 @@ function AppearancePreview({
           className="w-2 h-2 rounded-full"
           style={{ backgroundColor: accent }}
         />
-        <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#766E63]">
+        <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#766E63] dark:text-[#A89F92]">
           {label}
         </p>
         {active && (
@@ -1526,7 +1526,7 @@ function VoiceSection({
                   Your writing voice
                 </p>
               </div>
-              <p className="text-[14px] leading-[1.65] text-[#2A2520]">{voiceProfile}</p>
+              <p className="text-[14px] leading-[1.65] text-[#2A2520] dark:text-[#FBF4DF]">{voiceProfile}</p>
               {voiceLearnedAt && (
                 <p className="mt-4 text-[11px] text-[#A89F92]">
                   Learned {new Date(voiceLearnedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -1537,7 +1537,7 @@ function VoiceSection({
           <button
             onClick={onLearn}
             disabled={learningVoice || !hasGmail}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-40"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-1.5 text-[12px] font-medium text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-40"
           >
             {learningVoice ? <><RefreshCw className="w-3 h-3 animate-spin" />Re-learning</> : <><RefreshCw className="w-3 h-3" />Re-learn from sent emails</>}
           </button>
@@ -1553,8 +1553,8 @@ function VoiceSection({
             <div className="w-10 h-10 mx-auto rounded-lg bg-[#D0E1F0] flex items-center justify-center mb-3">
               <Sparkles className="w-4 h-4 text-[#3D6A95]" />
             </div>
-            <p className="text-[15px] font-medium text-[#2A2520]">No voice learned yet</p>
-            <p className="mt-1 text-[13px] text-[#766E63] max-w-sm mx-auto">
+            <p className="text-[15px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">No voice learned yet</p>
+            <p className="mt-1 text-[13px] text-[#766E63] dark:text-[#A89F92] max-w-sm mx-auto">
               Oushi will read your recent sent emails to learn how you write. Drafts will sound like you instead of generic AI.
             </p>
             <button
@@ -1613,7 +1613,7 @@ function MemorySection({
   return (
     <div>
       <div className="flex items-start justify-between mb-1">
-        <h1 className="text-[26px] font-semibold tracking-tight text-[#2A2520]">Memory</h1>
+        <h1 className="text-[26px] font-semibold tracking-tight text-[#2A2520] dark:text-[#FBF4DF]">Memory</h1>
         {!showAdd && (
           <button
             onClick={() => setShowAdd(true)}
@@ -1624,7 +1624,7 @@ function MemorySection({
           </button>
         )}
       </div>
-      <p className="text-[14px] text-[#766E63] mb-8">
+      <p className="text-[14px] text-[#766E63] dark:text-[#A89F92] mb-8">
         Facts Oushi has learned about you across your inbox. Used in every reply, briefing, and answer.
       </p>
 
@@ -1641,11 +1641,11 @@ function MemorySection({
               <div className="p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-medium text-[#2A2520] block mb-1">Kind</label>
+                    <label className="text-[11px] font-medium text-[#2A2520] dark:text-[#FBF4DF] block mb-1">Kind</label>
                     <select
                       value={kind}
                       onChange={(e) => setKind(e.target.value as MemoryKind)}
-                      className="w-full rounded-md border border-[#E6DCC4] bg-[#FAF6EB]/40 px-2.5 py-1.5 text-[13px] text-[#2A2520] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15"
+                      className="w-full rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 px-2.5 py-1.5 text-[13px] text-[#2A2520] dark:text-[#FBF4DF] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15"
                     >
                       {(Object.keys(KIND_LABELS) as MemoryKind[]).map((k) => (
                         <option key={k} value={k}>{KIND_LABELS[k]}</option>
@@ -1653,32 +1653,32 @@ function MemorySection({
                     </select>
                   </div>
                   <div>
-                    <label className="text-[11px] font-medium text-[#2A2520] block mb-1">Subject</label>
+                    <label className="text-[11px] font-medium text-[#2A2520] dark:text-[#FBF4DF] block mb-1">Subject</label>
                     <input
                       value={subject}
                       onChange={(e) => setSubject(e.target.value)}
                       placeholder="e.g. Maya Chen"
                       maxLength={80}
-                      className="w-full rounded-md border border-[#E6DCC4] bg-[#FAF6EB]/40 px-2.5 py-1.5 text-[13px] text-[#2A2520] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15"
+                      className="w-full rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 px-2.5 py-1.5 text-[13px] text-[#2A2520] dark:text-[#FBF4DF] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium text-[#2A2520] block mb-1">What to remember</label>
+                  <label className="text-[11px] font-medium text-[#2A2520] dark:text-[#FBF4DF] block mb-1">What to remember</label>
                   <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     rows={2}
                     maxLength={400}
                     placeholder="One sentence Oushi should always remember."
-                    className="w-full rounded-md border border-[#E6DCC4] bg-[#FAF6EB]/40 px-2.5 py-1.5 text-[13px] text-[#2A2520] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15 resize-y"
+                    className="w-full rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 px-2.5 py-1.5 text-[13px] text-[#2A2520] dark:text-[#FBF4DF] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15 resize-y"
                   />
                 </div>
                 <div className="flex items-center gap-2 justify-end">
                   <button
                     type="button"
                     onClick={() => { setShowAdd(false); setSubject(""); setContent(""); }}
-                    className="text-[12px] text-[#766E63] hover:text-[#2A2520] px-2 py-1"
+                    className="text-[12px] text-[#766E63] dark:text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] px-2 py-1"
                   >
                     Cancel
                   </button>
@@ -1700,8 +1700,8 @@ function MemorySection({
         <Card>
           <div className="p-8 text-center">
             <BrainCircuit className="w-8 h-8 mx-auto text-[#A89F92] mb-3" />
-            <p className="text-[14px] font-medium text-[#2A2520]">Nothing remembered yet</p>
-            <p className="mt-1 text-[12px] text-[#766E63] max-w-sm mx-auto">
+            <p className="text-[14px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">Nothing remembered yet</p>
+            <p className="mt-1 text-[12px] text-[#766E63] dark:text-[#A89F92] max-w-sm mx-auto">
               Memories build up automatically as Oushi reads your inbox. You can also add some manually.
             </p>
           </div>
@@ -1724,14 +1724,14 @@ function MemorySection({
                         className={`group flex items-start gap-3 px-4 py-3 ${m.pinned ? "bg-[#D0E1F0]/15" : ""}`}
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-medium text-[#2A2520] truncate">{m.subject}</p>
-                          <p className="text-[12px] text-[#766E63] leading-snug mt-0.5">{m.content}</p>
+                          <p className="text-[13px] font-medium text-[#2A2520] dark:text-[#FBF4DF] truncate">{m.subject}</p>
+                          <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] leading-snug mt-0.5">{m.content}</p>
                         </div>
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                           <button
                             onClick={() => onTogglePin(m.id, m.pinned)}
                             title={m.pinned ? "Unpin" : "Pin"}
-                            className={`rounded p-1 ${m.pinned ? "text-[#5E8FBF]" : "text-[#A89F92] hover:text-[#2A2520]"}`}
+                            className={`rounded p-1 ${m.pinned ? "text-[#5E8FBF]" : "text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF]"}`}
                           >
                             <Pin className={`w-3 h-3 ${m.pinned ? "fill-[#5E8FBF]" : ""}`} />
                           </button>
@@ -1804,19 +1804,19 @@ function BriefingSection({
 
         {enabled && (
           <>
-            <div className="border-t border-[#E6DCC4]" />
+            <div className="border-t border-[#E6DCC4] dark:border-[#3A3127]" />
             <StackedField label="Delivery time (UTC)" hint={`= ${localPreview} in your local timezone today`}>
               <select
                 value={hour}
                 onChange={(e) => onHourChange(parseInt(e.target.value, 10))}
-                className="w-full rounded-md border border-[#E6DCC4] bg-[#FAF6EB]/40 px-3 py-2 text-[13px] text-[#2A2520] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15"
+                className="w-full rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 px-3 py-2 text-[13px] text-[#2A2520] dark:text-[#FBF4DF] focus:outline-none focus:border-[#5E8FBF] focus:ring-2 focus:ring-[#5E8FBF]/15"
               >
                 {Array.from({ length: 24 }, (_, i) => i).map((h) => (
                   <option key={h} value={h}>{formatHour(h)} UTC</option>
                 ))}
               </select>
             </StackedField>
-            <div className="border-t border-[#E6DCC4]" />
+            <div className="border-t border-[#E6DCC4] dark:border-[#3A3127]" />
             <Row
               label="Test it"
               hint={lastSentAt ? `Last sent ${new Date(lastSentAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Send a digest right now to see what it looks like"}
@@ -1938,7 +1938,7 @@ function NotificationsSection() {
       />
 
       {permission === "unsupported" && (
-        <div className="rounded-lg border border-[#E6DCC4] bg-[#FAF6EB]/40 px-4 py-3 text-[12.5px] text-[#766E63]">
+        <div className="rounded-lg border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 px-4 py-3 text-[12.5px] text-[#766E63] dark:text-[#A89F92]">
           This browser doesn&apos;t support push notifications. Try Chrome, Edge, or Safari 16.4+.
         </div>
       )}
@@ -1959,20 +1959,20 @@ function NotificationsSection() {
               )}
             </div>
           )}
-          <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] px-4 py-3.5 flex items-center justify-between gap-3">
+          <div className="rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-4 py-3.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                  subscribed ? "bg-[#E8EFE5]" : "bg-[#FAF6EB]"
+                  subscribed ? "bg-[#E8EFE5]" : "bg-[#FAF6EB] dark:bg-[#2A2520]"
                 }`}
               >
                 <BellRing className={`w-4 h-4 ${subscribed ? "text-[#6B8E68]" : "text-[#A89F92]"}`} />
               </div>
               <div className="min-w-0">
-                <p className="text-[13px] font-medium text-[#2A2520]">
+                <p className="text-[13px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">
                   {subscribed ? "Notifications are on" : "Notifications are off"}
                 </p>
-                <p className="text-[11.5px] text-[#766E63] truncate">
+                <p className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] truncate">
                   {subscribed
                     ? "Oushi will ping this device when something matters."
                     : "Turn on to get nudges for overdue promises and stale replies."}
@@ -1983,7 +1983,7 @@ function NotificationsSection() {
               <button
                 onClick={handleDisable}
                 disabled={busy}
-                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E6DCC4] text-[12px] text-[#766E63] hover:text-[#B86B4A] hover:border-[#B86B4A]/40 transition-colors disabled:opacity-60"
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] text-[12px] text-[#766E63] dark:text-[#A89F92] hover:text-[#B86B4A] hover:border-[#B86B4A]/40 transition-colors disabled:opacity-60"
               >
                 Turn off
               </button>
@@ -2004,7 +2004,7 @@ function NotificationsSection() {
               <button
                 onClick={handleTest}
                 disabled={busy}
-                className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] text-[12px] text-[#2A2520] hover:border-[#5E8FBF] hover:text-[#3D6A95] transition-colors disabled:opacity-60"
+                className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] text-[12px] text-[#2A2520] dark:text-[#FBF4DF] hover:border-[#5E8FBF] hover:text-[#3D6A95] transition-colors disabled:opacity-60"
               >
                 <Send className="w-3 h-3" />
                 Send test notification
@@ -2022,9 +2022,9 @@ function NotificationsSection() {
           )}
 
           <div className="rounded-lg border border-[#D0E1F0] bg-[#D0E1F0]/20 px-4 py-3 text-[11.5px] text-[#3D6A95] leading-relaxed">
-            <strong className="text-[#2A2520]">What you&apos;ll get:</strong> a ping when a promise you made is overdue,
+            <strong className="text-[#2A2520] dark:text-[#FBF4DF]">What you&apos;ll get:</strong> a ping when a promise you made is overdue,
             when an email you opened has been sitting unanswered for 2+ days, and a short morning brief.
-            <strong className="text-[#2A2520]"> What you won&apos;t get:</strong> newsletters, marketing, or routine emails.
+            <strong className="text-[#2A2520] dark:text-[#FBF4DF]"> What you won&apos;t get:</strong> newsletters, marketing, or routine emails.
             Quiet by default.
           </div>
         </div>
@@ -2153,7 +2153,7 @@ function LabelsLiveStatus() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] p-4 mb-3">
+      <div className="rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] p-4 mb-3">
         <div className="flex items-center gap-2 text-[12px] text-[#A89F92]">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
           Checking label status…
@@ -2213,10 +2213,10 @@ function LabelsLiveStatus() {
       ? "bg-[#E8EFE5] border-[#6B8E68]/30 text-[#4F6B4D]"
       : pillTone === "warn"
         ? "bg-[#FAF1DC] border-[#C99A50]/30 text-[#8E6A2A]"
-        : "bg-[#FAF6EB] border-[#E6DCC4] text-[#766E63]";
+        : "bg-[#FAF6EB] dark:bg-[#2A2520] border-[#E6DCC4] dark:border-[#3A3127] text-[#766E63] dark:text-[#A89F92]";
 
   return (
-    <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] p-4 mb-3">
+    <div className="rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] p-4 mb-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <span
@@ -2228,7 +2228,7 @@ function LabelsLiveStatus() {
             {pillText}
           </span>
           <div className="mt-2" />
-          <p className="text-[12.5px] text-[#2A2520] leading-relaxed">
+          <p className="text-[12.5px] text-[#2A2520] dark:text-[#FBF4DF] leading-relaxed">
             {detailText}
           </p>
           {lastResult && (
@@ -2244,7 +2244,7 @@ function LabelsLiveStatus() {
         <button
           onClick={syncNow}
           disabled={syncing}
-          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] text-[12px] font-medium text-[#3D6A95] hover:border-[#5E8FBF]/40 hover:bg-[#FAF6EB] disabled:opacity-60 transition-colors"
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] text-[12px] font-medium text-[#3D6A95] hover:border-[#5E8FBF]/40 hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] disabled:opacity-60 transition-colors"
         >
           {syncing ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -2440,7 +2440,7 @@ function LabelsSection() {
       <LabelsLiveStatus />
 
       {/* Preview of the label set */}
-      <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] p-4 mb-5">
+      <div className="rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] p-4 mb-5">
         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#A89F92] mb-3">
           The categories
         </p>
@@ -2456,7 +2456,7 @@ function LabelsSection() {
             </span>
           ))}
         </div>
-        <p className="text-[11.5px] text-[#766E63] mt-3 leading-relaxed">
+        <p className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] mt-3 leading-relaxed">
           Oushi picks the single best category for each email. Updates as the
           state changes — e.g., once you reply, the Respond label is removed.
           You can override any label from inside the email panel.
@@ -2464,13 +2464,13 @@ function LabelsSection() {
       </div>
 
       {/* Apply button */}
-      <div className="rounded-xl border border-[#E6DCC4] bg-[#FFFCF3] p-4 mb-3">
+      <div className="rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] p-4 mb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-medium text-[#2A2520]">
+            <p className="text-[13px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">
               Apply labels to my last {windowLabel} of email
             </p>
-            <p className="text-[11.5px] text-[#766E63] mt-1 leading-relaxed">
+            <p className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] mt-1 leading-relaxed">
               Creates the labels in your Gmail and tags every email from the
               last {windowDays} days. From then on, new emails are auto-labeled
               as Oushi ranks them. Older labels self-heal when you reply or
@@ -2496,18 +2496,18 @@ function LabelsSection() {
           <p className="text-[10.5px] font-medium uppercase tracking-[0.14em] text-[#A89F92]">
             Window
           </p>
-          <div className="inline-flex rounded-md border border-[#E6DCC4] overflow-hidden">
+          <div className="inline-flex rounded-md border border-[#E6DCC4] dark:border-[#3A3127] overflow-hidden">
             {WINDOW_OPTIONS.map((d, idx) => (
               <button
                 key={d}
                 onClick={() => setWindowDays(d)}
                 disabled={busy !== null}
                 className={`text-[11px] px-2.5 py-1 transition-colors ${
-                  idx > 0 ? "border-l border-[#E6DCC4]" : ""
+                  idx > 0 ? "border-l border-[#E6DCC4] dark:border-[#3A3127]" : ""
                 } ${
                   windowDays === d
                     ? "bg-[#3D6A95] text-white font-medium"
-                    : "bg-transparent text-[#766E63] hover:text-[#2A2520] hover:bg-[#FAF6EB]"
+                    : "bg-transparent text-[#766E63] dark:text-[#A89F92] hover:text-[#2A2520] dark:hover:text-[#FBF4DF] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520]"
                 } disabled:opacity-50`}
               >
                 {d === 14 ? "14d" : d === 30 ? "30d" : "60d"}
@@ -2520,7 +2520,7 @@ function LabelsSection() {
         {busy === "apply" && progress && (
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1.5">
-              <p className="text-[11.5px] text-[#766E63]">{phaseLabel(progress)}</p>
+              <p className="text-[11.5px] text-[#766E63] dark:text-[#A89F92]">{phaseLabel(progress)}</p>
               <p className="text-[10.5px] font-mono text-[#A89F92]">{progressPct(progress)}%</p>
             </div>
             <div className="h-1.5 rounded-full bg-[#E6DCC4] overflow-hidden">
@@ -2579,7 +2579,7 @@ function LabelsSection() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setConfirmingReset(false)}
-              className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1"
+              className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] px-2 py-1"
             >
               Cancel
             </button>
@@ -2714,7 +2714,7 @@ function ICalIntegration() {
           </span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-[14px] font-medium text-[#2A2520]">
+              <p className="text-[14px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">
                 Calendar feed (iCal)
               </p>
               {enabled && (
@@ -2724,7 +2724,7 @@ function ICalIntegration() {
                 </span>
               )}
             </div>
-            <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
+            <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] mt-1 leading-relaxed">
               Subscribe to a URL in Google or Apple Calendar and every
               open commitment Oushi tracks shows up alongside your
               meetings. Updates every hour.
@@ -2756,19 +2756,19 @@ function ICalIntegration() {
 
         {/* Feed URL — only shown when enabled */}
         {enabled && state?.feed_url && (
-          <div className="mt-5 pt-5 border-t border-[#E6DCC4]/60 space-y-3">
+          <div className="mt-5 pt-5 border-t border-[#E6DCC4]/60 dark:border-[#3A3127]/60 space-y-3">
             <div>
               <p className="text-[10.5px] font-mono uppercase tracking-[0.14em] text-[#A89F92] mb-1.5">
                 Feed URL
               </p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 min-w-0 truncate rounded-md border border-[#E6DCC4] bg-[#FAF6EB]/50 px-3 py-2 text-[11.5px] font-mono text-[#3F362C]">
+                <code className="flex-1 min-w-0 truncate rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/50 px-3 py-2 text-[11.5px] font-mono text-[#3F362C] dark:text-[#E8D9B8]">
                   {state.feed_url}
                 </code>
                 <button
                   onClick={copyUrl}
                   disabled={busy !== null}
-                  className="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-2 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-2 text-[12px] font-medium text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
                 >
                   {copied ? (
                     <>
@@ -2785,12 +2785,12 @@ function ICalIntegration() {
               </div>
             </div>
 
-            <div className="rounded-lg bg-[#FAF6EB]/40 border border-[#E6DCC4]/60 px-3.5 py-2.5">
-              <p className="text-[11.5px] text-[#766E63] leading-relaxed">
-                <strong className="text-[#3F362C]">Google Calendar:</strong>{" "}
+            <div className="rounded-lg bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 border border-[#E6DCC4]/60 dark:border-[#3A3127]/60 px-3.5 py-2.5">
+              <p className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] leading-relaxed">
+                <strong className="text-[#3F362C] dark:text-[#E8D9B8]">Google Calendar:</strong>{" "}
                 Settings → Add calendar → From URL → paste.
                 <br />
-                <strong className="text-[#3F362C]">Apple Calendar:</strong>{" "}
+                <strong className="text-[#3F362C] dark:text-[#E8D9B8]">Apple Calendar:</strong>{" "}
                 File → New Calendar Subscription → paste.
               </p>
             </div>
@@ -2804,7 +2804,7 @@ function ICalIntegration() {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => setConfirmRegen(false)}
-                    className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1"
+                    className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] px-2 py-1"
                   >
                     Cancel
                   </button>
@@ -2993,7 +2993,7 @@ function SlackIntegration() {
           </span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-[14px] font-medium text-[#2A2520]">
+              <p className="text-[14px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">
                 Slack briefings
               </p>
               {connected && state?.briefing_enabled && (
@@ -3003,15 +3003,15 @@ function SlackIntegration() {
                 </span>
               )}
             </div>
-            <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
+            <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] mt-1 leading-relaxed">
               Get your daily Oushi briefing as a Slack DM in addition to
               email. Less inbox-tab-switching, more "Oushi already told
               me on Slack at 8am."
             </p>
             {connected && state?.team_name && (
-              <p className="text-[11.5px] text-[#766E63] mt-2">
+              <p className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] mt-2">
                 Connected to{" "}
-                <span className="font-medium text-[#3F362C]">
+                <span className="font-medium text-[#3F362C] dark:text-[#E8D9B8]">
                   {state.team_name}
                 </span>
               </p>
@@ -3041,12 +3041,12 @@ function SlackIntegration() {
         ) : (
           <div className="mt-5 space-y-4">
             {/* Briefing toggle */}
-            <div className="flex items-center justify-between gap-4 rounded-lg bg-[#FAF6EB]/40 border border-[#E6DCC4]/60 px-3.5 py-3">
+            <div className="flex items-center justify-between gap-4 rounded-lg bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 border border-[#E6DCC4]/60 dark:border-[#3A3127]/60 px-3.5 py-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[12.5px] font-medium text-[#2A2520]">
+                <p className="text-[12.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">
                   Send daily briefing to Slack
                 </p>
-                <p className="text-[11px] text-[#766E63] mt-0.5">
+                <p className="text-[11px] text-[#766E63] dark:text-[#A89F92] mt-0.5">
                   Posts the same morning prose Oushi emails you, every day.
                 </p>
               </div>
@@ -3074,7 +3074,7 @@ function SlackIntegration() {
               <button
                 onClick={sendTest}
                 disabled={busy !== null}
-                className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-1.5 text-[12px] font-medium text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
               >
                 {busy === "test" ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -3099,7 +3099,7 @@ function SlackIntegration() {
                   </button>
                   <button
                     onClick={() => setConfirmDisconnect(false)}
-                    className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1"
+                    className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] px-2 py-1"
                   >
                     Cancel
                   </button>
@@ -3302,7 +3302,7 @@ function NotionIntegration() {
           </span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-[14px] font-medium text-[#2A2520]">Notion</p>
+              <p className="text-[14px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">Notion</p>
               {connected && state?.enabled && hasAnyTarget && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-[#E8EFE5] border border-[#6B8E68]/30 px-1.5 py-0.5 text-[9.5px] font-mono uppercase tracking-[0.14em] text-[#4F6B4D]">
                   <span className="w-1 h-1 rounded-full bg-[#6B8E68]" />
@@ -3310,14 +3310,14 @@ function NotionIntegration() {
                 </span>
               )}
             </div>
-            <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
+            <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] mt-1 leading-relaxed">
               Save threads to a Notion page with one click, and auto-mirror
               every commitment Oushi extracts into a database row.
             </p>
             {connected && state?.workspace_name && (
-              <p className="text-[11.5px] text-[#766E63] mt-2">
+              <p className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] mt-2">
                 Workspace:{" "}
-                <span className="font-medium text-[#3F362C]">
+                <span className="font-medium text-[#3F362C] dark:text-[#E8D9B8]">
                   {state.workspace_name}
                 </span>
               </p>
@@ -3346,7 +3346,7 @@ function NotionIntegration() {
                 value={state?.page_id || ""}
                 onChange={(e) => pickPage(e.target.value)}
                 disabled={busy !== null}
-                className="w-full rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-2 text-[13px] text-[#2A2520] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors disabled:opacity-60"
+                className="w-full rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-2 text-[13px] text-[#2A2520] dark:text-[#FBF4DF] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors disabled:opacity-60"
               >
                 <option value="">— pick a page —</option>
                 {(state?.pages || []).map((p) => (
@@ -3366,7 +3366,7 @@ function NotionIntegration() {
                 value={state?.database_id || ""}
                 onChange={(e) => pickDatabase(e.target.value)}
                 disabled={busy !== null}
-                className="w-full rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-2 text-[13px] text-[#2A2520] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors disabled:opacity-60"
+                className="w-full rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-2 text-[13px] text-[#2A2520] dark:text-[#FBF4DF] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors disabled:opacity-60"
               >
                 <option value="">— pick a database —</option>
                 {(state?.databases || []).map((d) => (
@@ -3395,12 +3395,12 @@ function NotionIntegration() {
             )}
 
             {/* Enable + actions */}
-            <div className="flex items-center justify-between gap-3 rounded-lg bg-[#FAF6EB]/40 border border-[#E6DCC4]/60 px-3.5 py-3">
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 border border-[#E6DCC4]/60 dark:border-[#3A3127]/60 px-3.5 py-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[12.5px] font-medium text-[#2A2520]">
+                <p className="text-[12.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">
                   Mirror is {state?.enabled ? "active" : "paused"}
                 </p>
-                <p className="text-[11px] text-[#766E63] mt-0.5">
+                <p className="text-[11px] text-[#766E63] dark:text-[#A89F92] mt-0.5">
                   Turn off to stop new threads/commitments from going to Notion.
                 </p>
               </div>
@@ -3428,7 +3428,7 @@ function NotionIntegration() {
               <button
                 onClick={refetch}
                 disabled={busy !== null}
-                className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-1.5 text-[12px] font-medium text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
               >
                 {busy === "refresh" ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -3453,7 +3453,7 @@ function NotionIntegration() {
                   </button>
                   <button
                     onClick={() => setConfirmDisconnect(false)}
-                    className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1"
+                    className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] px-2 py-1"
                   >
                     Cancel
                   </button>
@@ -3557,7 +3557,7 @@ function NotionConnectPanel({
         <div
           className={`rounded-lg border ${
             oauthAvailable
-              ? "border-[#E6DCC4] bg-[#FAF6EB]/40"
+              ? "border-[#E6DCC4] dark:border-[#3A3127] bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40"
               : "border-[#5E8FBF]/30 bg-[#D0E1F0]/15"
           } px-4 py-4`}
         >
@@ -3566,13 +3566,13 @@ function NotionConnectPanel({
               Recommended path
             </p>
           )}
-          <p className="text-[12.5px] font-medium text-[#2A2520] mb-1">
+          <p className="text-[12.5px] font-medium text-[#2A2520] dark:text-[#FBF4DF] mb-1">
             Paste an internal integration token
           </p>
-          <p className="text-[11.5px] text-[#766E63] leading-relaxed mb-3">
+          <p className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] leading-relaxed mb-3">
             Faster than OAuth, no Notion review needed. Three steps:
           </p>
-          <ol className="text-[11.5px] text-[#766E63] leading-relaxed list-decimal pl-4 space-y-1 mb-4">
+          <ol className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] leading-relaxed list-decimal pl-4 space-y-1 mb-4">
             <li>
               Open{" "}
               <a
@@ -3604,7 +3604,7 @@ function NotionConnectPanel({
               onChange={(e) => setToken(e.target.value)}
               placeholder="ntn_••• or secret_•••"
               disabled={submitting}
-              className="flex-1 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-2 text-[13px] font-mono text-[#3F362C] placeholder:text-[#A89F92] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors"
+              className="flex-1 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-2 text-[13px] font-mono text-[#3F362C] dark:text-[#E8D9B8] placeholder:text-[#A89F92] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors"
             />
             <button
               onClick={submitToken}
@@ -3781,7 +3781,7 @@ function WebhookIntegration() {
           </span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-[14px] font-medium text-[#2A2520]">
+              <p className="text-[14px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">
                 Outbound webhook
               </p>
               {isConfigured && state?.enabled && (
@@ -3791,7 +3791,7 @@ function WebhookIntegration() {
                 </span>
               )}
             </div>
-            <p className="text-[12px] text-[#766E63] mt-1 leading-relaxed">
+            <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] mt-1 leading-relaxed">
               Get notified in Zapier / Make / n8n / your own script when
               Oushi labels a new email Respond, extracts a commitment, or
               sends your daily briefing. HMAC-signed so you can trust the
@@ -3821,7 +3821,7 @@ function WebhookIntegration() {
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://hooks.zapier.com/hooks/catch/…"
                 disabled={busy !== null}
-                className="w-full rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-2 text-[13px] font-mono text-[#3F362C] placeholder:text-[#A89F92] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors"
+                className="w-full rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-2 text-[13px] font-mono text-[#3F362C] dark:text-[#E8D9B8] placeholder:text-[#A89F92] focus:border-[#5E8FBF]/50 focus:outline-none focus:ring-2 focus:ring-[#5E8FBF]/15 transition-colors"
               />
             </div>
 
@@ -3834,7 +3834,7 @@ function WebhookIntegration() {
                   Signing secret — copy this now, we won&rsquo;t show it again
                 </p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 min-w-0 truncate rounded-md border border-[#6B8E68]/30 bg-white px-2.5 py-1.5 text-[11.5px] font-mono text-[#3F362C]">
+                  <code className="flex-1 min-w-0 truncate rounded-md border border-[#6B8E68]/30 bg-white px-2.5 py-1.5 text-[11.5px] font-mono text-[#3F362C] dark:text-[#E8D9B8]">
                     {newSecret}
                   </code>
                   <button
@@ -3862,9 +3862,9 @@ function WebhookIntegration() {
             )}
 
             {isConfigured && state?.secret_preview && !newSecret && (
-              <div className="rounded-lg bg-[#FAF6EB]/40 border border-[#E6DCC4]/60 px-3.5 py-2.5 flex items-center gap-2 text-[11.5px] text-[#766E63]">
+              <div className="rounded-lg bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 border border-[#E6DCC4]/60 dark:border-[#3A3127]/60 px-3.5 py-2.5 flex items-center gap-2 text-[11.5px] text-[#766E63] dark:text-[#A89F92]">
                 <span className="text-[#A89F92]">Signing secret:</span>
-                <code className="font-mono text-[#3F362C]">
+                <code className="font-mono text-[#3F362C] dark:text-[#E8D9B8]">
                   {state.secret_preview}
                 </code>
                 <span className="text-[#A89F92]">
@@ -3890,7 +3890,7 @@ function WebhookIntegration() {
                 <button
                   onClick={sendTest}
                   disabled={busy !== null}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-1.5 text-[12px] font-medium text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 transition-colors disabled:opacity-60"
                 >
                   {busy === "test" ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -3917,7 +3917,7 @@ function WebhookIntegration() {
                     </button>
                     <button
                       onClick={() => setConfirmDisconnect(false)}
-                      className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] px-2 py-1"
+                      className="text-[11.5px] text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] px-2 py-1"
                     >
                       Cancel
                     </button>
@@ -3933,25 +3933,25 @@ function WebhookIntegration() {
               )}
             </div>
 
-            <div className="rounded-lg bg-[#FAF6EB]/40 border border-[#E6DCC4]/60 px-3.5 py-2.5">
+            <div className="rounded-lg bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 border border-[#E6DCC4]/60 dark:border-[#3A3127]/60 px-3.5 py-2.5">
               <p className="text-[10.5px] font-mono uppercase tracking-[0.14em] text-[#A89F92] mb-2">
                 Events you&apos;ll receive
               </p>
-              <ul className="text-[11.5px] text-[#766E63] space-y-1 leading-relaxed">
+              <ul className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] space-y-1 leading-relaxed">
                 <li>
-                  <code className="text-[#3F362C]">email.respond_labeled</code>{" "}
+                  <code className="text-[#3F362C] dark:text-[#E8D9B8]">email.respond_labeled</code>{" "}
                   — every new email tagged Respond.
                 </li>
                 <li>
-                  <code className="text-[#3F362C]">commitment.created</code>{" "}
+                  <code className="text-[#3F362C] dark:text-[#E8D9B8]">commitment.created</code>{" "}
                   — Oushi extracted a new promise from your sent email.
                 </li>
                 <li>
-                  <code className="text-[#3F362C]">commitment.fulfilled</code>{" "}
+                  <code className="text-[#3F362C] dark:text-[#E8D9B8]">commitment.fulfilled</code>{" "}
                   — a promise auto-closed because you replied.
                 </li>
                 <li>
-                  <code className="text-[#3F362C]">briefing.sent</code> —
+                  <code className="text-[#3F362C] dark:text-[#E8D9B8]">briefing.sent</code> —
                   your daily digest was emailed.
                 </li>
               </ul>
@@ -3977,8 +3977,8 @@ function FiltersSection({ mutes, onRemove }: { mutes: Mute[]; onRemove: (id: str
         <Card>
           <div className="p-8 text-center">
             <VolumeX className="w-7 h-7 mx-auto text-[#A89F92] mb-3" />
-            <p className="text-[14px] font-medium text-[#2A2520]">Nothing muted yet</p>
-            <p className="mt-1 text-[12px] text-[#766E63]">
+            <p className="text-[14px] font-medium text-[#2A2520] dark:text-[#FBF4DF]">Nothing muted yet</p>
+            <p className="mt-1 text-[12px] text-[#766E63] dark:text-[#A89F92]">
               Use the mute button on any email to add filters here.
             </p>
           </div>
@@ -3992,7 +3992,7 @@ function FiltersSection({ mutes, onRemove }: { mutes: Mute[]; onRemove: (id: str
                   <span className="text-[10px] font-mono uppercase tracking-[0.14em] text-[#A89F92] w-16 shrink-0">
                     {mute.mute_type}
                   </span>
-                  <span className="text-[13px] text-[#2A2520] truncate">{mute.value}</span>
+                  <span className="text-[13px] text-[#2A2520] dark:text-[#FBF4DF] truncate">{mute.value}</span>
                 </div>
                 <button
                   onClick={() => onRemove(mute.id)}
@@ -4070,7 +4070,7 @@ function AccountSection({
           <button
             onClick={onExport}
             disabled={exporting}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-1.5 text-[12px] font-medium text-[#766E63] dark:text-[#A89F92] hover:text-[#3D6A95] hover:border-[#5E8FBF]/40 disabled:opacity-50 transition-colors"
           >
             {exporting ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
             Export
@@ -4085,7 +4085,7 @@ function AccountSection({
         <Row label="Sign out" hint="You'll need to sign back in to access your inbox.">
           <button
             onClick={onSignOut}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#766E63] hover:text-[#2A2520] hover:bg-[#FAF6EB] transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-1.5 text-[12px] font-medium text-[#766E63] dark:text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] transition-colors"
           >
             <LogOut className="w-3 h-3" />
             Sign out
@@ -4099,30 +4099,30 @@ function AccountSection({
           <ShieldAlert className="w-4 h-4 text-[#B86B4A]" />
           <p className="text-[14px] font-semibold text-[#B86B4A]">Danger zone</p>
         </div>
-        <p className="text-[12px] text-[#766E63] mb-4">
+        <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] mb-4">
           Permanent and irreversible. Export your data first if you want to keep it.
         </p>
 
         {!showDeleteConfirm ? (
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#B86B4A]/30 bg-[#FFFCF3] px-3 py-1.5 text-[12px] font-medium text-[#B86B4A] hover:bg-[#F5E8E0]/40"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#B86B4A]/30 bg-[#FFFCF3] dark:bg-[#25201A] px-3 py-1.5 text-[12px] font-medium text-[#B86B4A] hover:bg-[#F5E8E0]/40"
           >
             <Trash2 className="w-3 h-3" />
             Delete my account
           </button>
         ) : (
-          <div className="rounded-md border border-[#B86B4A]/30 bg-[#FFFCF3] p-4">
-            <p className="text-[12px] font-medium text-[#2A2520] mb-2">
+          <div className="rounded-md border border-[#B86B4A]/30 bg-[#FFFCF3] dark:bg-[#25201A] p-4">
+            <p className="text-[12px] font-medium text-[#2A2520] dark:text-[#FBF4DF] mb-2">
               This will permanently delete:
             </p>
-            <ul className="text-[11px] text-[#766E63] list-disc list-inside space-y-0.5 mb-3 ml-1">
+            <ul className="text-[11px] text-[#766E63] dark:text-[#A89F92] list-disc list-inside space-y-0.5 mb-3 ml-1">
               <li>Profile, boards, memories, feedback history</li>
               <li>All synced email metadata</li>
               <li>Gmail connection (in Oushi)</li>
               <li>Your account — fully removed</li>
             </ul>
-            <p className="text-[11px] text-[#766E63] mb-1.5">
+            <p className="text-[11px] text-[#766E63] dark:text-[#A89F92] mb-1.5">
               Type <span className="font-mono font-semibold text-[#B86B4A]">DELETE</span> to confirm:
             </p>
             <input
@@ -4131,7 +4131,7 @@ function AccountSection({
               onChange={(e) => setDeleteConfirmText(e.target.value)}
               placeholder="DELETE"
               disabled={deleting}
-              className="w-full rounded-md border border-[#B86B4A]/30 bg-[#FAF6EB]/40 px-2.5 py-1.5 text-[13px] font-mono text-[#2A2520] focus:outline-none focus:ring-2 focus:ring-[#B86B4A]/20"
+              className="w-full rounded-md border border-[#B86B4A]/30 bg-[#FAF6EB]/40 dark:bg-[#2A2520]/40 px-2.5 py-1.5 text-[13px] font-mono text-[#2A2520] dark:text-[#FBF4DF] focus:outline-none focus:ring-2 focus:ring-[#B86B4A]/20"
             />
             {deleteError && (
               <p className="mt-2 text-[11px] text-[#B86B4A] flex items-center gap-1.5">
@@ -4150,7 +4150,7 @@ function AccountSection({
               <button
                 onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(""); }}
                 disabled={deleting}
-                className="text-[12px] text-[#766E63] hover:text-[#2A2520] px-3 py-1.5"
+                className="text-[12px] text-[#766E63] dark:text-[#A89F92] hover:text-[#2A2520] dark:text-[#FBF4DF] px-3 py-1.5"
               >
                 Cancel
               </button>
