@@ -4,7 +4,6 @@ import Link from "next/link";
 import { motion, type Variants, useInView } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { OushiMark } from "@/components/oushi-mark";
-import { IntegrationsOrbit } from "@/components/integrations-orbit";
 import {
   ArrowRight,
   Sparkles,
@@ -77,8 +76,8 @@ export default function LandingPage() {
               variants={fadeUp}
               className="text-[44px] sm:text-[64px] lg:text-[78px] font-semibold tracking-[-0.02em] leading-[1.04]"
             >
-              An inbox that won&apos;t<br />
-              let you <span className="text-[#5E8FBF]">forget</span>
+              An AI that<br />
+              actually <span className="text-[#5E8FBF]">knows you</span>
               <span className="text-[#A89F92]">.</span>
             </motion.h1>
 
@@ -86,7 +85,7 @@ export default function LandingPage() {
               variants={fadeUp}
               className="mt-7 text-[17px] sm:text-[19px] leading-[1.55] text-[#766E63] max-w-xl mx-auto"
             >
-              Reads your email. Remembers the names, the dates, the deadlines. Writes back like you would. So you stop saying &ldquo;oh shit, I forgot.&rdquo;
+              Oushi reads your email, your meetings, your messages, your docs — and answers anything you ask about your own life. Catches the oh-shit moments before you have them.
             </motion.p>
 
             <motion.div variants={fadeUp} className="mt-10 flex flex-wrap items-center justify-center gap-4">
@@ -119,34 +118,6 @@ export default function LandingPage() {
           </motion.div>
         </section>
 
-        {/* ============= INTEGRATIONS ORBIT =============
-            Sits right after the hero on purpose — the orbit is the
-            strongest visual moment on the page and it earns the second
-            scroll. Tells the "Oushi plugs into your real life, not just
-            email" story before the user reads a single feature card. */}
-        <section className="px-6 py-24 sm:py-32 bg-[#F0E9D6]/30 border-y border-[#E6DCC4]/60 overflow-hidden">
-          <div className="max-w-2xl mx-auto text-center mb-12 sm:mb-16">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#5E8FBF] mb-4">
-              Lives where you do
-            </p>
-            <h2 className="text-[34px] sm:text-[48px] font-semibold tracking-[-0.02em] leading-[1.1]">
-              Plays with your <span className="text-[#5E8FBF]">whole stack</span>.
-            </h2>
-            <p className="mt-5 text-[15px] leading-[1.55] text-[#766E63] max-w-lg mx-auto">
-              Oushi connects to the tools you already work in — your inbox is
-              just where it starts.
-            </p>
-          </div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <IntegrationsOrbit />
-          </motion.div>
-        </section>
-
         {/* ============= HOW IT WORKS (Granola-style cards) ============= */}
         <section id="how" className="px-6 py-20 sm:py-28">
           <div className="max-w-2xl mx-auto text-center mb-14 sm:mb-20">
@@ -154,25 +125,16 @@ export default function LandingPage() {
               What it does
             </p>
             <h2 className="text-[40px] sm:text-[56px] font-semibold tracking-[-0.02em] leading-[1.08]">
-              Like Gmail, but it<br className="hidden sm:block" /> actually <span className="text-[#5E8FBF]">gets you</span>.
+              Like ChatGPT, but it<br className="hidden sm:block" /> actually <span className="text-[#5E8FBF]">knows you</span>.
             </h2>
           </div>
 
           <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-5 sm:gap-6">
             <HowCard
-              icon={<Clock className="w-3 h-3" />}
-              verb="bumps"
-              before="The email you keep meaning to reply to? Oushi"
-              after="it back up."
-            >
-              <FollowupCardDemo />
-            </HowCard>
-
-            <HowCard
-              icon={<Sparkles className="w-3 h-3" />}
-              verb="writes"
-              before="Reads your sent folder, then"
-              after="back like you."
+              icon={<MessageCircle className="w-3 h-3" />}
+              verb="answers"
+              before="Ask in plain English. Oushi"
+              after="from every surface at once."
             >
               <VoiceCardDemo />
             </HowCard>
@@ -180,19 +142,19 @@ export default function LandingPage() {
             <HowCard
               icon={<BrainCircuit className="w-3 h-3" />}
               verb="remembers"
-              before="Your editor's name. Your flight time. Oushi"
-              after="all of it."
+              before="Every promise, every name, every deadline. Oushi"
+              after="so you don't have to."
             >
               <MemoryCardDemo />
             </HowCard>
 
             <HowCard
-              icon={<Sunrise className="w-3 h-3" />}
-              verb="wakes you"
-              before="No more scanning fifty subject lines. Oushi"
-              after="with the 3 things that matter."
+              icon={<Clock className="w-3 h-3" />}
+              verb="catches"
+              before="The thing you almost forgot? Oushi"
+              after="it before you have an oh-shit."
             >
-              <BriefingCardDemo />
+              <FollowupCardDemo />
             </HowCard>
           </div>
         </section>
@@ -201,18 +163,21 @@ export default function LandingPage() {
         <section className="px-6 py-20 sm:py-28 text-center">
           <div className="max-w-xl mx-auto mb-12">
             <h2 className="text-[34px] sm:text-[44px] font-semibold tracking-[-0.02em] leading-[1.1]">
-              Built to feel like<br />
-              <span className="text-[#5E8FBF]">a friend, not a tool</span>.
+              An AI you can<br />
+              <span className="text-[#5E8FBF]">actually talk to</span>.
             </h2>
+            <p className="mt-4 text-[15px] text-[#766E63] leading-[1.55] max-w-md mx-auto">
+              Not a feature checklist. A real assistant that knows what&apos;s in your inbox, your calendar, your meetings, and your docs.
+            </p>
           </div>
 
           <div className="max-w-4xl mx-auto grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <ValueCard icon={<BrainCircuit />} title="Remembers everything" desc="Who your editor is, your trips, what you owe people." />
-            <ValueCard icon={<Send />} title="Send from inside" desc="One tap sends a reply through your Gmail. No tab-switching." />
-            <ValueCard icon={<Calendar />} title="Saves to calendar" desc="Flight bookings, meetings, deadlines — saved without you asking." />
-            <ValueCard icon={<MessageCircle />} title="Ask anything" desc="'Did Sarah reply?' 'What's my flight number?' Plain English." />
-            <ValueCard icon={<Mail />} title="Daily digest" desc="One email every morning. The 2-3 things that matter. Done." />
-            <ValueCard icon={<Shield />} title="Yours alone" desc="Your inbox is yours. Nothing shared. Disconnect or delete anytime." />
+            <ValueCard icon={<MessageCircle />} title="Just ask" desc="&ldquo;What did Sarah say about Q3?&rdquo; Oushi pulls the answer from every surface at once." />
+            <ValueCard icon={<BrainCircuit />} title="Memory that compounds" desc="Names, deadlines, promises, what people said. The longer you use Oushi, the more it knows." />
+            <ValueCard icon={<Sunrise />} title="Morning briefing" desc="The 2-3 things you need to know today. Synthesized from every tool you use." />
+            <ValueCard icon={<Send />} title="Drafts in your voice" desc="Replies to email, Slack, anywhere — written as you, not as ChatGPT." />
+            <ValueCard icon={<Calendar />} title="Catches the oh-shit" desc="Promises about to slip. Birthdays you forgot. Deadlines you didn't see coming." />
+            <ValueCard icon={<Shield />} title="Yours alone" desc="Read-only access. Nothing sold, nothing used to train public models. Disconnect anytime." />
           </div>
         </section>
 
@@ -233,7 +198,8 @@ export default function LandingPage() {
               <span className="text-[#5E8FBF]">I forgot.&rdquo;</span>
             </h2>
             <p className="mt-6 text-[16px] text-[#766E63]">
-              Connect your Gmail in 30 seconds. No card. No commitment.
+              Connect Gmail in 30 seconds. Oushi reads the rest as you go.
+              No card, no commitment.
             </p>
             <Link
               href="/login"
@@ -397,12 +363,30 @@ function ValueCard({
 }
 
 // ============= HERO PREVIEW =============
+//
+// Hero mockup. Shows the core product moment: a user asks Oushi a
+// single question, and Oushi answers by synthesizing across the
+// Google surfaces it reads — Gmail, Calendar, Meet transcripts,
+// Drive docs. This is the artifact that has to make someone go
+// "wait what" in 3 seconds; the entire pitch fits in this one
+// screenshot.
 
-const HERO_BRIEF = "Two things stand out today: Maya is waiting on the Q3 draft (3 days), and your United flight Thursday got upgraded to first class.";
+const HERO_USER_QUESTION = "What's the status of the Acme deal?";
+const HERO_ANSWER_TYPED =
+  "Three things you should know:\n\n• You sent the contract May 14. Still unsigned.\n• Sarah pushed back on NET-30 in Tuesday's email.\n• In Wednesday's Meet call their CEO mentioned NET-60 — that's likely the real ask.\n\nWant me to draft a counter at NET-45?";
+
+const HERO_SOURCE_CHIPS: Array<{ label: string; tone: "mail" | "calendar" | "meet" | "drive" }> = [
+  { label: "gmail · May 14", tone: "mail" },
+  { label: "gmail · Tuesday", tone: "mail" },
+  { label: "meet · Wed call", tone: "meet" },
+  { label: "drive · contract.pdf", tone: "drive" },
+];
 
 function HeroPreview() {
   return (
-    <div className="rounded-2xl border border-[#E6DCC4] bg-[#FFFCF3] shadow-[0_32px_80px_-32px_rgba(94,143,191,0.4)] overflow-hidden">
+    <div className="rounded-2xl border border-[#E6DCC4] bg-[#FFFCF3] shadow-[0_32px_80px_-32px_rgba(94,143,191,0.4)] overflow-hidden text-left">
+      {/* Window chrome — same traffic-light pattern the old mock used,
+          so the visual continuity stays. */}
       <div className="px-4 py-2.5 border-b border-[#E6DCC4]/80 bg-[#FAF6EB]/50 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-[#E0B5B5]" />
@@ -410,36 +394,41 @@ function HeroPreview() {
           <span className="w-2.5 h-2.5 rounded-full bg-[#B5D5C5]" />
         </div>
         <div className="flex items-center gap-1.5">
+          <OushiMark size={14} />
+          <span className="text-[10px] font-mono uppercase tracking-[0.14em] text-[#A89F92]">Ask Oushi</span>
+        </div>
+        <div className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-[#6B8E68] animate-pulse" />
           <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#A89F92]">Live</span>
         </div>
       </div>
-      <div className="grid grid-cols-[170px_1fr] sm:grid-cols-[200px_1fr]">
-        <div className="border-r border-[#E6DCC4]/80 bg-[#FFFCF3] p-3 hidden sm:block">
-          <div className="flex items-center gap-1.5 mb-4 px-1">
-            <OushiMark size={20} />
-            <span className="text-[12px] font-semibold">Oushi</span>
+
+      <div className="p-5 sm:p-7 space-y-4">
+        {/* User message — right-aligned, blue bubble, mirrors the
+            real Ask Oushi chat surface. */}
+        <div className="flex justify-end">
+          <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-[#5E8FBF] text-white px-3.5 py-2 text-[13.5px] leading-[1.5] shadow-sm">
+            {HERO_USER_QUESTION}
           </div>
-          <SidebarItem label="Today" active />
-          <SidebarItem label="Urgent" count={2} tone="terra" />
-          <SidebarItem label="Awaiting reply" count={3} tone="sky" />
-          <SidebarItem label="Following up" count={1} tone="ink" />
-          <div className="mt-3 px-1.5 py-1 text-[8px] font-mono uppercase tracking-[0.14em] text-[#A89F92]">Boards</div>
-          <SidebarItem label="Engineering" count={12} />
-          <SidebarItem label="Family" count={4} />
         </div>
-        <div className="p-5 sm:p-7">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#A89F92] mb-1">
-            Sunday morning
-          </p>
-          <h3 className="text-[20px] sm:text-[24px] font-semibold tracking-tight mb-4 leading-tight">
-            Good morning, Giorgi.
-          </h3>
-          <BriefingTyper text={HERO_BRIEF} />
-          <div className="mt-4 space-y-1.5">
-            <RowMock score={92} sender="Maya Chen" subject="Re: Q3 draft revisions" age="3d" hot />
-            <RowMock score={85} sender="United Airlines" subject="Your flight upgrade is confirmed" age="2h" />
-            <RowMock score={71} sender="Berlin AI Conference" subject="CFP closes Friday" age="5h" />
+
+        {/* Oushi message — left-aligned, cream bubble + sources */}
+        <div className="flex items-start gap-2.5">
+          <div className="w-7 h-7 rounded-md bg-[#D0E1F0] flex items-center justify-center shrink-0 mt-0.5">
+            <Sparkles className="w-3.5 h-3.5 text-[#3D6A95]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-1">
+              Oushi · pulled from 4 sources
+            </p>
+            <div className="rounded-2xl rounded-tl-sm bg-[#FAF6EB] border border-[#E6DCC4] px-3.5 py-2.5 max-w-full">
+              <HeroAnswerTyper text={HERO_ANSWER_TYPED} />
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {HERO_SOURCE_CHIPS.map((s) => (
+                <SourceChip key={s.label} label={s.label} tone={s.tone} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -447,17 +436,44 @@ function HeroPreview() {
   );
 }
 
-function SidebarItem({ label, count, active = false, tone = "default" }: { label: string; count?: number; active?: boolean; tone?: "default" | "terra" | "sky" | "ink" }) {
-  const countColor = tone === "terra" ? "text-[#B86B4A]" : tone === "ink" ? "text-[#3D6A95]" : tone === "sky" ? "text-[#5E8FBF]" : "text-[#A89F92]";
+/**
+ * Per-source pill rendered under Oushi's answer. The tone maps to a
+ * brand color per Google surface — mail terra, calendar amber, meet
+ * ink, drive sage — so at a glance the user sees Oushi pulled from
+ * multiple places. This is the entire pitch in a row of chips.
+ */
+function SourceChip({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: "mail" | "calendar" | "meet" | "drive";
+}) {
+  const styles =
+    tone === "mail"
+      ? "bg-[#F5E8E0]/60 border-[#B86B4A]/30 text-[#A65B3F]"
+      : tone === "calendar"
+        ? "bg-[#FAF1DC]/60 border-[#C99A50]/30 text-[#8E6A2A]"
+        : tone === "meet"
+          ? "bg-[#D0E1F0]/40 border-[#5E8FBF]/30 text-[#3D6A95]"
+          : "bg-[#E8EFE5]/60 border-[#6B8E68]/30 text-[#4F6B4D]";
   return (
-    <div className={`flex items-center justify-between px-1.5 py-1 rounded text-[11px] mb-0.5 ${active ? "bg-[#D0E1F0]/40 text-[#2A2520] font-medium" : "text-[#766E63]"}`}>
-      <span className="truncate">{label}</span>
-      {count !== undefined && <span className={`text-[10px] font-mono ${countColor}`}>{count}</span>}
-    </div>
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10.5px] font-mono ${styles}`}
+    >
+      <span className="w-1 h-1 rounded-full bg-current opacity-70" />
+      {label}
+    </span>
   );
 }
 
-function BriefingTyper({ text }: { text: string }) {
+/**
+ * Types Oushi's answer in over ~2.2s once the hero scrolls into
+ * view. Bullets are preserved via a simple newline split — the
+ * effect is the "AI thinking and answering" feeling without
+ * relying on framer-motion's per-character primitives.
+ */
+function HeroAnswerTyper({ text }: { text: string }) {
   const [displayed, setDisplayed] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-100px" });
@@ -466,49 +482,22 @@ function BriefingTyper({ text }: { text: string }) {
     if (!inView) return;
     let i = 0;
     const interval = setInterval(() => {
-      i++;
+      i += 2; // 2 chars per tick — faster than the old briefing typer
       setDisplayed(text.slice(0, i));
       if (i >= text.length) clearInterval(interval);
     }, 14);
     return () => clearInterval(interval);
   }, [inView, text]);
 
+  // Render with newlines preserved — bullet lines need to wrap.
   return (
-    <div ref={ref} className="rounded-lg border border-[#5E8FBF]/20 bg-[#D0E1F0]/15 p-3.5 flex items-start gap-2.5">
-      <div className="w-5 h-5 rounded-md bg-[#D0E1F0] flex items-center justify-center shrink-0">
-        <Sparkles className="w-2.5 h-2.5 text-[#3D6A95]" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[#5E8FBF] mb-0.5">
-          Oushi
-        </p>
-        <p className="text-[12px] leading-[1.5] text-[#2A2520]">
-          {displayed}
-          {displayed.length < text.length && (
-            <span className="inline-block w-[1.5px] h-[11px] bg-[#5E8FBF] align-middle ml-0.5 animate-pulse" />
-          )}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function RowMock({ score, sender, subject, age, hot }: {
-  score: number; sender: string; subject: string; age: string; hot?: boolean;
-}) {
-  const shade = score >= 90 ? "bg-[#3D6A95] text-white" : score >= 70 ? "bg-[#5E8FBF] text-white" : "bg-[#D0E1F0] text-[#3D6A95]";
-  return (
-    <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-md hover:bg-[#FAF6EB]/60 transition-colors">
-      <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded ${shade} text-[10px] font-semibold`}>
-        {score}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-[12px] font-semibold text-[#2A2520] truncate leading-tight">{sender}</span>
-          <span className={`text-[10px] font-mono shrink-0 ${hot ? "text-[#B86B4A]" : "text-[#A89F92]"}`}>{age}</span>
-        </div>
-        <p className="text-[11px] text-[#766E63] truncate leading-tight mt-0.5">{subject}</p>
-      </div>
+    <div ref={ref}>
+      <p className="text-[13px] leading-[1.6] text-[#2A2520] whitespace-pre-wrap">
+        {displayed}
+        {displayed.length < text.length && (
+          <span className="inline-block w-[1.5px] h-[12px] bg-[#5E8FBF] align-middle ml-0.5 animate-pulse" />
+        )}
+      </p>
     </div>
   );
 }

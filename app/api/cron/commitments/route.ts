@@ -6,8 +6,6 @@ import {
   fetchRecentSent,
   autoFulfillByFollowup,
 } from "@/lib/commitments";
-import { fireWebhook } from "@/lib/webhook";
-import { upsertCommitmentInDatabase } from "@/lib/notion";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -72,17 +70,6 @@ export async function GET(request: Request) {
         for (const r of results) {
           if (r.status !== "fulfilled" || !r.value.c) continue;
           const { s, c } = r.value;
-          // Check first whether this is genuinely new — we only want
-          // to fire the webhook on a true insert, not on a re-upsert
-          // of a commitment we extracted last week.
-          const { data: pre } = await service
-            .from("commitments")
-            .select("id")
-            .eq("user_id", user_id)
-            .eq("gmail_message_id", s.gmail_message_id)
-            .eq("summary", c.summary)
-            .maybeSingle();
-          const isNew = !pre;
           await service.from("commitments").upsert(
             {
               user_id,
@@ -102,53 +89,6 @@ export async function GET(request: Request) {
             { onConflict: "user_id,gmail_message_id,summary", ignoreDuplicates: false }
           );
           extracted++;
-          if (isNew) {
-            void fireWebhook(user_id, "commitment.created", {
-              summary: c.summary,
-              raw_quote: c.raw_quote,
-              due_phrase: c.due_phrase,
-              due_at: c.due_at_iso,
-              urgency: c.urgency || "vague",
-              recipient_email: s.to_email,
-              recipient_name: s.to_name,
-              gmail_message_id: s.gmail_message_id,
-              gmail_thread_id: s.gmail_thread_id,
-            });
-
-            // Mirror to Notion if the user has the integration on with
-            // a database selected. Best-effort — never blocks the cron.
-            try {
-              const { data: integ } = await service
-                .from("user_integrations")
-                .select(
-                  "notion_access_token, notion_database_id, notion_enabled"
-                )
-                .eq("user_id", user_id)
-                .maybeSingle();
-              if (
-                integ?.notion_enabled &&
-                integ.notion_access_token &&
-                integ.notion_database_id
-              ) {
-                void upsertCommitmentInDatabase(
-                  integ.notion_access_token,
-                  integ.notion_database_id,
-                  {
-                    summary: c.summary,
-                    status: "Open",
-                    due_at: c.due_at_iso || null,
-                    recipient: s.to_name || s.to_email || null,
-                    gmail_thread_id: s.gmail_thread_id || null,
-                  }
-                );
-              }
-            } catch (e) {
-              console.error(
-                "[commitments] Notion mirror failed",
-                e instanceof Error ? e.message : e
-              );
-            }
-          }
         }
       }
 
