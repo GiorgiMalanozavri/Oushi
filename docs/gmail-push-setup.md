@@ -1,4 +1,4 @@
-# Gmail Push (real-time labels) — GCP setup
+# Gmail Push (real-time labels): GCP setup
 
 The code shipped in this repo expects three env vars and one Pub/Sub
 subscription. Once they're configured, new emails get labeled in Gmail
@@ -95,7 +95,7 @@ GMAIL_PUSH_AUDIENCE=https://app.oushi.com/api/gmail/push
 GMAIL_PUSH_SA=oushi-push@$PROJECT.iam.gserviceaccount.com
 ```
 
-Set `GMAIL_PUSH_AUDIENCE` to the exact URL Pub/Sub will call — must match `--push-auth-token-audience` above.
+Set `GMAIL_PUSH_AUDIENCE` to the exact URL Pub/Sub will call. It must match `--push-auth-token-audience` above.
 
 ### 8. Add the cron job
 
@@ -117,6 +117,6 @@ Gmail watches expire after 7 days. The refresh cron handles it. Add to `vercel.j
 
 ## What happens if you don't set this up
 
-Everything still works — labels just get applied on the slower
+Everything still works, labels just get applied on the slower
 rank-driven schedule (next dashboard refresh). The `registerGmailWatch`
 call is a no-op when `GMAIL_PUSH_TOPIC` is missing.
