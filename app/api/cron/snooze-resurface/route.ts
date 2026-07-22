@@ -64,7 +64,7 @@ export async function GET(request: Request) {
       await sendPushToUser(service, userId, {
         title: `${who} is back in your inbox`,
         body: r.subject
-          ? `"${r.subject.slice(0, 80)}" — you'd asked me to resurface this.`
+          ? `"${r.subject.slice(0, 80)}", you'd asked me to resurface this.`
           : "An email you snoozed is back.",
         url: `/dashboard?openEmail=${r.id}`,
         tag: `snooze-${r.id}`,

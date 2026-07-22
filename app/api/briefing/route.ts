@@ -86,7 +86,7 @@ export async function GET() {
   const emailLines = list.slice(0, 10).map((e, i) => {
     const ageHrs = Math.round((Date.now() - new Date(e.received_at).getTime()) / 3600000);
     const attach = e.attachments_text ? ` [Attachment: ${e.attachments_text.slice(0, 400)}]` : "";
-    return `${i + 1}. [${e.score}, ${ageHrs}h old, ${e.is_unread ? "unread" : "read"}] ${e.from_name || e.from_email}: ${e.subject}${e.highlight ? ` — ${e.highlight}` : ""}${e.snippet ? ` (preview: ${e.snippet.slice(0, 120)})` : ""}${attach}`;
+    return `${i + 1}. [${e.score}, ${ageHrs}h old, ${e.is_unread ? "unread" : "read"}] ${e.from_name || e.from_email}: ${e.subject}${e.highlight ? `, ${e.highlight}` : ""}${e.snippet ? ` (preview: ${e.snippet.slice(0, 120)})` : ""}${attach}`;
   }).join("\n");
 
   const profileLine = profile ? `User cares about: ${(profile.priorities || []).join(", ")}. Interests: ${(profile.interests || []).join(", ")}.` : "";
@@ -103,7 +103,7 @@ export async function GET() {
       messages: [
         {
           role: "user",
-          content: `${profileLine}\n${memoryBlock ? `\n${memoryBlock}\n` : ""}\nTop emails from the last 3 days:\n${emailLines}\n\nWrite the user's morning briefing. Use the memories above to make it personal — e.g. reference specific people by name, recall ongoing commitments.`,
+          content: `${profileLine}\n${memoryBlock ? `\n${memoryBlock}\n` : ""}\nTop emails from the last 3 days:\n${emailLines}\n\nWrite the user's morning briefing. Use the memories above to make it personal, e.g. reference specific people by name, recall ongoing commitments.`,
         },
       ],
     });

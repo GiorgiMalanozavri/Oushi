@@ -262,7 +262,7 @@ export async function bootstrapPersonalization(
         user_id: userId,
         kind: "person",
         subject: name,
-        content: `${name} (${email}) — frequent contact. ${sig.count} interaction${sig.count === 1 ? "" : "s"} based on initial sent/starred/important signals.`,
+        content: `${name} (${email}), frequent contact. ${sig.count} interaction${sig.count === 1 ? "" : "s"} based on initial sent/starred/important signals.`,
       });
       result.memory_entries_created++;
     } catch {

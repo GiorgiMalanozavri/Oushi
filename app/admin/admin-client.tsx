@@ -453,7 +453,7 @@ export function AdminDashboard({ adminEmail }: { adminEmail: string }) {
         />
         <Card className="mb-10">
           {data && data.recent_feedback.length === 0 ? (
-            <EmptyRow text="No feedback reports yet — testers haven't used the widget." />
+            <EmptyRow text="No feedback reports yet, testers haven't used the widget." />
           ) : (
             <div className="divide-y divide-[#E6DCC4]/50 dark:divide-[#3A3127]/50">
               {data?.recent_feedback.map((f) => (
@@ -499,7 +499,7 @@ export function AdminDashboard({ adminEmail }: { adminEmail: string }) {
         {/* ===== Plan management ===== */}
         <SectionHeader
           title="Plan management"
-          subtitle="Search a beta tester by email and flip them to Pro. No payment processing yet — this is the manual grant flow."
+          subtitle="Search a beta tester by email and flip them to Pro. No payment processing yet, this is the manual grant flow."
         />
         <PlanManagement />
 

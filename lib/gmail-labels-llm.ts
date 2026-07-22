@@ -48,23 +48,23 @@ const SYSTEM_PROMPT = `You classify each email's CONTENT into ONE of:
 - fyi: notifications, status updates, WELCOME / onboarding / "thanks for signing up", info-only with no reply expected (system alerts, build notifications, social updates)
 - communication: real correspondence between people that may require a response
 
-Specific guidance — these are the cases the heuristic gets wrong most often:
+Specific guidance, these are the cases the heuristic gets wrong most often:
 
 1. WELCOME / ONBOARDING emails are FYI, never Receipt.
    • "Thanks for signing up to Oushi" → fyi
    • "Welcome to Linear" → fyi
    • "Verify your email" → fyi
    • "Get started with Notion" → fyi
-   The word "subscription" alone does not mean receipt — only a paid
+   The word "subscription" alone does not mean receipt, only a paid
    subscription confirmation with a charge amount is a receipt.
 
 2. TRAVEL is Receipt.
    • "Your flight to Tokyo" → receipt
-   • "Boarding pass — AA1234" → receipt
+   • "Boarding pass, AA1234" → receipt
    • "Hotel booking confirmation" → receipt
    • "Your trip to Boston is tomorrow" → receipt
    • "Itinerary for your Tokyo trip" → receipt
-   • "Departure reminder — Flight DL204" → receipt
+   • "Departure reminder, Flight DL204" → receipt
    Even though airlines/hotels look like "notifications," the user
    needs these accessible. Treat them as receipts so they live in the
    reference bucket.
@@ -307,7 +307,7 @@ async function enrichContext(
       }>) {
         if (seenThread.has(p.gmail_thread_id)) continue;
         seenThread.add(p.gmail_thread_id);
-        const hint = `${p.subject || ""} — ${(p.snippet || "")
+        const hint = `${p.subject || ""}, ${(p.snippet || "")
           .replace(/\s+/g, " ")
           .trim()
           .slice(0, 200)}`.trim();

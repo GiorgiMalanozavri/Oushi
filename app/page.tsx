@@ -482,7 +482,7 @@ function HeroAnswerTyper({ text }: { text: string }) {
     if (!inView) return;
     let i = 0;
     const interval = setInterval(() => {
-      i += 2; // 2 chars per tick — faster than the old briefing typer
+      i += 2; // 2 chars per tick, faster than the old briefing typer
       setDisplayed(text.slice(0, i));
       if (i >= text.length) clearInterval(interval);
     }, 14);

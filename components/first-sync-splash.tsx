@@ -20,7 +20,7 @@ const STATUS_PHASES = [
   { icon: Sparkles, text: "Learning what matters to you…" },
   { icon: Calendar, text: "Checking your calendar for context…" },
   { icon: Handshake, text: "Looking for promises you've made…" },
-  { icon: BellRing, text: "Almost ready — setting up reminders…" },
+  { icon: BellRing, text: "Almost ready, setting up reminders…" },
 ];
 
 const ROTATION_MS = 4500;

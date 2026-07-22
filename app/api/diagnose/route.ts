@@ -118,13 +118,13 @@ export async function GET() {
       "all_unranked: emails are synced but none have a score yet. Ranking never ran successfully. Hit POST /api/rank or use the dashboard re-rank action.";
   } else if (unranked > 0 && scored < unranked) {
     diagnosis =
-      "mostly_unranked: most emails still have no score — ranking partially failed. Re-rank.";
+      "mostly_unranked: most emails still have no score, ranking partially failed. Re-rank.";
   } else if (dismissed >= total && total > 0) {
     // All emails are dismissed — usually because the user archives in
     // Gmail (which our sync interprets as dismiss). The high-priority
     // ones are hidden behind dismissed_at.
     diagnosis =
-      "all_dismissed: every email in the last 14 days has dismissed_at set — most likely because you archive emails in Gmail and our sync mirrors that as 'dismissed'. The high-priority scored ones are hidden behind the dismiss flag. Use POST /api/email/undismiss-recent to clear the flag and resurface them.";
+      "all_dismissed: every email in the last 14 days has dismissed_at set, most likely because you archive emails in Gmail and our sync mirrors that as 'dismissed'. The high-priority scored ones are hidden behind the dismiss flag. Use POST /api/email/undismiss-recent to clear the flag and resurface them.";
   } else if (dismissed > total * 0.8) {
     // 80%+ dismissed — same root cause but partial. Same fix.
     diagnosis =

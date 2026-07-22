@@ -115,7 +115,7 @@ export default function PrivacyPage() {
               <li>All data at rest is encrypted using industry-standard encryption (AES-256).</li>
               <li>OAuth tokens are stored encrypted in the database and are never shown in our logs or analytics.</li>
               <li>Row-level security is enforced in our database: even if there were a bug in our app, users cannot read each other&apos;s data.</li>
-              <li>We do not store your Google password — only the OAuth tokens Google issues us. Revoke them anytime at <a href="https://myaccount.google.com/connections" target="_blank" rel="noopener noreferrer" className="link">your Google Account → Security → Third-party apps</a>.</li>
+              <li>We do not store your Google password, only the OAuth tokens Google issues us. Revoke them anytime at <a href="https://myaccount.google.com/connections" target="_blank" rel="noopener noreferrer" className="link">your Google Account → Security → Third-party apps</a>.</li>
             </ul>
           </Section>
 
@@ -131,7 +131,7 @@ export default function PrivacyPage() {
           <Section title="8. Your rights">
             <p>You can do all of the following yourself, anytime, from your <Link href="/settings" className="link">Settings</Link> page:</p>
             <ul className="list-disc pl-5 space-y-1.5 text-[15px] text-[#2A2520] leading-relaxed">
-              <li><strong>Export your data:</strong> One-click JSON download of everything Oushi has about you — profile, boards, feedback, synced emails, memories.</li>
+              <li><strong>Export your data:</strong> One-click JSON download of everything Oushi has about you: profile, boards, feedback, synced emails, memories.</li>
               <li><strong>Delete your account:</strong> One-click permanent deletion of everything across all our tables, plus your auth record.</li>
               <li><strong>Disconnect Gmail:</strong> Revoke Oushi&apos;s access via your Google Account at any time. Oushi will stop syncing immediately.</li>
               <li><strong>Edit or delete memories:</strong> View, pin, or forget any specific memory Oushi has formed about you.</li>

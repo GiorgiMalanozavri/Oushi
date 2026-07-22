@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       const day = overdueDays === 0 ? "today" : overdueDays === 1 ? "1 day overdue" : `${overdueDays} days overdue`;
       await sendPushToUser(service, userId, {
         title: `You owe ${who}`,
-        body: `${c.summary} — ${day}.`,
+        body: `${c.summary}, ${day}.`,
         url: "/dashboard?view=promises",
         tag: `commitment-${c.id}`,
         nudgeType: "commitment_overdue",
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
       const who = e.from_name || e.from_email || "Someone";
       await sendPushToUser(service, userId, {
         title: `${who} is waiting on you`,
-        body: `"${(e.subject || "").slice(0, 80)}" — ${ageDays}d unanswered.`,
+        body: `"${(e.subject || "").slice(0, 80)}", ${ageDays}d unanswered.`,
         url: "/dashboard?view=awaiting",
         tag: `awaiting-${e.id}`,
         nudgeType: "awaiting_stale",
@@ -144,7 +144,7 @@ export async function GET(request: Request) {
         title: `${meetingName} ${when}`,
         body: lastLine
           ? `Last from ${who}: "${lastLine}…"`
-          : `Last email from ${who} — worth a glance before you walk in.`,
+          : `Last email from ${who}, worth a glance before you walk in.`,
         url: m.related_email_id
           ? `/dashboard?openEmail=${m.related_email_id}`
           : "/dashboard",

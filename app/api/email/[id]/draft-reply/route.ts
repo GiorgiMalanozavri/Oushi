@@ -4,19 +4,19 @@ import { createAnthropicClient } from "@/lib/claude";
 import { rateLimit } from "@/lib/rate-limit";
 import { getActiveMemories, formatMemoriesForPrompt } from "@/lib/memory";
 
-const REPLY_SYSTEM = `You draft email replies on the user's behalf. The reply should sound like the user wrote it themselves — natural, direct, no corporate filler.
+const REPLY_SYSTEM = `You draft email replies on the user's behalf. The reply should sound like the user wrote it themselves, natural, direct, no corporate filler.
 
 Hard rules:
 - Match the tone of the original email: formal if formal, casual if casual.
 - No "I hope this email finds you well" or filler openers.
-- No signature — the user will add their own.
+- No signature, the user will add their own.
 - No subject line, just the body.
 - Never use em dashes. Use commas or periods instead.
 - If the email is asking a question, answer it concretely (use the user's profile/context).
 - If the email is automated/not really replyable (a receipt, login alert, newsletter), respond with EXACTLY this token and nothing else: NOT_REPLYABLE
 - Otherwise output the reply as plain text. No quotes, no labels, no markdown.
 
-CRITICAL: If a "USER VOICE PROFILE" is provided below, you MUST match it precisely — sentence length, capitalization style, signoff habits, vocabulary, punctuation quirks. This is more important than any default brevity rule. The reply should be indistinguishable from one the user wrote themselves.
+CRITICAL: If a "USER VOICE PROFILE" is provided below, you MUST match it precisely, sentence length, capitalization style, signoff habits, vocabulary, punctuation quirks. This is more important than any default brevity rule. The reply should be indistinguishable from one the user wrote themselves.
 
 If no voice profile is provided, default to 2-5 short sentences.`;
 
@@ -73,11 +73,11 @@ export async function POST(
 
   const body = (email.body_preview || email.snippet || "").slice(0, 4000);
   const attachContext = email.attachments_text
-    ? `\n\nATTACHMENT DETAILS (PDFs/images extracted via OCR — use these specifics in your reply when relevant):\n${email.attachments_text.slice(0, 2000)}`
+    ? `\n\nATTACHMENT DETAILS (PDFs/images extracted via OCR, use these specifics in your reply when relevant):\n${email.attachments_text.slice(0, 2000)}`
     : "";
 
   const followupInstruction = isFollowup
-    ? `\n\nIMPORTANT: This is a FOLLOW-UP, not a reply. The user already sent the last message in this thread ${daysSinceUserSent} day${daysSinceUserSent === 1 ? "" : "s"} ago, and the other person hasn't written back. Draft a SHORT, polite nudge — acknowledge it's been a while, gently re-surface the original question or ask, no guilt-trip. Examples of good follow-up openings: "Hey — circling back on this", "Just bumping this in case it got buried", "Quick nudge on the below". Keep it under 3 sentences.`
+    ? `\n\nIMPORTANT: This is a FOLLOW-UP, not a reply. The user already sent the last message in this thread ${daysSinceUserSent} day${daysSinceUserSent === 1 ? "" : "s"} ago, and the other person hasn't written back. Draft a SHORT, polite nudge, acknowledge it's been a while, gently re-surface the original question or ask, no guilt-trip. Examples of good follow-up openings: "Hey, circling back on this", "Just bumping this in case it got buried", "Quick nudge on the below". Keep it under 3 sentences.`
     : "";
 
   try {

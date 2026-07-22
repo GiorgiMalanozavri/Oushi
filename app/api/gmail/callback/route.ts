@@ -61,7 +61,7 @@ export async function GET(request: Request) {
   // user has previously granted access and prompt=consent didn't reset.
   if (!tokens.refresh_token) {
     console.error(
-      "[gmail/callback] no refresh_token in Google response — user likely needs to revoke access at myaccount.google.com/permissions and try again"
+      "[gmail/callback] no refresh_token in Google response, user likely needs to revoke access at myaccount.google.com/permissions and try again"
     );
     return NextResponse.redirect(
       `${origin}/dashboard?gmailError=no_refresh_token`

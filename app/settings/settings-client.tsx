@@ -294,7 +294,7 @@ export function SettingsClient({
     try {
       const res = await fetch("/api/cron/daily-digest", { method: "POST" });
       const data = await res.json();
-      if (res.ok) setTestDigestResult({ ok: true, message: "Digest sent — check your inbox." });
+      if (res.ok) setTestDigestResult({ ok: true, message: "Digest sent, check your inbox." });
       else setTestDigestResult({ ok: false, message: data.error || "Failed to send" });
     } catch (e) {
       setTestDigestResult({ ok: false, message: e instanceof Error ? e.message : "Network error" });
@@ -851,11 +851,11 @@ function ProfileSection({
           <TagInput value={interests} onChange={setInterests} placeholder="e.g. engineering, AI, design" accent="sage" />
         </StackedField>
         <div className="border-t border-[#E6DCC4] dark:border-[#3A3127]" />
-        <StackedField label="Priorities" hint="What you always care about — Oushi will rank these higher.">
+        <StackedField label="Priorities" hint="What you always care about, Oushi will rank these higher.">
           <TagInput value={priorities} onChange={setPriorities} placeholder="e.g. job offers, interview requests, my advisor" accent="sky" />
         </StackedField>
         <div className="border-t border-[#E6DCC4] dark:border-[#3A3127]" />
-        <StackedField label="Noise" hint="What you'd rather not see — Oushi will down-rank these.">
+        <StackedField label="Noise" hint="What you'd rather not see, Oushi will down-rank these.">
           <TagInput value={noise} onChange={setNoise} placeholder="e.g. crypto pitches, LinkedIn spam, recruiter mail" accent="muted" />
         </StackedField>
       </Card>
@@ -944,7 +944,7 @@ function AutoDraftToggle() {
               </div>
               <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] mt-1 leading-relaxed">
                 When a high-priority email arrives, Oushi writes a draft in
-                your voice and saves it to Gmail&apos;s drafts folder — so
+                your voice and saves it to Gmail&apos;s drafts folder, so
                 the reply is already waiting when you open the thread. One
                 tap to send.
               </p>
@@ -970,7 +970,7 @@ function AutoDraftToggle() {
               aria-checked={enabled === true && !isLocked}
               aria-label={
                 isLocked
-                  ? "Auto-draft is Pro-only — click to upgrade"
+                  ? "Auto-draft is Pro-only, click to upgrade"
                   : "Toggle auto-draft"
               }
               className={`relative shrink-0 inline-flex items-center w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${
@@ -1010,7 +1010,7 @@ function AutoDraftToggle() {
         onClose={() => setUpgradeOpen(false)}
         source="settings-auto-draft"
         headline="Auto-draft is the Pro flagship"
-        subhead="Turn it on and Oushi writes your replies before you open the thread. Pre-Stripe, so we flip Pro on manually — usually within a few hours."
+        subhead="Turn it on and Oushi writes your replies before you open the thread. Pre-Stripe, so we flip Pro on manually, usually within a few hours."
       />
     </>
   );
@@ -1126,7 +1126,7 @@ function PlanSection() {
                   </div>
                   <p className="mt-2 text-[13px] text-[#766E63] dark:text-[#A89F92] leading-relaxed max-w-[420px]">
                     {isPro
-                      ? "You're on Pro — every feature unlocked, no daily caps. Thanks for backing the beta."
+                      ? "You're on Pro, every feature unlocked, no daily caps. Thanks for backing the beta."
                       : "Honest free tier: most features, with a 20-message Ask Oushi cap and no auto-draft. Pro turns everything on."}
                   </p>
                 </div>
@@ -1351,7 +1351,7 @@ function AppearanceSection() {
     <div>
       <SectionHeader
         title="Appearance"
-        description="Choose how the Today view reads — a morning brief in prose, or the classic card list."
+        description="Choose how the Today view reads, a morning brief in prose, or the classic card list."
       />
 
       <Card>
@@ -1362,7 +1362,7 @@ function AppearanceSection() {
                 Today view
               </p>
               <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] leading-relaxed">
-                Narrative is the new default — Oushi writes you a short brief
+                Narrative is the new default, Oushi writes you a short brief
                 with email cards woven in. Classic is the original card list
                 if you prefer the denser triage layout.
               </p>
@@ -1420,7 +1420,7 @@ function AppearanceSection() {
                 </p>
                 <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] leading-relaxed">
                   Light is the warm cream you&apos;re used to. Dark is a warm
-                  manuscript-feel deep brown — easier on the eyes after dark.
+                  manuscript-feel deep brown, easier on the eyes after dark.
                   System follows your OS.
                 </p>
               </div>
@@ -1429,7 +1429,7 @@ function AppearanceSection() {
           </div>
         </Card>
         <p className="mt-3 text-[11.5px] text-[#A89F92] italic leading-relaxed">
-          Dark mode is early — a few smaller surfaces still render light while we
+          Dark mode is early, a few smaller surfaces still render light while we
           finish migrating colors to the token system. Density and time-aware
           warmth shift coming next.
         </p>
@@ -1907,7 +1907,7 @@ function NotificationsSection() {
       if (r.delivered > 0) {
         setTestStatus({ ok: true, message: `Sent to ${r.delivered} device${r.delivered === 1 ? "" : "s"}.` });
       } else if (r.pruned > 0) {
-        setTestStatus({ ok: false, message: "Your subscription was stale — try Re-enable." });
+        setTestStatus({ ok: false, message: "Your subscription was stale, try Re-enable." });
         setSubscribed(false);
       } else {
         setTestStatus({ ok: false, message: "Couldn't deliver. Server may be missing VAPID keys." });
@@ -2182,15 +2182,15 @@ function LabelsLiveStatus() {
   let pillText = "Real-time labeling: on";
   let detailText =
     unlabeled > 0
-      ? `${unlabeled} unlabeled email${unlabeled === 1 ? "" : "s"} waiting — usually clears in seconds when Gmail push fires.`
+      ? `${unlabeled} unlabeled email${unlabeled === 1 ? "" : "s"} waiting, usually clears in seconds when Gmail push fires.`
       : `Every synced email is labeled. Last sync ${formatRelative(status.last_synced_at)}.`;
 
   if (!watchActive) {
     pillTone = "warn";
     pillText = "Cron-only labeling";
     detailText = unlabeled > 0
-      ? `${unlabeled} email${unlabeled === 1 ? "" : "s"} unlabeled. Without a Gmail push watch, new emails wait for the hourly cron — or you can sync now.`
-      : "Real-time push isn't active. The hourly cron will catch new emails — or you can sync now.";
+      ? `${unlabeled} email${unlabeled === 1 ? "" : "s"} unlabeled. Without a Gmail push watch, new emails wait for the hourly cron, or you can sync now.`
+      : "Real-time push isn't active. The hourly cron will catch new emails, or you can sync now.";
   } else if (staleSync && unlabeled > 5) {
     pillTone = "warn";
     pillText = "Sync stale";
@@ -2278,7 +2278,7 @@ function LabelsSection() {
       case "fetching":
         return `Scanning your last ${windowDays} days…`;
       case "fetched":
-        return `Found ${p.count} emails — classifying…`;
+        return `Found ${p.count} emails, classifying…`;
       case "llm_classifying":
         return `Reading ${p.count} ambiguous emails with Claude…`;
       case "classifying":
@@ -2421,7 +2421,7 @@ function LabelsSection() {
     <div>
       <SectionHeader
         title="Gmail labels"
-        description="Oushi categorizes every email and adds a colored label in your Gmail sidebar — so your inbox stays organized even when you're not in Oushi."
+        description="Oushi categorizes every email and adds a colored label in your Gmail sidebar, so your inbox stays organized even when you're not in Oushi."
       />
 
       {/* Live status + manual sync — surfaces "are new emails actually
@@ -2447,7 +2447,7 @@ function LabelsSection() {
         </div>
         <p className="text-[11.5px] text-[#766E63] dark:text-[#A89F92] mt-3 leading-relaxed">
           Oushi picks the single best category for each email. Updates as the
-          state changes — e.g., once you reply, the Respond label is removed.
+          state changes, e.g., once you reply, the Respond label is removed.
           You can override any label from inside the email panel.
         </p>
       </div>
@@ -2463,7 +2463,7 @@ function LabelsSection() {
               Creates the labels in your Gmail and tags every email from the
               last {windowDays} days. From then on, new emails are auto-labeled
               as Oushi ranks them. Older labels self-heal when you reply or
-              dismiss — across the same window.
+              dismiss, across the same window.
             </p>
           </div>
           <button
@@ -2742,7 +2742,7 @@ function AccountSection({
               <li>Profile, boards, memories, feedback history</li>
               <li>All synced email metadata</li>
               <li>Gmail connection (in Oushi)</li>
-              <li>Your account — fully removed</li>
+              <li>Your account, fully removed</li>
             </ul>
             <p className="text-[11px] text-[#766E63] dark:text-[#A89F92] mb-1.5">
               Type <span className="font-mono font-semibold text-[#B86B4A]">DELETE</span> to confirm:

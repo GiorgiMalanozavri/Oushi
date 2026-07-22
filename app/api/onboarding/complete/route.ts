@@ -73,7 +73,7 @@ export async function POST(request: Request) {
             user_id: user.id,
             kind: "person",
             subject: name,
-            content: `${name} (${email}) — marked important during onboarding. Their emails should always be surfaced.`,
+            content: `${name} (${email}), marked important during onboarding. Their emails should always be surfaced.`,
             pinned: true,
             updated_at: new Date().toISOString(),
           },
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
           user_id: user.id,
           kind: "person",
           subject: name,
-          content: `${name} (${email}) — marked important during onboarding.`,
+          content: `${name} (${email}), marked important during onboarding.`,
         });
       }
 
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
         {
           user_id: user.id,
           sender_email: email,
-          reputation: 50, // strong positive — explicit user choice
+          reputation: 50, // strong positive, explicit user choice
           source: "onboarding_important",
           signal_count: 1,
           updated_at: new Date().toISOString(),
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
         subject: tpl.subject,
         text: tpl.text,
         html: tpl.html,
-        from: FROM_GIORGI, // founder warmth — not noreply
+        from: FROM_GIORGI, // founder warmth, not noreply
         tags: [{ name: "type", value: "welcome" }],
       });
       if (sent.ok) {

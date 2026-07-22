@@ -87,7 +87,7 @@ export function SetupChecklist() {
       icon: <Tag className="w-3.5 h-3.5" />,
       title: "Auto-label your Gmail",
       description:
-        "Oushi labels every email — Respond, Awaiting, Receipt, Marketing — directly in your Gmail sidebar.",
+        "Oushi labels every email, Respond, Awaiting, Receipt, Marketing, directly in your Gmail sidebar.",
       href: "/settings?section=labels",
       done: state.labels_enabled,
     },
@@ -150,7 +150,7 @@ export function SetupChecklist() {
           <button
             onClick={dismiss}
             disabled={dismissing}
-            title="Skip — won't ask again"
+            title="Skip, won't ask again"
             className="text-[#A89F92] hover:text-[#3F362C] dark:hover:text-[#FBF4DF] dark:hover:text-[#FBF4DF] p-1 rounded-md hover:bg-[#FAF6EB] dark:hover:bg-[#2A2520] dark:hover:bg-[#2E2820] transition-colors disabled:opacity-50"
           >
             {dismissing ? (

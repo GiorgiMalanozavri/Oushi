@@ -17,8 +17,8 @@ Output ONLY valid JSON in this shape:
 
 Rules:
 - Names must be specific to THIS user's inbox, not generic.
-- Avoid generic names like "Newsletters" or "Promotions" — those are handled separately.
-- Don't suggest "Receipts" — that's also handled.
+- Avoid generic names like "Newsletters" or "Promotions", those are handled separately.
+- Don't suggest "Receipts", that's also handled.
 - Focus on what they ACTUALLY care about based on their profile and what's in the emails.
 - Maximum 8 suggestions.
 - Use distinct colors per topic.`;
@@ -52,7 +52,7 @@ export async function GET() {
     .limit(40);
 
   const emailLines = (emails || []).map((e, i) =>
-    `${i + 1}. ${e.from_name || e.from_email} — ${e.subject}${e.snippet ? `: ${e.snippet.slice(0, 80)}` : ""}`
+    `${i + 1}. ${e.from_name || e.from_email}, ${e.subject}${e.snippet ? `: ${e.snippet.slice(0, 80)}` : ""}`
   ).join("\n");
 
   const profileLine = profile

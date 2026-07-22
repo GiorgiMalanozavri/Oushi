@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const limit = rateLimit(`feedback-report:${user.id}`, 10, 5 * 60 * 1000);
   if (!limit.ok) {
     return NextResponse.json(
-      { error: `Slow down — too many reports. Try again in ${limit.retryAfterSeconds}s.` },
+      { error: `Slow down, too many reports. Try again in ${limit.retryAfterSeconds}s.` },
       { status: 429 }
     );
   }
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   if (message.length < 3) {
     return NextResponse.json(
-      { error: "Tell us a bit more — even a few words helps." },
+      { error: "Tell us a bit more, even a few words helps." },
       { status: 400 }
     );
   }

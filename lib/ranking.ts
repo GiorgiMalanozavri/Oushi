@@ -24,21 +24,21 @@ Output ONLY valid JSON in this exact shape:
 {
   "score": <integer 0-100>,
   "category": "critical" | "useful" | "low_priority" | "noise",
-  "reasoning": "<one sentence, max 15 words — internal note about WHY you scored this way>",
+  "reasoning": "<one sentence, max 15 words, internal note about WHY you scored this way>",
   "requires_action": <boolean>,
   "highlight": "<null OR one sentence, max 25 words, what specifically in this email matches the user's interests/priorities. Speak directly to the user. No em dashes. Return null if nothing specifically matches.>",
   "matched_interests": [<array of strings, the user's exact interest/priority tags this email maps to. Empty array if no match.>],
   "matched_topics": [<array of strings, the user's exact TOPIC BOARD names this email belongs to. Use the names verbatim from the "USER TOPICS" list. An email can belong to multiple topics. Empty array if none apply.>],
   "suggested_action": {
-    "label": "<short imperative button label, max 4 words — e.g. 'Reply yes', 'Add to calendar', 'Save booking number', 'Confirm interview Thursday', 'Forward to team'>",
+    "label": "<short imperative button label, max 4 words, e.g. 'Reply yes', 'Add to calendar', 'Save booking number', 'Confirm interview Thursday', 'Forward to team'>",
     "type": "reply" | "calendar" | "save" | "open" | "ignore",
-    "detail": "<one-line specific suggestion, max 20 words — e.g. 'Reply: Thursday 2pm works for me.' or 'Save confirmation #MYE8MC for your trip on May 12.' Use null if no clear action.>"
+    "detail": "<one-line specific suggestion, max 20 words, e.g. 'Reply: Thursday 2pm works for me.' or 'Save confirmation #MYE8MC for your trip on May 12.' Use null if no clear action.>"
   },
   "memories": [
     {
       "kind": "person" | "project" | "commitment" | "deadline" | "preference" | "context",
-      "subject": "<short entity name, max 60 chars — canonical form, e.g. 'Maya Chen' not 'Maya'>",
-      "content": "<one sentence, max 200 chars — the durable fact to remember>",
+      "subject": "<short entity name, max 60 chars, canonical form, e.g. 'Maya Chen' not 'Maya'>",
+      "content": "<one sentence, max 200 chars, the durable fact to remember>",
       "ttl_days": <integer days this memory stays valid; 30 / 90 / 365 typical>
     }
   ]
@@ -49,7 +49,7 @@ Memory extraction rules (this is the most important part):
 - Extract ONLY things that are TRUE and explicitly in this email. NEVER invent or speculate.
 - DO extract: human relationships and their roles, ongoing projects, commitments the user made, deadlines mentioned, user preferences expressed, durable context about the user's life.
 - DO NOT extract: login alerts, promotional content, generic newsletter facts, anything trivial or auto-generated, anything from automated senders.
-- Subjects must be canonical and specific: "Maya Chen — Verge editor" not "Maya". "Berlin AI conference CFP" not "the conference".
+- Subjects must be canonical and specific: "Maya Chen, Verge editor" not "Maya". "Berlin AI conference CFP" not "the conference".
 - ttl_days: for deadlines, set to days until deadline. People/projects: 90. Preferences/context: 365. Commitments: until the deadline mentioned.
 
 Example good memories (DON'T copy these unless they apply):
@@ -60,14 +60,14 @@ Example good memories (DON'T copy these unless they apply):
 
 Scoring guide:
 - 90-100: time-sensitive AND directly relevant TO THIS USER. An interview invite from a real recruiter, a deadline a real person set for them, a project update from someone they actually work with. Personal correspondence.
-- 75-89: directly relevant but not urgent — a newsletter the user clearly chose, a personally-addressed opportunity from a real human.
+- 75-89: directly relevant but not urgent, a newsletter the user clearly chose, a personally-addressed opportunity from a real human.
 - 50-74: tangentially useful (general updates from orgs they're in, conference CFPs they'd plausibly care about).
 - 25-49: low signal but not noise (broad announcements, generic updates).
-- 0-24: noise — promotions, automated receipts, irrelevant marketing, broadcast aggregator alerts.
+- 0-24: noise, promotions, automated receipts, irrelevant marketing, broadcast aggregator alerts.
 
 CRITICAL: BROADCAST EMAILS ARE NOT URGENT, EVEN WHEN THEY MATCH AN INTEREST.
 The user's interest list ("internships", "engineering jobs", "AI news",
-etc.) is what they want to KNOW about — not what to be interrupted by.
+etc.) is what they want to KNOW about, not what to be interrupted by.
 Score the following as 0-24 (noise) regardless of keyword match:
   - Job-aggregator alerts: Lensa, Indeed, ZipRecruiter, Glassdoor,
     LinkedIn job alerts, Monster, Handshake digests, anything with
@@ -75,13 +75,13 @@ Score the following as 0-24 (noise) regardless of keyword match:
   - Subject patterns like "Be the first to apply", "Just in:", "New
     jobs near you", "Matches your search", "Today's top jobs", "Your
     daily/weekly digest", "We found jobs", "Top stories", "Trending
-    in X" — these are sent to thousands of users.
+    in X", these are sent to thousands of users.
   - Newsletter platforms (Substack, Beehiiv, Mailchimp campaigns)
     unless the user EXPLICITLY listed that newsletter by name.
   - Social-network digests (LinkedIn "comm/" emails, Facebook
     notifications) unless they're a direct person-to-person message.
 A real opportunity for THIS user comes from an individual human or a
-company writing to them personally — not from a broadcast platform.
+company writing to them personally, not from a broadcast platform.
 
 Highlight rules:
 - Only write a highlight if there's a SPECIFIC connection to the user's interests/priorities. Vague matches get null.
@@ -139,8 +139,8 @@ async function rankEmail(
   memoryBlock: string = ""
 ): Promise<RankingResult> {
   const topicsBlock = topics.length > 0
-    ? `\nUSER TOPICS (boards the user wants emails sorted into — one email can match multiple, or none):\n${topics.map((t) => `- "${t.name}"${t.description ? `: ${t.description}` : ""}`).join("\n")}`
-    : `\nUSER TOPICS: (none defined — return empty matched_topics array)`;
+    ? `\nUSER TOPICS (boards the user wants emails sorted into, one email can match multiple, or none):\n${topics.map((t) => `- "${t.name}"${t.description ? `: ${t.description}` : ""}`).join("\n")}`
+    : `\nUSER TOPICS: (none defined, return empty matched_topics array)`;
 
   // Split the prompt into a CACHED block (stable per user across a rank
   // pass — system + profile + memories + topics + feedback) and a FRESH
@@ -384,7 +384,7 @@ export async function rankUnrankedEmails(userId: string) {
             id: email.id,
             score: 25,
             category: "low_priority" as const,
-            reasoning: "Could not rank — defaulting to low priority",
+            reasoning: "Could not rank, defaulting to low priority",
             requires_action: false,
             highlight: null,
             matched_interests: [] as string[],

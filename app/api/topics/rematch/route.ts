@@ -23,7 +23,7 @@ Output ONLY valid JSON in this exact shape:
 Rules:
 - Use the EXACT topic names from the list, not paraphrases.
 - An email can match multiple topics or none.
-- Be discerning — don't shove emails into topics that only loosely relate.`;
+- Be discerning, don't shove emails into topics that only loosely relate.`;
 
 export async function POST() {
   const supabase = await createClient();

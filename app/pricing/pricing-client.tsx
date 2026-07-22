@@ -88,7 +88,7 @@ export function PricingClient() {
                 <span className="text-[#5E8FBF]">Honest later.</span>
               </h1>
               <p className="mt-6 text-[16px] sm:text-[17px] leading-[1.55] text-[#766E63] max-w-xl mx-auto">
-                Oushi is free during beta — connect your Gmail and use the whole
+                Oushi is free during beta, connect your Gmail and use the whole
                 product. When we&apos;re ready to charge, Pro will be{" "}
                 <strong className="text-[#2A2520]">$15/mo</strong> and the free
                 tier will keep most of what matters.
@@ -111,8 +111,8 @@ export function PricingClient() {
 
             {/* Reassurance */}
             <p className="mt-10 max-w-xl mx-auto text-center text-[13px] text-[#766E63] leading-[1.6]">
-              No card to start. No dark patterns when we turn on billing —
-              we&apos;ll email you well before anything changes, and the free
+              No card to start. No dark patterns when we turn on billing.
+              We&apos;ll email you well before anything changes, and the free
               tier above will still cover the things people actually use every
               day.
             </p>
@@ -212,7 +212,7 @@ export function PricingClient() {
                 <FaqRow q="When does Pro actually start charging?">
                   When we&apos;re happy with reliability and a real Stripe flow
                   is wired up. Until then, &ldquo;Pro&rdquo; is flipped on
-                  manually — usually within a few hours of you requesting it —
+                  manually, usually within a few hours of you requesting it,
                   and it&apos;s free during the beta.
                 </FaqRow>
                 <FaqRow q="What if I'm on Pro and you start charging?">
@@ -222,13 +222,13 @@ export function PricingClient() {
                 </FaqRow>
                 <FaqRow q="Why $15 a month?">
                   Because Oushi shouldn&apos;t feel like a luxury good.
-                  Most AI inbox tools land in the $25-$30 range — the goal
+                  Most AI inbox tools land in the $25-$30 range, the goal
                   here is &ldquo;cheaper than dinner.&rdquo; If we can keep
                   our costs down we&apos;ll keep it there.
                 </FaqRow>
                 <FaqRow q="What happens to my data if I cancel?">
                   Your data stays with you. Cancel Pro and you drop back to the
-                  free tier — your boards, memories, and rules don&apos;t
+                  free tier, your boards, memories, and rules don&apos;t
                   vanish, they just respect the free-tier limits going forward.
                   Delete your account anytime to wipe everything.
                 </FaqRow>
@@ -241,7 +241,7 @@ export function PricingClient() {
                   >
                     email us
                   </a>{" "}
-                  — we want to hear what you&apos;d need.
+                 , we want to hear what you&apos;d need.
                 </FaqRow>
               </div>
             </div>
@@ -317,7 +317,7 @@ export function PricingClient() {
         onClose={() => setUpgradeOpen(false)}
         source="pricing-page"
         headline="Ready for Pro?"
-        subhead="We'll flip your account to Pro manually within a few hours — no card needed during beta."
+        subhead="We'll flip your account to Pro manually within a few hours, no card needed during beta."
       />
     </div>
   );

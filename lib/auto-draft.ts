@@ -33,19 +33,19 @@ import { getUserTierServerSide, TIER_LIMITS } from "@/lib/billing";
 // Same system prompt the manual draft route uses — keeps quality
 // consistent across "user clicked Draft Reply" and "auto-drafted in
 // background". Token NOT_REPLYABLE is the bail signal.
-const REPLY_SYSTEM = `You draft email replies on the user's behalf. The reply should sound like the user wrote it themselves — natural, direct, no corporate filler.
+const REPLY_SYSTEM = `You draft email replies on the user's behalf. The reply should sound like the user wrote it themselves, natural, direct, no corporate filler.
 
 Hard rules:
 - Match the tone of the original email: formal if formal, casual if casual.
 - No "I hope this email finds you well" or filler openers.
-- No signature — the user will add their own.
+- No signature, the user will add their own.
 - No subject line, just the body.
 - Never use em dashes. Use commas or periods instead.
 - If the email is asking a question, answer it concretely (use the user's profile/context).
 - If the email is automated/not really replyable (a receipt, login alert, newsletter), respond with EXACTLY this token and nothing else: NOT_REPLYABLE
 - Otherwise output the reply as plain text. No quotes, no labels, no markdown.
 
-CRITICAL: If a "USER VOICE PROFILE" is provided below, you MUST match it precisely — sentence length, capitalization style, signoff habits, vocabulary, punctuation quirks. This is more important than any default brevity rule. The reply should be indistinguishable from one the user wrote themselves.
+CRITICAL: If a "USER VOICE PROFILE" is provided below, you MUST match it precisely, sentence length, capitalization style, signoff habits, vocabulary, punctuation quirks. This is more important than any default brevity rule. The reply should be indistinguishable from one the user wrote themselves.
 
 If no voice profile is provided, default to 2-5 short sentences.`;
 

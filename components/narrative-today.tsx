@@ -685,7 +685,7 @@ export function NarrativeToday({
                         {data.quietly_handled.automated_filtered_today === 1
                           ? ""
                           : "s"}{" "}
-                        (auto-forwards, shift reminders) — already in your inbox,
+                        (auto-forwards, shift reminders), already in your inbox,
                         no action needed.
                       </p>
                     )}

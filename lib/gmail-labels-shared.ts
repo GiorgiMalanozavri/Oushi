@@ -107,7 +107,7 @@ export const OUSHI_LABELS: OushiLabelDef[] = [
     name: "Oushi/6 · FYI",
     shortLabel: "FYI",
     color: { textColor: "#000000", backgroundColor: "#cccccc" },
-    description: "Informational — no reply needed",
+    description: "Informational, no reply needed",
   },
   {
     key: "marketing",

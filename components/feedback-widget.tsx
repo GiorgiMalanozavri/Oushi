@@ -80,7 +80,7 @@ export function FeedbackModal() {
   const send = async () => {
     const text = message.trim();
     if (text.length < 3) {
-      setError("Tell us a bit more — even a few words helps.");
+      setError("Tell us a bit more, even a few words helps.");
       return;
     }
     setSending(true);
@@ -96,7 +96,7 @@ export function FeedbackModal() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Couldn't send — try again?");
+        setError(data.error || "Couldn't send, try again?");
         return;
       }
       setSent(true);
@@ -174,7 +174,7 @@ export function FeedbackModal() {
                     fontFamily: "var(--font-source-serif), Georgia, serif",
                   }}
                 >
-                  Thanks — got it.
+                  Thanks, got it.
                 </p>
                 <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] mt-1">
                   I read every message. I&apos;ll reply if a response makes

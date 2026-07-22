@@ -45,7 +45,7 @@ export function CategorySection({
         <h2 className="text-[15px] font-medium text-text-primary">{title}</h2>
         <span className="font-mono text-xs text-text-muted">
           {collapsed
-            ? `${emails.length} emails hidden — show`
+            ? `${emails.length} emails hidden, show`
             : emails.length}
         </span>
       </button>

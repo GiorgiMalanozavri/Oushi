@@ -61,7 +61,7 @@ export function decrypt(value: string | null | undefined): string {
   }
   const parts = value.split(":");
   // parts = ["enc", "v1", iv, authTag, ciphertext]
-  if (parts.length < 5) return value; // malformed — return as-is
+  if (parts.length < 5) return value; // malformed, return as-is
   const iv = Buffer.from(parts[2], "base64");
   const authTag = Buffer.from(parts[3], "base64");
   const ciphertext = Buffer.from(parts[4], "base64");

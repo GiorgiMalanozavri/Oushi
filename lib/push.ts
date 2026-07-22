@@ -14,7 +14,7 @@ function ensureConfigured() {
   const priv = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT || "mailto:notifications@oushi.app";
   if (!pub || !priv) {
-    console.error("[push] VAPID keys not set — push disabled");
+    console.error("[push] VAPID keys not set, push disabled");
     return false;
   }
   webpush.setVapidDetails(subject, pub, priv);
@@ -69,7 +69,7 @@ export async function sendPushToUser(
             keys: { p256dh: s.p256dh, auth: s.auth },
           },
           JSON.stringify(payload),
-          { TTL: 60 * 60 * 24 } // 24h — best effort
+          { TTL: 60 * 60 * 24 } // 24h, best effort
         );
         delivered++;
         // Update last_used_at lazily (fire-and-forget)

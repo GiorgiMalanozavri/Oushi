@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const limit = rateLimit(`upgrade-req:${user.id}`, 5, 60 * 60 * 1000);
   if (!limit.ok) {
     return NextResponse.json(
-      { error: `Slow down — try again in ${limit.retryAfterSeconds}s.` },
+      { error: `Slow down, try again in ${limit.retryAfterSeconds}s.` },
       { status: 429 }
     );
   }

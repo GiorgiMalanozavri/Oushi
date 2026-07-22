@@ -47,7 +47,7 @@ export function UpgradeModal({
   onClose,
   source = "modal",
   headline = "Unlock everything in Oushi",
-  subhead = "Pro removes every cap and turns on auto-draft. We're still pre-Stripe — request access and we'll flip it on within a few hours.",
+  subhead = "Pro removes every cap and turns on auto-draft. We're still pre-Stripe, request access and we'll flip it on within a few hours.",
 }: UpgradeModalProps) {
   const toast = useToast();
   const [reason, setReason] = useState("");
@@ -91,7 +91,7 @@ export function UpgradeModal({
         throw new Error(data?.error || "Couldn't send your request");
       }
       setSubmitted(true);
-      toast.success("Request sent — we'll be in touch shortly", {
+      toast.success("Request sent, we'll be in touch shortly", {
         detail: "Usually within a few hours during beta.",
       });
     } catch (err) {
@@ -340,7 +340,7 @@ function SubmittedView({ onClose }: { onClose: () => void }) {
       </h2>
       <p className="mt-3 text-[14px] text-[#766E63] dark:text-[#A89F92] leading-relaxed max-w-md mx-auto">
         Your request landed with the team. During the beta we flip Pro on
-        manually — usually within a few hours. You&rsquo;ll get an email at
+        manually, usually within a few hours. You&rsquo;ll get an email at
         the address on your Oushi account.
       </p>
       <button

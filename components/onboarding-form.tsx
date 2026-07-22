@@ -46,7 +46,7 @@ type Phase =
   | "loading"
   | "review"
   | "people"
-  | "activate"   // Feature-toggle wizard — labels / voice / push
+  | "activate"   // Feature-toggle wizard, labels / voice / push
   | "complete";
 
 export function OnboardingForm({
@@ -299,7 +299,7 @@ export function OnboardingForm({
             Connect your Gmail
           </h1>
           <p className="mt-4 text-[15px] text-[#766E63] leading-[1.55] max-w-sm mx-auto">
-            Oushi reads your inbox to learn what matters. Your emails stay yours —
+            Oushi reads your inbox to learn what matters. Your emails stay yours,
             we never share content with anyone, and you can disconnect anytime.
           </p>
 
@@ -929,7 +929,7 @@ function ActivatePhase({ onContinue }: { onContinue: () => void }) {
         <ActivationRow
           number={1}
           title="Label my Gmail"
-          description="Oushi tags every email — Respond, Awaiting, Receipt, Marketing — so your Gmail sidebar is organized."
+          description="Oushi tags every email, Respond, Awaiting, Receipt, Marketing, so your Gmail sidebar is organized."
           state={
             labelsEnabled
               ? "done"

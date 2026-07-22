@@ -178,7 +178,7 @@ export function PromisesView() {
             What you said you&apos;d do.
           </h1>
           <p className="mt-2 text-[14px] text-[#766E63] dark:text-[#A89F92] max-w-lg leading-relaxed">
-            Pulled from your sent mail. If you said &ldquo;I&apos;ll get back to you&rdquo; — it&apos;s here until you do.
+            Pulled from your sent mail. If you said &ldquo;I&apos;ll get back to you&rdquo;, it&apos;s here until you do.
           </p>
         </div>
         <button

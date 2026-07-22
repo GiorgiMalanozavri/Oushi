@@ -39,10 +39,10 @@ export interface EmailRow {
 }
 
 export type Bucket =
-  | "urgent"          // High score, unread, sitting > 4h — needs attention now
+  | "urgent"          // High score, unread, sitting > 4h, needs attention now
   | "awaiting_reply"  // You opened it but never replied (real person, can reply)
-  | "following_up"    // You sent the last message, they've gone silent — time to nudge
-  | "reference"       // Receipts, confirmations, bookings — important but no reply needed
+  | "following_up"    // You sent the last message, they've gone silent, time to nudge
+  | "reference"       // Receipts, confirmations, bookings, important but no reply needed
   | "fresh"           // Recently arrived, scored well
   | "background"      // Lower score, unread but not urgent
   | "handled";        // Replied, read, or low score

@@ -34,7 +34,7 @@ export type ChatMessage = {
   content: string;
   cards?: OushiCard[];
   streaming?: boolean; // true while the assistant is still streaming
-  attachments?: Array<{ filename: string; mime_type: string }>; // metadata only — for history rendering
+  attachments?: Array<{ filename: string; mime_type: string }>; // metadata only, for history rendering
   error?: boolean;
 };
 
@@ -181,11 +181,11 @@ export function AskSpotlight({
 
     for (const f of incoming) {
       if (!ALLOWED_MIME_TYPES.includes(f.type)) {
-        setFileError(`"${f.name}" — only PDF, JPEG, PNG, or WebP supported.`);
+        setFileError(`"${f.name}", only PDF, JPEG, PNG, or WebP supported.`);
         continue;
       }
       if (f.size > MAX_FILE_BYTES_CLIENT) {
-        setFileError(`"${f.name}" — file is over 5MB.`);
+        setFileError(`"${f.name}", file is over 5MB.`);
         continue;
       }
       try {
@@ -197,7 +197,7 @@ export function AskSpotlight({
           data_base64,
         });
       } catch {
-        setFileError(`"${f.name}" — couldn't read the file.`);
+        setFileError(`"${f.name}", couldn't read the file.`);
       }
     }
 
@@ -326,7 +326,7 @@ export function AskSpotlight({
             onClose={() => setUpgradeOpen(false)}
             source="ask-quota"
             headline="Ran out of Ask Oushi for today?"
-            subhead="Pro removes the daily cap entirely — ask as much as you want. We flip Pro on manually during beta, usually within a few hours."
+            subhead="Pro removes the daily cap entirely, ask as much as you want. We flip Pro on manually during beta, usually within a few hours."
           />
         </>
       )}
@@ -379,7 +379,7 @@ function SpotlightInput({
             onEscape();
           }
         }}
-        placeholder={variant === "top" ? "Ask Oushi anything — or drop a PDF…" : "Ask anything, attach files…"}
+        placeholder={variant === "top" ? "Ask Oushi anything, or drop a PDF…" : "Ask anything, attach files…"}
         className="flex-1 resize-none bg-transparent text-[15px] text-[#2A2520] dark:text-[#FBF4DF] outline-none placeholder:text-[#A89F92] leading-[1.45] py-0.5 max-h-[120px]"
       />
 
@@ -446,7 +446,7 @@ function QuotaPill({
     return (
       <span
         className="inline-flex items-center gap-1 rounded-full bg-[#D0E1F0]/40 border border-[#5E8FBF]/20 px-2 py-0.5 text-[10.5px] font-mono text-[#3D6A95]"
-        title="You're on Pro — no daily cap."
+        title="You're on Pro, no daily cap."
       >
         <InfinityIcon className="w-3 h-3" strokeWidth={2.5} />
         <span>unlimited</span>
@@ -466,7 +466,7 @@ function QuotaPill({
       onClick={onUpgrade}
       title={
         isOut
-          ? "Out of messages today — upgrade for unlimited"
+          ? "Out of messages today, upgrade for unlimited"
           : `Free tier · ${remaining} Ask Oushi messages left today`
       }
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10.5px] font-mono transition-colors ${colorClasses}`}

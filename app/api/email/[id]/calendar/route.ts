@@ -12,11 +12,11 @@ const EXTRACT_SYSTEM = `Extract calendar event details from an email. The user w
 Output ONLY valid JSON in this exact shape:
 {
   "title": "<short event title, max 60 chars>",
-  "start": "<ISO datetime e.g. 2026-05-20T15:00:00 — local time, NO timezone suffix>",
-  "end": "<ISO datetime — if not explicit, set to start + 1 hour>",
+  "start": "<ISO datetime e.g. 2026-05-20T15:00:00, local time, NO timezone suffix>",
+  "end": "<ISO datetime, if not explicit, set to start + 1 hour>",
   "location": "<location/venue if mentioned, otherwise null>",
   "description": "<1-2 sentences summarizing what the event is, with key details like confirmation numbers>",
-  "all_day": <boolean — true if the email mentions a date but no specific time>,
+  "all_day": <boolean, true if the email mentions a date but no specific time>,
   "confidence": "high" | "medium" | "low"
 }
 

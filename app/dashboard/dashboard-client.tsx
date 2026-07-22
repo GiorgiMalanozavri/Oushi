@@ -144,7 +144,7 @@ function decodeGmailError(code: string): {
     return {
       title: "Google didn't send back a refresh token.",
       detail:
-        "This usually happens when you've already approved Oushi at least once and Google decided to skip the re-consent. Revoke Oushi's access on your Google account, then try again — Google will issue a fresh refresh token.",
+        "This usually happens when you've already approved Oushi at least once and Google decided to skip the re-consent. Revoke Oushi's access on your Google account, then try again, Google will issue a fresh refresh token.",
       hint: "If your OAuth app is still in pending-verification, also make sure your Google account is added as a test user in Google Cloud Console.",
       actionLink: {
         label: "Open Google account permissions",
@@ -168,7 +168,7 @@ function decodeGmailError(code: string): {
     return {
       title: "Google didn't return an authorization code.",
       detail:
-        "The OAuth flow finished without the code we need. Usually a brief network blip — give it another try.",
+        "The OAuth flow finished without the code we need. Usually a brief network blip, give it another try.",
     };
   }
   if (code.startsWith("token_exchange:")) {
@@ -177,7 +177,7 @@ function decodeGmailError(code: string): {
       detail:
         decodeURIComponent(code.slice("token_exchange:".length)) ||
         "Google rejected the authorization code.",
-      hint: "Codes can only be used once and expire fast — try the connect flow again from the start.",
+      hint: "Codes can only be used once and expire fast, try the connect flow again from the start.",
     };
   }
   if (code.startsWith("storage:") || code.startsWith("storage_exception:")) {
@@ -187,7 +187,7 @@ function decodeGmailError(code: string): {
     return {
       title: "We got the tokens but couldn't save them.",
       detail: detail || "Database write failed.",
-      hint: "This is on our side — try once more. If it keeps failing, ping support.",
+      hint: "This is on our side, try once more. If it keeps failing, ping support.",
     };
   }
   return {
@@ -676,7 +676,7 @@ export function DashboardClient({
       // Final pass: clear streaming flag
       const finalPartial = parsePartialAsk(buffer);
       const finalCards = finalPartial.cards.filter(isOushiCard) as OushiCard[];
-      const finalContent = finalPartial.text || (gotAnyText ? "(no response)" : "Something interrupted the answer — try again?");
+      const finalContent = finalPartial.text || (gotAnyText ? "(no response)" : "Something interrupted the answer, try again?");
       const finalMessages: ChatMessage[] = [
         ...userMessages,
         {
@@ -718,7 +718,7 @@ export function DashboardClient({
           : "network error";
       const friendly =
         reason === "overall_timeout"
-          ? "Took too long — try again with a shorter question."
+          ? "Took too long, try again with a shorter question."
           : reason === "chunk_timeout"
             ? "The answer stalled mid-stream. Try again."
             : "Couldn't reach Oushi.";
@@ -1143,7 +1143,7 @@ export function DashboardClient({
             className="mt-4 text-[16px] text-[#766E63] dark:text-[#A89F92] leading-[1.55] italic max-w-sm mx-auto"
             style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
           >
-            Oushi reads your Gmail and surfaces what matters — quietly, in your
+            Oushi reads your Gmail and surfaces what matters, quietly, in your
             own voice.
           </p>
 
@@ -1349,14 +1349,14 @@ export function DashboardClient({
                       : diagnosis.diagnosis === "all_dismissed" ||
                           diagnosis.diagnosis === "mostly_dismissed"
                         ? `${diagnosis.dismissed_14d} of ${diagnosis.total_14d} emails are marked dismissed.`
-                        : `${diagnosis.total_14d} emails synced — none scored as urgent.`}
+                        : `${diagnosis.total_14d} emails synced, none scored as urgent.`}
                   </p>
                   <p className="text-[12px] text-[#766E63] dark:text-[#A89F92] leading-relaxed">
                     {diagnosis.diagnosis === "mostly_unranked"
-                      ? "Ranking ran but didn't finish — probably timed out. One re-rank should sort it."
+                      ? "Ranking ran but didn't finish, probably timed out. One re-rank should sort it."
                       : diagnosis.diagnosis === "all_dismissed" ||
                           diagnosis.diagnosis === "mostly_dismissed"
-                        ? "Oushi treats Gmail archive as dismiss — so anything you archived in Gmail vanishes from these views, even high-priority threads. Click Resurface to clear that flag for scored emails in the last 14 days."
+                        ? "Oushi treats Gmail archive as dismiss, so anything you archived in Gmail vanishes from these views, even high-priority threads. Click Resurface to clear that flag for scored emails in the last 14 days."
                         : "Either your inbox is genuinely calm, or Oushi doesn't know what matters to you yet. Re-rank with your current profile, or add interests in Settings → Profile to teach it."}
                   </p>
                 </div>
@@ -1398,7 +1398,7 @@ export function DashboardClient({
           <div className="mx-8 mt-6 rounded-xl border border-[#E6DCC4] dark:border-[#3A3127] bg-[#FFFCF3]/70 dark:bg-[#25201A]/70 dark:border-[#3A3127] px-5 py-3.5 flex items-center gap-3">
             <Loader2 className="w-3.5 h-3.5 animate-spin text-[#B86B4A]" />
             <p className="text-[13px] text-[#3F362C] dark:text-[#E8D9B8]">
-              Ranking your inbox — this takes about a minute on first run.
+              Ranking your inbox, this takes about a minute on first run.
             </p>
           </div>
         )}
@@ -1642,7 +1642,7 @@ function ReadableBody({ body }: { body: string }) {
   if (!body || !body.trim()) {
     return (
       <p className="text-[13px] italic text-[#A89F92]">
-        No preview available — open in Gmail to see the original.
+        No preview available, open in Gmail to see the original.
       </p>
     );
   }
@@ -3421,7 +3421,7 @@ function EmailPanel({
 
           {notReplyable && (
             <div className="rounded-md border border-[#E6DCC4] dark:border-[#3A3127] px-3 py-2 text-[12px] text-[#766E63] dark:text-[#A89F92]">
-              This isn&apos;t really replyable — automated notification.
+              This isn&apos;t really replyable, automated notification.
             </div>
           )}
 

@@ -41,8 +41,8 @@ export function EmailCard({ email, onFeedback, onMute }: EmailCardProps) {
       <div className="flex items-center justify-between rounded-xl border border-warm-border bg-white/50 px-5 py-3 transition-all duration-300">
         <p className="text-[13px] text-text-muted">
           {state === "downvoted"
-            ? `"${email.subject}" — noted, less like this`
-            : `Muted — you won't see this again`}
+            ? `"${email.subject}", noted, less like this`
+            : `Muted, you won't see this again`}
         </p>
         <button
           onClick={() => setState("idle")}
@@ -105,7 +105,7 @@ export function EmailCard({ email, onFeedback, onMute }: EmailCardProps) {
             )}
             {state === "upvoted" && (
               <span className="text-[11px] font-medium text-success">
-                More like this — score boosted
+                More like this, score boosted
               </span>
             )}
           </div>

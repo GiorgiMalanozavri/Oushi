@@ -61,7 +61,7 @@ export async function POST() {
   const messageIds = listRes.data.messages || [];
   if (messageIds.length === 0) {
     return NextResponse.json(
-      { error: "No sent emails found — can't learn your voice yet." },
+      { error: "No sent emails found, can't learn your voice yet." },
       { status: 400 }
     );
   }

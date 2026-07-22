@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 
 const emails = [
-  { from: "Prof. Chen", subject: "Thesis review — final comments", score: 94, category: "critical" },
+  { from: "Prof. Chen", subject: "Thesis review, final comments", score: 94, category: "critical" },
   { from: "GitHub", subject: "New issue on your repo", score: 72, category: "useful" },
   { from: "LinkedIn", subject: "15 new job matches", score: 45, category: "low_priority" },
   { from: "Stripe", subject: "Your receipt for $12.00", score: 12, category: "noise" },
   { from: "Alex (team)", subject: "Can you review this PR?", score: 88, category: "critical" },
   { from: "Newsletter", subject: "This week in AI", score: 61, category: "useful" },
-  { from: "Promo", subject: "50% off — ends tonight!", score: 5, category: "noise" },
+  { from: "Promo", subject: "50% off, ends tonight!", score: 5, category: "noise" },
 ];
 
 const categoryColors = {

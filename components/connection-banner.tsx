@@ -84,7 +84,7 @@ export function ConnectionBanner() {
               </p>
               <p className="mt-0.5 text-[12px] text-[#A35A3D] dark:text-[#D9956E] leading-snug">
                 Oushi can&apos;t reach your inbox right now
-                {sinceText ? ` — last failed ${sinceText}` : ""}. New emails
+                {sinceText ? `, last failed ${sinceText}` : ""}. New emails
                 aren&apos;t syncing and labels aren&apos;t updating until you
                 reconnect.
               </p>

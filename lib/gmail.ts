@@ -587,7 +587,7 @@ export async function syncIncremental(userId: string): Promise<{
   // a dismiss in Oushi. TRASH always dismisses (you deleted it). INBOX
   // removal is conditional.
   const shouldMirrorArchive = (state: EmailState | undefined): boolean => {
-    if (!state) return true; // unknown — fall back to old behavior
+    if (!state) return true; // unknown, fall back to old behavior
     if (state.user_replied) return true; // you replied, you're done
     if ((state.score ?? 0) < 30) return true; // low-signal noise
     if (state.category === "noise") return true;

@@ -57,7 +57,7 @@ export function TodayModeToggle({
         }`}
         role="tab"
         aria-selected={mode === "narrative"}
-        title="Narrative — Oushi writes you a brief"
+        title="Narrative: Oushi writes you a brief"
       >
         Narrative
       </button>
@@ -70,7 +70,7 @@ export function TodayModeToggle({
         }`}
         role="tab"
         aria-selected={mode === "classic"}
-        title="Classic — Card list"
+        title="Classic: card list"
       >
         Classic
       </button>

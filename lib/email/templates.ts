@@ -35,13 +35,13 @@ export function welcomeEmail(firstName: string | null): Template {
   const subject = "Welcome to Oushi";
   const text = `${hi}
 
-I'm Giorgi, the person behind Oushi. You're one of the first to try it — thank you.
+I'm Giorgi, the person behind Oushi. You're one of the first to try it. Thank you.
 
 A few things to know:
 
 1. Oushi reads your last 30 days of email, ranks what matters, and labels everything in Gmail. The first sync takes about a minute.
 
-2. The labels won't be perfect. If something's mis-labeled, click it and tell Oushi the right answer — every correction makes the next one better.
+2. The labels won't be perfect. If something's mis-labeled, click it and tell Oushi the right answer. Every correction makes the next one better.
 
 3. If anything's broken or confusing, hit reply on this email. You'll go straight to me.
 
@@ -52,11 +52,11 @@ ${EMAIL_GIORGI}${FOOTER_TEXT}`;
 
   const html = htmlShell(`
     <p style="font-family:Georgia,serif;font-size:24px;margin:0 0 16px;color:#2A2520">${hi}</p>
-    <p>I'm Giorgi, the person behind Oushi. You're one of the first to try it — thank you.</p>
+    <p>I'm Giorgi, the person behind Oushi. You're one of the first to try it. Thank you.</p>
     <p>A few things to know:</p>
     <ol style="padding-left:20px;margin:16px 0">
       <li style="margin-bottom:8px">Oushi reads your last 30 days of email, ranks what matters, and labels everything in Gmail. The first sync takes about a minute.</li>
-      <li style="margin-bottom:8px">The labels won't be perfect. If something's mis-labeled, click it and tell Oushi the right answer — every correction makes the next one better.</li>
+      <li style="margin-bottom:8px">The labels won't be perfect. If something's mis-labeled, click it and tell Oushi the right answer. Every correction makes the next one better.</li>
       <li style="margin-bottom:8px">If anything's broken or confusing, hit reply on this email. You'll go straight to me.</li>
     </ol>
     <p>That's it. Open the app and let me know how it feels.</p>

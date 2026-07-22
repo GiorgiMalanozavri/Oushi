@@ -50,7 +50,7 @@ export interface SentEmailLite {
   body: string;
 }
 
-const SYSTEM_PROMPT = `You analyze an email the user SENT and decide if it contains an OPEN COMMITMENT — something the user promised to do that the user has not yet done.
+const SYSTEM_PROMPT = `You analyze an email the user SENT and decide if it contains an OPEN COMMITMENT, something the user promised to do that the user has not yet done.
 
 A commitment is:
 - The user pledging a future action ("I'll send you the report", "let me check and follow up", "I'll review tomorrow")
@@ -65,7 +65,7 @@ NOT commitments:
 - Things the user is asking the other person to do
 - Statements of preference or opinion
 
-OUTPUT — strict JSON only, no prose:
+OUTPUT, strict JSON only, no prose:
 {
   "has_commitment": true|false,
   "summary": "short imperative phrase, 3-8 words, starts with a verb: 'Send design doc to Sarah'",
