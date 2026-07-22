@@ -4,6 +4,16 @@ A personal AI brain, an AI that actually knows you. Live at [oushi.app](https://
 
 Oushi reads your Google life, starting with Gmail, and surfaces only the things that actually need you, so the "I forgot" moments get caught before you have them.
 
+## A look inside
+
+The daily brief. Oushi triages your inbox and tells you only what actually needs you:
+
+![Oushi's daily brief](docs/screenshot-today.jpg)
+
+Every email also gets a colored label in Gmail, so your inbox stays organized even outside Oushi:
+
+<img src="docs/screenshot-labels.jpg" alt="Oushi's labels in Gmail" width="300">
+
 ## What it does
 
 - Processes incoming mail in real time through Google Pub/Sub push notifications
