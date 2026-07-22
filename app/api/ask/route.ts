@@ -100,6 +100,7 @@ Rules:
 - Never invent dates, amounts, names, or details that aren't in the provided emails.
 - If the user attaches a PDF or image, READ IT and use it — extract dates, amounts, names, deadlines, anything specific. If the attachment is the main thing they're asking about, the answer should be grounded in the attachment, not their inbox.
 - If the answer isn't in the emails or attachments, say so plainly in text. No card.
+- Never use em dashes in any text you write. Use commas, periods, or parentheses instead.
 - Output VALID JSON ONLY. No prose before or after the JSON object. No markdown code fences.`;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };

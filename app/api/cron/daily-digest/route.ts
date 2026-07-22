@@ -18,7 +18,7 @@ Structure:
 1. A one-sentence headline wrapped in:
    <h2 class="oushi-headline">...</h2>
 2. 2-4 short paragraphs, each highlighting ONE important item, wrapped in:
-   <p class="oushi-item"><strong>Sender name</strong> — what they said and why it matters.</p>
+   <p class="oushi-item"><strong>Sender name</strong>: what they said and why it matters.</p>
 3. If a "Waiting on you to reply" item is included, mention how many days it's been sitting.
 
 CRITICAL RULES:
@@ -29,6 +29,7 @@ CRITICAL RULES:
 - Maximum 4 items. Be ruthless.
 - If there is genuinely nothing important, output ONE paragraph saying so casually.
 - Never invent details. Use only what's in the emails provided.
+- Never use em dashes. Use commas, periods, colons, or parentheses instead.
 - Do NOT include any markdown formatting, code fences, or wrapping characters.`;
 
 export async function GET(request: Request) {

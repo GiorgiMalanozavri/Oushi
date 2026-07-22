@@ -25,7 +25,7 @@ const sourceSerif = Source_Serif_4({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: {
-    default: "Oushi — An inbox that won't let you forget.",
+    default: "Oushi: An inbox that won't let you forget.",
     template: "%s · Oushi",
   },
   description: "Oushi reads your email, remembers what matters across every thread, and writes replies that sound like you.",
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    title: "Oushi — An inbox that won't let you forget.",
+    title: "Oushi: An inbox that won't let you forget.",
     description: "Oushi reads your email, remembers what matters across every thread, and writes replies that sound like you.",
     siteName: "Oushi",
     images: [

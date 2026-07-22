@@ -85,7 +85,7 @@ export default function LandingPage() {
               variants={fadeUp}
               className="mt-7 text-[17px] sm:text-[19px] leading-[1.55] text-[#766E63] max-w-xl mx-auto"
             >
-              Oushi reads your email, your meetings, your messages, your docs — and answers anything you ask about your own life. Catches the oh-shit moments before you have them.
+              Oushi reads your email, your meetings, your messages, your docs, and answers anything you ask about your own life. Catches the oh-shit moments before you have them.
             </motion.p>
 
             <motion.div variants={fadeUp} className="mt-10 flex flex-wrap items-center justify-center gap-4">
@@ -175,7 +175,7 @@ export default function LandingPage() {
             <ValueCard icon={<MessageCircle />} title="Just ask" desc="&ldquo;What did Sarah say about Q3?&rdquo; Oushi pulls the answer from every surface at once." />
             <ValueCard icon={<BrainCircuit />} title="Memory that compounds" desc="Names, deadlines, promises, what people said. The longer you use Oushi, the more it knows." />
             <ValueCard icon={<Sunrise />} title="Morning briefing" desc="The 2-3 things you need to know today. Synthesized from every tool you use." />
-            <ValueCard icon={<Send />} title="Drafts in your voice" desc="Replies to email, Slack, anywhere — written as you, not as ChatGPT." />
+            <ValueCard icon={<Send />} title="Drafts in your voice" desc="Replies to email, Slack, anywhere, written as you, not as ChatGPT." />
             <ValueCard icon={<Calendar />} title="Catches the oh-shit" desc="Promises about to slip. Birthdays you forgot. Deadlines you didn't see coming." />
             <ValueCard icon={<Shield />} title="Yours alone" desc="Read-only access. Nothing sold, nothing used to train public models. Disconnect anytime." />
           </div>
@@ -227,7 +227,7 @@ export default function LandingPage() {
               className="text-[16px] text-[#2A2520]"
               style={{ fontFamily: "var(--font-source-serif), Georgia, serif" }}
             >
-              Giorgi Malania — solo founder, shipping in public.
+              Giorgi Malania, solo founder, shipping in public.
             </p>
             <p className="text-[12.5px] text-[#766E63] mt-1.5 leading-relaxed max-w-[560px]">
               Building Oushi because email shouldn&apos;t be where commitments go
@@ -373,7 +373,7 @@ function ValueCard({
 
 const HERO_USER_QUESTION = "What's the status of the Acme deal?";
 const HERO_ANSWER_TYPED =
-  "Three things you should know:\n\n• You sent the contract May 14. Still unsigned.\n• Sarah pushed back on NET-30 in Tuesday's email.\n• In Wednesday's Meet call their CEO mentioned NET-60 — that's likely the real ask.\n\nWant me to draft a counter at NET-45?";
+  "Three things you should know:\n\n• You sent the contract May 14. Still unsigned.\n• Sarah pushed back on NET-30 in Tuesday's email.\n• In Wednesday's Meet call their CEO mentioned NET-60, which is likely the real ask.\n\nWant me to draft a counter at NET-45?";
 
 const HERO_SOURCE_CHIPS: Array<{ label: string; tone: "mail" | "calendar" | "meet" | "drive" }> = [
   { label: "gmail · May 14", tone: "mail" },
@@ -563,7 +563,7 @@ function VoiceCardDemo() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
   const [displayed, setDisplayed] = useState("");
-  const draft = "got it — Thursday works. anything specific for legal?";
+  const draft = "got it, Thursday works. anything specific for legal?";
 
   useEffect(() => {
     if (!inView) return;
@@ -610,7 +610,7 @@ function VoiceCardDemo() {
 
 const MEMS = [
   { kind: "Person", subject: "Maya Chen", content: "Editor at The Verge. Drafts due Thursday." },
-  { kind: "Deadline", subject: "Berlin headshot", content: "Friday — before they can publish." },
+  { kind: "Deadline", subject: "Berlin headshot", content: "Friday, before they can publish." },
   { kind: "Trip", subject: "NYC June 4–8", content: "Staying with sister, dinner with Sarah Sat." },
 ];
 
@@ -643,7 +643,7 @@ function MemoryCardDemo() {
 
 // ============= BRIEFING CARD DEMO =============
 
-const SHORT_BRIEF = "Maya's waiting on the Q3 draft Thursday. Berlin conference accepted your talk — need headshot by Friday. Sarah confirmed dinner Saturday.";
+const SHORT_BRIEF = "Maya's waiting on the Q3 draft Thursday. Berlin conference accepted your talk, need headshot by Friday. Sarah confirmed dinner Saturday.";
 
 function BriefingCardDemo() {
   const ref = useRef<HTMLDivElement>(null);

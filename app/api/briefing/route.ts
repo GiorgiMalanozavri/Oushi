@@ -5,7 +5,7 @@ import { getActiveMemories, formatMemoriesForPrompt } from "@/lib/memory";
 
 const BRIEFING_TTL_MS = 15 * 60 * 1000;
 
-const BRIEFING_SYSTEM = `You are the user's personal email chief of staff. Write a SHORT, conversational morning briefing in the user's own voice — like a chief of staff would, not like a newsletter.
+const BRIEFING_SYSTEM = `You are the user's personal email chief of staff. Write a SHORT, conversational morning briefing in the user's own voice, like a chief of staff would, not like a newsletter.
 
 Rules:
 - 2-3 sentences MAX. Never longer.
@@ -13,10 +13,11 @@ Rules:
 - Be specific: name people, dates, deadlines, dollar amounts when present.
 - No emojis. No bullet lists. Plain prose.
 - Sound human, not corporate. "There's a deadline from..." not "Please be advised that..."
+- Never use em dashes. Use commas, periods, or parentheses instead.
 - If the inbox is quiet, write a single relaxed sentence acknowledging that.
 - Never invent details not in the emails.
 
-Output plain text only — no JSON, no markdown.`;
+Output plain text only. No JSON, no markdown.`;
 
 export async function GET() {
   const supabase = await createClient();

@@ -136,10 +136,10 @@ function leadParagraph(count: number, everSynced: boolean): string {
   if (count === 0) {
     // Truly empty system — first-time user, no synced emails yet
     if (!everSynced) {
-      return "I'm reading your inbox right now. The first sync takes about a minute — Oushi catalogs the last 30 days, scores what matters, and labels everything in your Gmail. Stay on this page; new cards will appear as I work through them.";
+      return "I'm reading your inbox right now. The first sync takes about a minute. Oushi catalogs the last 30 days, scores what matters, and labels everything in your Gmail. Stay on this page; new cards will appear as I work through them.";
     }
     // Has synced email, just nothing urgent today
-    return "Your inbox is in good shape. I've already triaged the noise — nothing here needs you right now. I'll surface anything important the moment it arrives.";
+    return "Your inbox is in good shape. I've already triaged the noise, and nothing here needs you right now. I'll surface anything important the moment it arrives.";
   }
   if (count === 1) {
     return "One thing is waiting on you today.";
@@ -151,7 +151,7 @@ function leadParagraph(count: number, everSynced: boolean): string {
     return "Three things matter today.";
   }
   if (count <= 5) {
-    return `Here's what's calling your attention — ${count} threads worth a look.`;
+    return `Here's what's calling your attention: ${count} threads worth a look.`;
   }
   return `${count} threads worth a look. The rest are quietly handled.`;
 }

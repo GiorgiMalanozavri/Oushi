@@ -26,7 +26,7 @@ Output ONLY valid JSON in this exact shape:
   "category": "critical" | "useful" | "low_priority" | "noise",
   "reasoning": "<one sentence, max 15 words — internal note about WHY you scored this way>",
   "requires_action": <boolean>,
-  "highlight": "<null OR one sentence, max 25 words — what specifically in this email matches the user's interests/priorities. Speak directly to the user. Return null if nothing specifically matches.>",
+  "highlight": "<null OR one sentence, max 25 words, what specifically in this email matches the user's interests/priorities. Speak directly to the user. No em dashes. Return null if nothing specifically matches.>",
   "matched_interests": [<array of strings, the user's exact interest/priority tags this email maps to. Empty array if no match.>],
   "matched_topics": [<array of strings, the user's exact TOPIC BOARD names this email belongs to. Use the names verbatim from the "USER TOPICS" list. An email can belong to multiple topics. Empty array if none apply.>],
   "suggested_action": {
