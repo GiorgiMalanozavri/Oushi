@@ -6,7 +6,11 @@ Oushi reads your Google life, starting with Gmail, and surfaces only the things 
 
 ## A look inside
 
-The daily brief. Oushi triages your inbox and tells you only what actually needs you:
+Ask Oushi anything about your inbox in plain English, and it answers from your own mail with the receipts attached:
+
+![Asking Oushi what is waiting on you](docs/screenshot-chat.jpg)
+
+The daily brief triages your inbox and tells you only what actually needs you:
 
 ![Oushi's daily brief](docs/screenshot-today.jpg)
 
